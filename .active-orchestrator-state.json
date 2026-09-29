@@ -1,0 +1,94 @@
+{
+  "version": 4,
+  "step": "find-skill",
+  "owner": "active-orchestrator",
+  "discovery": {
+    "created_by": "discovery-research",
+    "sources": [],
+    "competitors": [],
+    "problema": "Los turnos de un consultorio odontologico se gestionan con planillas y WhatsApp: hay superposiciones, ausencias sin aviso y no hay agenda centralizada por profesional.",
+    "usuarios": [
+      "Odontologo/a: consulta su agenda",
+      "Recepcionista/secretaria: agenda, cancela y reprograma turnos; gestiona pacientes",
+      "Administrador/dueno: gestiona usuarios y horarios de profesionales",
+      "Paciente: recibe recordatorios por email (sin login en v1)"
+    ],
+    "casos_de_uso": [
+      "Como recepcionista, quiero agendar y gestionar turnos por profesional para evitar superposiciones (MVP)",
+      "Como recepcionista, quiero dar de alta y modificar pacientes para asociarlos a un turno",
+      "Como odontologo/a, quiero ver mi agenda para saber que pacientes atiendo y cuando",
+      "Como paciente, quiero recibir un recordatorio por email para no olvidar mi turno"
+    ],
+    "funcionalidades_necesarias": [
+      "ABM de pacientes",
+      "Agenda por profesional (alta, cancelacion, reprogramacion)",
+      "Recordatorios de turno por email automatico",
+      "Login con roles (odontologo, recepcion, administrador)"
+    ],
+    "funcionalidades_opcionales": [
+      "Historia clinica y odontograma",
+      "Presupuestos y cobros",
+      "Turnos online para pacientes",
+      "Reportes y estadisticas",
+      "Sincronizacion con Google Calendar"
+    ],
+    "reglas_de_negocio": [
+      "Cada profesional tiene sus propios horarios de atencion (dias, horarios, licencias)",
+      "Un profesional no puede tener dos turnos superpuestos"
+    ],
+    "integraciones": [
+      "Servicio de email gratuito para recordatorios (v1)",
+      "Google Calendar (opcional, post-v1)"
+    ],
+    "restricciones": [
+      "Todo gratuito: hosting, email y base de datos",
+      "Datos de pacientes ficticios",
+      "Entrega dentro del plazo de la cursada"
+    ],
+    "riesgos": [
+      "La recepcionista no adopta el sistema y sigue con planilla/WhatsApp",
+      "Conflictos de agenda por licencias y cambios de ultimo momento",
+      "Privacidad de datos de pacientes, aun siendo ficticios",
+      "Supuesto sin probar: los limites del email gratuito alcanzan para los recordatorios de v1"
+    ],
+    "preguntas_abiertas": [
+      "Cuanto antes se envia el recordatorio y el paciente puede confirmar o cancelar?",
+      "La duracion de un turno es fija o depende del tipo de tratamiento?",
+      "Un paciente puede tener varios turnos el mismo dia?",
+      "Quien define y edita los horarios de los profesionales?",
+      "El paciente tiene login en v1 o solo recibe emails?",
+      "Cual es el stack y el hosting gratuito?"
+    ]
+  },
+  "kb": {
+    "created_by": "kb-creator",
+    "source": "interactive",
+    "discovery": {
+      "problem": "Turnos de un consultorio odontologico gestionados con planillas y WhatsApp: superposiciones, ausencias y falta de agenda centralizada",
+      "system_type": "web_app",
+      "domain": "salud / consultorio odontologico",
+      "scale": "team",
+      "stack": "Next.js + Supabase (Postgres/Auth) + Resend",
+      "needs_infra": true
+    },
+    "files": [
+      "knowledge-base/01_vision_y_objetivos.md",
+      "knowledge-base/02_descripcion_general.md",
+      "knowledge-base/03_actores_y_roles.md",
+      "knowledge-base/04_modelo_de_datos.md",
+      "knowledge-base/05_reglas_de_negocio.md",
+      "knowledge-base/06_funcionalidades.md",
+      "knowledge-base/07_flujos_principales.md",
+      "knowledge-base/08_arquitectura_propuesta.md",
+      "knowledge-base/09_decisiones_y_supuestos.md",
+      "knowledge-base/10_preguntas_abiertas.md",
+      "knowledge-base/11_recordatorios_email.md"
+    ]
+  },
+  "roadmap": {
+    "created_by": "roadmap-generator",
+    "source": "CHANGES.md",
+    "changes_file": "CHANGES.md",
+    "changes": ["C-01", "C-02", "C-03", "C-04", "C-05", "C-06", "C-07", "C-08", "C-09", "C-10", "C-11", "C-12", "C-13"]
+  }
+}
