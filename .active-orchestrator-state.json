@@ -90,5 +90,18 @@
     "source": "CHANGES.md",
     "changes_file": "CHANGES.md",
     "changes": ["C-01", "C-02", "C-03", "C-04", "C-05", "C-06", "C-07", "C-08", "C-09", "C-10", "C-11", "C-12", "C-13"]
+  },
+  "skills": {
+    "created_by": "find-skill",
+    "recommended": [
+      {"name": "supabase", "source": "supabase/agent-skills@supabase", "installs": "298.4K", "why": "Official Supabase skill: Auth, Postgres, RLS, client usage with Next.js"},
+      {"name": "supabase-postgres-best-practices", "source": "supabase/agent-skills@supabase-postgres-best-practices", "installs": "421.8K", "why": "Postgres schema/index/RLS best practices for the appointments data model and no-overlap constraint"},
+      {"name": "vercel-react-best-practices", "source": "vercel-labs/agent-skills@vercel-react-best-practices", "installs": "752.6K", "why": "Official Vercel guidance for React/Next.js performance and patterns on Vercel"},
+      {"name": "tdd", "source": "mattpocock/skills@tdd", "installs": "981.1K", "why": "Test-driven development workflow for TypeScript, matches Strict TDD with Vitest"},
+      {"name": "web-design-guidelines", "source": "vercel-labs/agent-skills@web-design-guidelines", "installs": "677.6K", "why": "UI/accessibility review guidelines for the agenda and forms"},
+      {"name": "frontend-design", "source": "anthropics/skills@frontend-design", "installs": "934.1K", "why": "Official Anthropic skill for polished UI (already available locally as frontend-design:frontend-design)"},
+      {"name": "security-and-hardening", "source": "addyosmani/agent-skills@security-and-hardening", "installs": "47.3K", "why": "Hardening for patient-data privacy, auth and roles (lower install count, treat with caution)"}
+    ],
+    "installed": []
   }
 }
