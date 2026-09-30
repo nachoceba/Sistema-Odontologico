@@ -2,23 +2,24 @@
 
 ## Inconsistencias detectadas
 
-### IN-01 — Recordatorio "24 h antes" vs cron gratuito
-**Discovery dice**: recordatorio 24 h antes del turno, con todo el stack gratuito.
-**Restricción dice**: el cron gratuito puede limitarse a una ejecución diaria.
-**Impacto**: el aviso saldría "el día anterior" y no exactamente 24 h antes.
-**Resolución propuesta**: aceptar el envío diario para v1 (DD-06, SU-03) y validar límites reales antes de construir.
+### IN-01 — Recordatorio "24 h antes" vs tarea diaria
+**Discovery dice**: recordatorio 24 h antes del turno.
+**Diseño dice**: una tarea diaria de Celery Beat a la hora `reminder_send_hour`.
+**Impacto**: el aviso sale "el día anterior" y no exactamente 24 h antes.
+**Resolución propuesta**: aceptar el envío diario para v1 (DD-06, SU-03). Con Celery Beat no hay límite de frecuencia, así que pasar a una tarea horaria es una mejora posible. La restricción del cron gratuito de la primera versión del stack ya no aplica.
 
 ### IN-02 — Email en v1 vs integraciones "ninguna en v1"
 **Discovery dice**: en un primer momento "ninguna integración en v1"; luego el email automático pasó a v1.
-**Impacto**: Resend y el job programado entran al alcance de v1 y a la estimación.
+**Impacto**: el servidor SMTP y las tareas de Celery entran al alcance de v1 y a la estimación.
 **Resolución propuesta**: tratarlo como parte de v1 (ya reflejado en `01_vision_y_objetivos.md`).
 
 ## Preguntas abiertas (priorizadas)
 
 | Prioridad | Pregunta | Bloquea | Decisor |
 |-----------|----------|---------|---------|
-| Alta | ¿Qué límites tiene hoy el plan gratuito de Resend sin dominio propio? (SU-02) | Recordatorios | Equipo técnico |
-| Alta | ¿Vercel Cron o pg_cron permiten la frecuencia necesaria? (SU-03) | Recordatorios | Equipo técnico |
+| Alta | ¿Qué proveedor SMTP gratuito se usa en producción o demo y qué cupo tiene? (SU-02) | Recordatorios | Equipo técnico |
+| Alta | ¿La cátedra acepta Celery como herramienta de tareas sobre Redis, o prefiere otra? (DD-10) | Tareas asincrónicas | Profesor |
+| Media | ¿Hace falta refresh token o alcanza con un token de 30 minutos? (SU-07) | Login | Product Owner |
 | Alta | ¿Quién define y edita los horarios de los profesionales? (SU-06) | Matriz RBAC, US-004 | Dueño / Product Owner |
 | Media | Si cambia un horario y hay turnos afectados, ¿se avisa al paciente o solo a recepción? (RN-HO-04) | US-004 | Product Owner |
 | Media | ¿Un paciente puede tener varios turnos el mismo día? (SU-05) | Validación de turnos | Product Owner |

@@ -8,7 +8,7 @@
 | Recepcionista | Atiende teléfono y mostrador | Usa la app; agenda turnos y gestiona pacientes |
 | Odontólogo/a | Profesional que atiende | Usa la app; consulta su agenda y marca el estado de sus turnos |
 | Paciente | Persona atendida | No inicia sesión; recibe emails |
-| Sistema (cron) | Job programado | Llama a `/api/cron/reminders` con secreto |
+| Sistema (tarea programada) | Celery Beat | Dispara cada día el envío de recordatorios; no expone ninguna ruta HTTP |
 
 ## RBAC — Matriz de permisos
 
@@ -30,5 +30,5 @@ Quién edita los horarios de los profesionales es una decisión abierta (ver `10
 
 ## Rutas públicas
 
-- `/login`
-- Ninguna otra: la app completa requiere sesión. Los pacientes no tienen acceso.
+- Pantalla `/login` del frontend y `POST /api/v1/auth/login` en la API.
+- Ninguna otra: toda pantalla y todo endpoint requieren sesión (JWT válido). Los pacientes no tienen acceso.

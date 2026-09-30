@@ -3,7 +3,7 @@
 Cada regla tiene un código único `RN-{DOMINIO}-{NN}` para trazabilidad.
 
 ## Dominio: Autenticación y acceso (RN-AU)
-- **RN-AU-01**: Toda ruta salvo `/login` requiere sesión válida.
+- **RN-AU-01**: Todo endpoint salvo `POST /api/v1/auth/login` requiere un JWT válido; en el frontend toda pantalla salvo `/login` exige sesión.
 - **RN-AU-02**: Cada usuario tiene exactamente un rol (`admin`, `receptionist`, `dentist`) y los permisos salen de `03_actores_y_roles.md`.
 - **RN-AU-03**: Un usuario con `active = false` no puede iniciar sesión.
 - **RN-AU-04**: Un odontólogo solo ve sus propios turnos y horarios.
@@ -36,14 +36,14 @@ Cada regla tiene un código único `RN-{DOMINIO}-{NN}` para trazabilidad.
 ## Dominio: Notificaciones (RN-NO)
 - **RN-NO-01**: Al agendar un turno se envía un email de confirmación.
 - **RN-NO-02**: Antes del turno se envía un recordatorio, solo para turnos `scheduled` (detalle en `11_recordatorios_email.md`).
-- **RN-NO-03**: Se envía como máximo un email por tipo y turno (constraint `UNIQUE (appointment_id, kind)`).
+- **RN-NO-03**: Se envía como máximo un email por tipo, turno y fecha del turno (constraint `UNIQUE (appointment_id, kind, appointment_starts_at)`).
 - **RN-NO-04**: Un fallo de envío se registra (`status = failed`) y nunca impide agendar, cancelar ni reprogramar.
-- **RN-NO-05**: Un turno reprogramado genera un nuevo recordatorio para la nueva fecha; uno cancelado no genera ninguno.
+- **RN-NO-05**: Un turno reprogramado genera notificaciones nuevas para la nueva fecha; las `pending` de la fecha anterior se descartan. Uno cancelado no genera ninguna.
 
 ## Dominio: Datos y privacidad (RN-PR)
 - **RN-PR-01**: En este proyecto solo se usan datos de pacientes ficticios.
-- **RN-PR-02**: Los datos de pacientes solo son accesibles a usuarios autenticados según su rol (RLS + chequeo de aplicación).
-- **RN-PR-03**: Ningún secreto (service role key, API key de email) llega al navegador.
+- **RN-PR-02**: Los datos de pacientes solo son accesibles a usuarios autenticados según su rol (chequeo de rol en la API y en los casos de uso).
+- **RN-PR-03**: Ningún secreto (clave de firma del JWT, credenciales SMTP y de base de datos) llega al navegador ni al repositorio; solo `.env.example` se versiona.
 
 ## Dominio: Excepciones globales
 - **RN-GL-01**: Todas las fechas se guardan en UTC (`timestamptz`) y se muestran en la zona horaria del consultorio (`clinic_settings.timezone`).

@@ -7,7 +7,7 @@ Base de conocimiento generada a partir del Discovery (Q&A en `discovery/discover
 | Archivo | Contenido |
 |---------|-----------|
 | [01_vision_y_objetivos.md](01_vision_y_objetivos.md) | Propósito, objetivos por actor, alcance y fuera de alcance de v1 |
-| [02_descripcion_general.md](02_descripcion_general.md) | Stack (Next.js + Supabase + Resend), arquitectura general e integraciones |
+| [02_descripcion_general.md](02_descripcion_general.md) | Stack (FastAPI + PostgreSQL + Redis + React), arquitectura general e integraciones |
 | [03_actores_y_roles.md](03_actores_y_roles.md) | Actores, matriz RBAC y rutas públicas |
 | [04_modelo_de_datos.md](04_modelo_de_datos.md) | Entidades, ERD, constraints y seed data |
 | [05_reglas_de_negocio.md](05_reglas_de_negocio.md) | Reglas RN-XX por dominio |
@@ -29,4 +29,4 @@ Base de conocimiento generada a partir del Discovery (Q&A en `discovery/discover
 
 ## Resumen Ejecutivo
 
-Aplicación web para gestionar los turnos de un consultorio odontológico: agenda por profesional sin superposiciones (garantizada por la base de datos), ABM de pacientes, login con roles y emails de confirmación y recordatorio. Se construye con Next.js, Supabase y Resend en planes gratuitos, con datos ficticios y prioridad en la mantenibilidad. Antes de programar hay que resolver los puntos de alta prioridad de `10_preguntas_abiertas.md`, sobre todo los límites de Resend y del cron gratuito.
+Aplicación web para gestionar los turnos de un consultorio odontológico: agenda por profesional sin superposiciones (garantizada por la base de datos), ABM de pacientes, login con roles y emails de confirmación y recordatorio. Se construye con el stack de la cátedra (Python y FastAPI, SQLAlchemy, PostgreSQL, Redis y Docker en el backend; React, TypeScript y Vite en el frontend), todo gratuito, con datos ficticios y prioridad en la mantenibilidad. Antes de programar hay que resolver los puntos de alta prioridad de `10_preguntas_abiertas.md`, sobre todo el proveedor SMTP y la elección de Celery.
