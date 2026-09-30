@@ -37,6 +37,25 @@
 **Alternativas consideradas**: recordatorio con confirmar/cancelar mediante token.
 **Trade-offs aceptados**: el paciente no puede actuar desde el email; se consume más cuota de email.
 
+### DD-07 — El MVP se aparta del MVP recomendado por el informe de Discovery
+**Decisión**: v1 incluye pacientes, agenda por profesional, login con roles y recordatorios por email. El informe de Discovery (sección D.3) recomendaba como imprescindibles, además: agenda multi-sillón con duración por prestación, reserva online por enlace, recordatorios por WhatsApp, ficha con odontograma, exportación de datos y registro de auditoría de accesos.
+**Contexto**: presupuesto cero, plazo de cursada y alcance de un único ciclo de desarrollo por change.
+**Alternativas consideradas**: seguir el MVP del informe completo.
+**Justificación**: el producto queda enfocado en el caso de uso principal (agendar sin superposiciones) y se puede terminar y defender. Los sistemas competidores relevados con precio publicado cobran entre ARS 32.800 y 222.999 por mes; un sistema gratuito y acotado ocupa el hueco de consultorios chicos.
+**Trade-offs aceptados**: v1 no alcanza la paridad de mercado en ficha clínica, reserva online ni WhatsApp. Ver `10_preguntas_abiertas.md`.
+
+### DD-08 — Sillones o boxes y duración por prestación quedan fuera de v1
+**Decisión**: se agenda por profesional con slot único (RN-TU-09, RN-TU-10).
+**Contexto**: el informe marca la agenda real por sillón, con duración por prestación y sobreturnos controlados, como una oportunidad de innovación poco evidenciada en el mercado argentino.
+**Justificación**: modelar sillones y prestaciones cambia el esquema, el algoritmo de disponibilidad y el roadmap. Se deja como primera mejora posterior.
+**Trade-offs aceptados**: no se detectan conflictos de sillón entre profesionales.
+
+### DD-09 — Recordatorios por email en lugar de WhatsApp
+**Decisión**: v1 envía recordatorios por email (Resend) y no por WhatsApp.
+**Contexto**: el informe muestra que el recordatorio por WhatsApp ya es estándar en el mercado argentino (Bilog, ClinIA, Livio, iAsistemas, DrApp, Dentalink, Dentiqa y otros). La API oficial de WhatsApp Business cobra por conversación y exige aprobación de plantillas.
+**Justificación**: la restricción de costo cero descarta la API oficial.
+**Trade-offs aceptados**: menor alcance que los competidores. Se evalúa un enlace `wa.me` manual como complemento posterior.
+
 ## Supuestos inferidos
 
 ### SU-01 — Zona horaria única

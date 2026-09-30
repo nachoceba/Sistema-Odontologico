@@ -144,3 +144,13 @@ Organizadas por **épica** y luego por **historia de usuario** (formato US-NNN).
 ## Backlog posterior a v1
 
 Historia clínica y odontograma, presupuestos y cobros, turnos online para pacientes, reportes, confirmar/cancelar desde el email y Google Calendar.
+
+### Clasificación según el informe de Discovery
+
+| Nivel | Funcionalidad | Estado en este proyecto |
+|---|---|---|
+| Estándar de mercado | Agenda multi-profesional, recordatorios, odontograma, presupuestos, reserva online | Agenda y recordatorios por email en v1; el resto fuera de v1 |
+| Diferenciador | Lista de espera, sobreturnos controlados, seña con Mercado Pago, panel de ausentismo | Backlog posterior |
+| Diferenciador | Exportación de datos y registro de accesos | Backlog; el informe no la evidencia en ningún competidor |
+| Etapa posterior | ARCA, obras sociales, receta electrónica, multi-sucursal, reactivación de pacientes | Fuera de v1 |
+| Oportunidad propia | Agenda por sillón con duración por prestación (RN-TU-09, RN-TU-10) | Primera mejora posterior (DD-08) |

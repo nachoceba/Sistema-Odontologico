@@ -15,6 +15,18 @@ Hoy los turnos se coordinan con planillas y WhatsApp, lo que produce superposici
 | Administrador/dueño | Definir los horarios de los profesionales y gestionar usuarios | Supervisar la ocupación de la agenda |
 | Paciente | Recibir confirmación y recordatorio por email | (No inicia sesión en v1) |
 
+## Contexto de mercado (informe de Discovery)
+
+El informe `docs/discovery/informe-discovery.md` relevó 19 sistemas de gestión odontológica (fecha de consulta 2026-09-30).
+
+- **Competidores principales:** ClinIA, Livio, iAsistemas, Bilog, DrApp y Dentalink. Entre los que publican precio, los planes van de ARS 32.800 a ARS 222.999 por mes; Livio cobra ARS 99.000.
+- **Estándar de mercado:** agenda multi-profesional en la nube, recordatorios por WhatsApp, odontograma, historia clínica y presupuestos.
+- **Vacíos relevantes (no evidenciados en los sistemas argentinos):** sobreturnos, lista de espera con oferta de huecos, exportación de datos, agenda por sillón con duración por prestación y reactivación de pacientes.
+- **Oportunidad del proyecto:** precio cero y entrada simple para consultorios chicos, con agenda sin superposiciones garantizada por la base.
+- **Límite:** toda la evidencia es documental y sale de las páginas de cada proveedor; no se probó ninguna demo.
+
+Cómo se aparta este proyecto del MVP recomendado: ver DD-07, DD-08 y DD-09.
+
 ## Alcance v1.0
 
 - Login con roles (administrador, recepción, odontólogo).

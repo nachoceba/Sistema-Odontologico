@@ -1,6 +1,6 @@
 # Sistema Odontológico — Base de Conocimiento
 
-Base de conocimiento generada a partir del Discovery y de la sesión interactiva de definición del proyecto.
+Base de conocimiento generada a partir del Discovery (Q&A en `discovery/discovery.md` e informe de mercado en `docs/discovery/informe-discovery.md`) y de la sesión interactiva de definición del proyecto.
 
 ## Índice de Archivos
 

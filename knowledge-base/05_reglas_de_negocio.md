@@ -29,6 +29,9 @@ Cada regla tiene un código único `RN-{DOMINIO}-{NN}` para trazabilidad.
 - **RN-TU-06**: Reprogramar aplica las mismas validaciones que agendar (RN-TU-01 a RN-TU-04) y no se ejecuta parcialmente.
 - **RN-TU-07**: Solo los estados `completed` y `no_show` se marcan desde el turno ya iniciado; un turno `cancelled` no cambia de estado.
 - **RN-TU-08**: Un paciente puede tener varios turnos el mismo día (suposición SU-05, a validar).
+- **RN-TU-09** (sillones o boxes): en v1 el recurso que se agenda es **el profesional**; no existen sillones ni boxes. Un profesional atiende un turno a la vez y la agenda no controla la ocupación física del consultorio. Es una decisión de alcance (DD-08), no una omisión: el informe de Discovery muestra que solo ClinIA y Órbita evidencian agenda por sillón.
+- **RN-TU-10** (duración de prestaciones): no hay catálogo de prestaciones ni duración por tratamiento. Un tratamiento más largo que `slot_minutes` se agenda con turnos consecutivos (DD-03). La duración variable por prestación queda para una etapa posterior.
+- **RN-TU-11** (sobreturnos): no se permiten. La regla de no superposición (RN-TU-01) no tiene excepciones en v1, y el constraint de la base lo garantiza.
 
 ## Dominio: Notificaciones (RN-NO)
 - **RN-NO-01**: Al agendar un turno se envía un email de confirmación.

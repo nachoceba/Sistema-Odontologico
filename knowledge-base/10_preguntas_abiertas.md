@@ -26,4 +26,14 @@
 | Media | ¿Cuál es la zona horaria del consultorio? (SU-01) | Fechas y cron | Dueño |
 | Baja | ¿Qué duración de slot usa el consultorio realmente: 15, 20, 30 min? | Configuración | Dueño |
 | Baja | ¿Se necesita registrar quién canceló y por qué en más detalle? | Auditoría | Product Owner |
+| Media | Sobreturnos: el informe no los evidencia en ningún sistema. ¿Los necesita el consultorio real? (RN-TU-11) | Regla de agenda | Dueño |
+| Media | Sillones o boxes: no evidenciado como control de conflictos entre profesionales en los sistemas argentinos. ¿El consultorio tiene sillones compartidos? (RN-TU-09) | Modelo de agenda | Dueño |
+| Media | Duración por prestación: ¿qué tratamientos necesitan más de un slot y con qué frecuencia? (RN-TU-10) | Modelo de agenda | Dueño |
+| Media | Lista de espera con oferta de huecos liberados: solo evidenciada en Dentally (Reino Unido). ¿Se prioriza tras v1? | Backlog | Product Owner |
+| Media | Exportación de datos: no evidenciada en ningún competidor. ¿Se ofrece como promesa de portabilidad? | Backlog | Product Owner |
+| Media | Recordatorios por WhatsApp: estándar en el mercado pero incompatible con costo cero. ¿Alcanza el email o se suma un enlace `wa.me` manual? (DD-09) | Estrategia de recordatorios | Product Owner |
+| Baja | Mercado Pago y seña atada al turno: evidenciado en DrApp y en sistemas genéricos, no en los odontológicos. ¿Se evalúa tras v1? | Backlog | Product Owner |
+| Baja | Facturación ARCA y obras sociales: evidenciadas solo en algunos competidores (ClinIA, iAsistemas, DrApp, Bilog, Dentalink). ¿Son decisivas para el consultorio? | Backlog | Dueño |
+| Baja | Precio de Dentalink (USD 29 según un tercero, sin respaldo del sitio oficial): no verificado. | Contexto de mercado | Equipo |
+| Baja | Normativa: Ley 25.326 y Ley 27.706 no fueron contrastadas con su texto. ¿Hace falta revisión legal si el proyecto pasara a datos reales? | Cumplimiento | Dueño |
 | Baja | Adopción: ¿cómo se hace que recepción abandone planilla y WhatsApp? | Éxito del proyecto | Dueño |
