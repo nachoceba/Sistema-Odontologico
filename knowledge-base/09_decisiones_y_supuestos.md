@@ -41,7 +41,7 @@
 **Decisión**: v1 incluye pacientes, agenda por profesional, login con roles y recordatorios por email. El informe de Discovery (sección D.3) recomendaba como imprescindibles, además: agenda multi-sillón con duración por prestación, reserva online por enlace, recordatorios por WhatsApp, ficha con odontograma, exportación de datos y registro de auditoría de accesos.
 **Contexto**: presupuesto cero, plazo de cursada y alcance de un único ciclo de desarrollo por change.
 **Alternativas consideradas**: seguir el MVP del informe completo.
-**Justificación**: el producto queda enfocado en el caso de uso principal (agendar sin superposiciones) y se puede terminar y defender. Los sistemas competidores relevados con precio publicado cobran entre ARS 32.800 y 222.999 por mes; un sistema gratuito y acotado ocupa el hueco de consultorios chicos.
+**Justificación**: el producto queda enfocado en el caso de uso principal (agendar sin superposiciones) y se puede terminar y defender. Los sistemas competidores relevados con precio publicado cobran desde ARS 32.800 por profesional al mes hasta ARS 222.999 (plan de hasta 10 profesionales); un sistema gratuito y acotado ocupa el hueco de consultorios chicos.
 **Trade-offs aceptados**: v1 no alcanza la paridad de mercado en ficha clínica, reserva online ni WhatsApp. Ver `10_preguntas_abiertas.md`.
 
 ### DD-08 — Sillones o boxes y duración por prestación quedan fuera de v1

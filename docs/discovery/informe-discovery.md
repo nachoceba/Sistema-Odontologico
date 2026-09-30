@@ -275,7 +275,7 @@ Revisé cinco fuentes: Livio, iAsistemas y ClinIA (sitios oficiales y precios), 
 
 Lo que me llevo para el proyecto:
 - Los recordatorios por WhatsApp ya son lo normal en el mercado. Yo había decidido hacerlos por email para que todo sea gratuito, y eso es una limitación que tengo que tener presente.
-- Los sistemas pagos que relevé salen entre $62.000 y $99.000 por mes. Un sistema gratuito para consultorios chicos tiene lugar, y eso justifica el recorte del MVP a pacientes, agenda, login con roles y recordatorios.
+- Los sistemas pagos que relevé salen desde $32.800 por profesional al mes hasta $222.999 (plan de hasta 10 profesionales). Un sistema gratuito para consultorios chicos tiene lugar, y eso justifica el recorte del MVP a pacientes, agenda, login con roles y recordatorios.
 - Casi nadie muestra sobreturnos, lista de espera ni exportación de datos. Son cosas que puedo dejar para después, pero las anoto como oportunidad.
 - El informe no se cruzó con la base de conocimiento ni con `CHANGES.md`. Queda pendiente revisar si algo de lo que salió acá cambia el plan.
 

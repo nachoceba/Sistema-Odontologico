@@ -242,6 +242,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 - **Scope**:
   - US-006: `/agenda` con vista diaria y semanal por profesional
   - Slots libres, ocupados y fuera de horario diferenciados (usa `computeSlots` de C-05 y horarios/licencias de C-07)
+  - Consulta de solo lectura de los turnos del rango visible (query propia, sin depender de los casos de uso de C-08)
   - Selector de profesional para admin/recepción; odontólogo ve solo la propia (RN-AU-04)
   - Pantalla de inicio por rol tras el login
   - Componentes de UI reutilizables (grilla de slots, navegación de fechas); fechas mostradas en zona del consultorio
@@ -326,6 +327,68 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `knowledge-base/11_recordatorios_email.md` §Límites y riesgos
   - `knowledge-base/01_vision_y_objetivos.md`
   - `knowledge-base/10_preguntas_abiertas.md`
+
+---
+
+## Alineación con el informe de Discovery (sección D.3)
+
+El informe `docs/discovery/informe-discovery.md` recomienda un MVP en tres niveles. Esta tabla muestra qué cubre este roadmap y qué queda afuera, con el motivo (decisiones DD-07, DD-08 y DD-09 de `knowledge-base/09_decisiones_y_supuestos.md`).
+
+### Imprescindible según el informe
+
+| Recomendación del informe (D.3, Imprescindible) | Cobertura | Change | Justificación si no se cubre |
+|---|---|---|---|
+| Agenda multi-profesional con prevención de solapamientos | Cubierta | C-02, C-05, C-07, C-08, C-09, C-10 | — |
+| Agenda multi-sillón/box con duración por prestación y bloqueos | **Parcial**: solo bloqueos por día completo (licencias) y slot fijo; sin bloqueos horarios, sin sillón/box y sin duración por prestación | C-05, C-07 | DD-03 y DD-08 (RN-TU-09, RN-TU-10): cambia el esquema y el algoritmo; primera mejora posterior |
+| Reserva online por enlace, con confirmación, cancelación y reprogramación por el paciente | **No cubierta** (la recepción sí cancela y reprograma: C-08, C-10) | — | DD-07; `01_vision_y_objetivos.md` §Fuera de alcance: turnos online y login para pacientes |
+| Recordatorios y confirmaciones por WhatsApp | **Parcial, sustituida por email**: recordatorio y aviso informativo; el paciente no puede confirmar ni cancelar (DD-06) | C-11, C-12 | DD-09: la API de WhatsApp Business cobra; restricción de costo cero |
+| Ficha del paciente con anamnesis, odontograma, evolución y adjuntos (radiografías) | **No cubierta**: C-06 solo da el ABM de datos de contacto, base para la ficha futura | C-06 (base) | DD-07: historia clínica fuera de v1 |
+| Roles y permisos básicos | Cubierta (roles fijos) | C-03, C-04 | — |
+| Registro de auditoría de accesos | **No cubierta** | — | DD-07: fuera de v1. RLS restringe accesos pero no los registra; no hay log de accesos |
+| Exportación de datos | **No cubierta** | — | DD-07: fuera de v1 por alcance. El informe la marca como vacío del mercado y oportunidad de diferenciación (C.4, C.5); candidata prioritaria tras v1 |
+
+### Diferenciadores y etapas posteriores (D.3)
+
+Ninguno de estos 14 ítems está en el roadmap. Es coherente con el alcance v1 (DD-07) y queda registrado en `06_funcionalidades.md`.
+
+| Nivel | Ítem del informe | Cobertura | Motivo |
+|---|---|---|---|
+| Diferenciador | Lista de espera con oferta de huecos liberados | No cubierta | Fuera de v1 (DD-07) |
+| Diferenciador | Sobreturnos controlados | No cubierta | RN-TU-11: no se permiten en v1 |
+| Diferenciador | Seña con Mercado Pago atada al turno | No cubierta | Fuera de v1 y de costo cero (DD-07) |
+| Diferenciador | Panel de ausentismo y ocupación de sillón | No cubierta | Reportes excluidos en `01_vision_y_objetivos.md` §Fuera de alcance; C-08 registra `no_show` como base |
+| Etapa posterior | Presupuestos y planes de tratamiento | No cubierta | Fuera de alcance (cobros y presupuestos) |
+| Etapa posterior | Periodontograma | No cubierta | Depende de la ficha clínica, fuera de v1 |
+| Etapa posterior | Facturación electrónica ARCA | No cubierta | Fuera de v1 |
+| Etapa posterior | Obras sociales y prepagas | No cubierta | Fuera de v1 |
+| Etapa posterior | Receta electrónica | No cubierta | Fuera de v1 |
+| Etapa posterior | Multi-sucursal | No cubierta | SU-04: un solo consultorio |
+| Etapa posterior | Reportes avanzados | No cubierta | Reportes excluidos de v1 |
+| Etapa posterior | Reactivación de pacientes y campañas | No cubierta | Fuera de v1 |
+| Etapa posterior | Asistente conversacional con IA | No cubierta | Fuera de v1 |
+| Etapa posterior | Consentimientos con firma digital | No cubierta | Fuera de v1 |
+
+### Changes del roadmap que el informe no pide
+
+Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (historia clínica, cobros, turnos online, WhatsApp, reportes). Los 13 changes salen de funciones del MVP recomendado o de trabajo técnico necesario (C-01 fundación, C-02 base de datos, C-13 despliegue). Se apartan del informe: C-11 y C-12 usan email en lugar de WhatsApp (DD-09), y C-08 registra `no_show`, lo que deja la base para un futuro panel de ausentismo.
+
+---
+
+## Riesgos del roadmap
+
+| # | Riesgo | Change afectado | Mitigación |
+|---|---|---|---|
+| R-1 | Límites del plan gratuito de Resend (sin dominio propio solo envía a la cuenta dueña) | C-11, C-12 | Spike al inicio de C-11; probar con buzones controlados (SU-02) |
+| R-2 | El cron gratuito puede limitarse a una ejecución diaria; el aviso saldría el día anterior | C-12 | Validar Vercel Cron o pg_cron antes de fijar la opción (SU-03, IN-01) |
+| R-3 | Límites vigentes de Supabase y Vercel (plan gratuito) | C-01, C-13 | Verificarlos en C-01 y registrarlos |
+| R-4 | Errores de zona horaria en turnos y recordatorios | C-02, C-05, C-12 | Fechas en UTC y zona del consultorio en configuración (RN-GL-01); tests de borde |
+| R-5 | Concurrencia: dos recepcionistas agendan el mismo slot | C-02, C-08 | Constraint de exclusión en la base (DD-04) |
+| R-6 | Módulos de gobernanza CRÍTICA (auth, esquema, RLS) | C-02, C-03 | Análisis y aprobación humana antes de escribir código |
+| R-7 | Sin recordatorios por WhatsApp el producto queda por debajo del estándar del mercado | C-11, C-12 | DD-09; evaluar enlace `wa.me` manual tras v1 |
+| R-8 | Adopción: la recepción puede seguir usando planilla y WhatsApp | C-13 | Checklist de adopción; probar con una recepcionista real |
+| R-9 | El informe se basa solo en páginas comerciales y sin demos | Todo el roadmap | Validar prioridades con odontólogos reales antes de construir funciones grandes |
+| R-10 | Tratamiento legal de datos personales sin revisar (Ley 25.326; Ley 27.706 si se agrega ficha clínica) | C-02, C-06, C-13 | v1 usa solo datos ficticios; no declarar cumplimiento; revisión legal antes de usar datos reales (`10_preguntas_abiertas.md`) |
+| R-11 | Migrar luego a sillón o duración variable (DD-08) exige cambiar el constraint EXCLUDE y `computeSlots` | C-02, C-05 | Encapsular la duración en un único punto del dominio y documentar el punto de extensión |
 
 ---
 

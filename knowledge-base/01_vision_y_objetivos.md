@@ -19,7 +19,7 @@ Hoy los turnos se coordinan con planillas y WhatsApp, lo que produce superposici
 
 El informe `docs/discovery/informe-discovery.md` relevó 19 sistemas de gestión odontológica (fecha de consulta 2026-09-30).
 
-- **Competidores principales:** ClinIA, Livio, iAsistemas, Bilog, DrApp y Dentalink. Entre los que publican precio, los planes van de ARS 32.800 a ARS 222.999 por mes; Livio cobra ARS 99.000.
+- **Competidores principales:** ClinIA, Livio, iAsistemas, Bilog, DrApp y Dentalink. Entre los que publican precio, van desde ARS 32.800 por profesional al mes (DrApp) hasta ARS 222.999 (plan de hasta 10 profesionales de iAsistemas); Livio cobra ARS 99.000.
 - **Estándar de mercado:** agenda multi-profesional en la nube, recordatorios por WhatsApp, odontograma, historia clínica y presupuestos.
 - **Vacíos relevantes (no evidenciados en los sistemas argentinos):** sobreturnos, lista de espera con oferta de huecos, exportación de datos, agenda por sillón con duración por prestación y reactivación de pacientes.
 - **Oportunidad del proyecto:** precio cero y entrada simple para consultorios chicos, con agenda sin superposiciones garantizada por la base.

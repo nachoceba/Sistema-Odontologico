@@ -151,6 +151,6 @@ Historia clínica y odontograma, presupuestos y cobros, turnos online para pacie
 |---|---|---|
 | Estándar de mercado | Agenda multi-profesional, recordatorios, odontograma, presupuestos, reserva online | Agenda y recordatorios por email en v1; el resto fuera de v1 |
 | Diferenciador | Lista de espera, sobreturnos controlados, seña con Mercado Pago, panel de ausentismo | Backlog posterior |
-| Diferenciador | Exportación de datos y registro de accesos | Backlog; el informe no la evidencia en ningún competidor |
+| Imprescindible según el informe | Exportación de datos y registro de accesos | Fuera de v1 por alcance (DD-07); el informe la marca como vacío del mercado y oportunidad |
 | Etapa posterior | ARCA, obras sociales, receta electrónica, multi-sucursal, reactivación de pacientes | Fuera de v1 |
 | Oportunidad propia | Agenda por sillón con duración por prestación (RN-TU-09, RN-TU-10) | Primera mejora posterior (DD-08) |
