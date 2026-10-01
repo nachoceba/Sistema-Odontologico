@@ -169,11 +169,12 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 > C-05 no depende de la base de datos: corre en paralelo con C-02/C-03 (GATE 0).
 
 ### [C-05] `domain-scheduling-core`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[~]` parcial: la validación de crear turno está hecha, archivada y con 33 tests en verde (`openspec/changes/archive/2026-09-30-crear-turno-sin-solapamientos/`; spec principal en `openspec/specs/appointment-creation/spec.md`); el resto del alcance sigue pendiente
+- **Nota**: parte del alcance se ejecutó primero como el change `crear-turno-sin-solapamientos` (validación de crear turno + arranque mínimo `backend/pyproject.toml` y `backend/app/domain/appointments`); el resto de C-05 queda pendiente. C-01 extiende ese esqueleto sin rehacerlo.
 - **Scope**:
   - `app/core/timezone.py`: conversión UTC <-> zona del consultorio (RN-GL-01), inicio/fin de día local
   - `app/domain/schedules`: validación de tramos (`start < end`, sin superposición, RN-HO-02); `is_date_in_time_off`
-  - `app/domain/appointments`: `compute_slots(working_hours, time_off, appointments, slot_minutes, date)` (libre / ocupado / fuera de horario); `validate_appointment` (RN-TU-01 a RN-TU-04: grilla, dentro de tramo, fuera de licencia, no pasado, sin solape); transiciones de estado (RN-TU-05, RN-TU-07)
+  - `app/domain/appointments`: `compute_slots(working_hours, time_off, appointments, slot_minutes, date)` (libre / ocupado / fuera de horario); `validate_appointment` (RN-TU-01 a RN-TU-04 y RN-TU-12: grilla, dentro de tramo, fuera de licencia, anticipación mínima que incluye no pasado, sin solape); transiciones de estado (RN-TU-05, RN-TU-07)
   - `app/domain/patients`: regla de paciente inactivo (RN-PA-04)
   - Puertos (interfaces) de repositorios + repos en memoria para tests
   - Tests pytest exhaustivos (puros, sin base ni red): bordes de tramos, cambio de día por zona horaria, licencias, turnos pegados

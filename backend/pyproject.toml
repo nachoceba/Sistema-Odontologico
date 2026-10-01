@@ -1,0 +1,17 @@
+[project]
+name = "sistema-odontologico-backend"
+version = "0.1.0"
+description = "Backend del sistema odontologico (dominio puro, sin frameworks por ahora)"
+requires-python = ">=3.12"
+dependencies = [
+    "tzdata",  # zoneinfo en Windows
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

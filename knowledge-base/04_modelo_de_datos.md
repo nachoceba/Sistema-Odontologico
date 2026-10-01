@@ -84,7 +84,7 @@ users 1───0..1 professionals
 - Constraint UNIQUE `(appointment_id, kind, appointment_starts_at)`: garantiza idempotencia (RN-NO-03)
 
 ### clinic_settings
-- Fila única. `clinic_name` text NOT NULL, `address` text NOT NULL, `phone` text NULL (datos ficticios; se usan en los emails). `slot_minutes` int NOT NULL default 30. `timezone` text NOT NULL default `America/Argentina/Buenos_Aires`. `reminder_send_hour` smallint default 9. La fuente de verdad de la zona horaria en ejecución es esta tabla; `CLINIC_TIMEZONE` solo da el valor inicial.
+- Fila única. `clinic_name` text NOT NULL, `address` text NOT NULL, `phone` text NULL (datos ficticios; se usan en los emails). `slot_minutes` int NOT NULL default 30. `timezone` text NOT NULL default `America/Argentina/Buenos_Aires`. `reminder_send_hour` smallint default 9. `min_notice_hours` smallint NOT NULL default 6 (anticipación mínima para crear un turno, RN-TU-12). La fuente de verdad de la zona horaria en ejecución es esta tabla; `CLINIC_TIMEZONE` solo da el valor inicial.
 
 ## Seed data inicial
 

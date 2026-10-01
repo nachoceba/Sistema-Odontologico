@@ -24,7 +24,7 @@ Cada regla tiene un código único `RN-{DOMINIO}-{NN}` para trazabilidad.
 - **RN-TU-01**: Un profesional no puede tener dos turnos `scheduled` superpuestos. Se valida en el dominio y se garantiza con el constraint de exclusión.
 - **RN-TU-02**: La duración de un turno es siempre `slot_minutes` (30 por defecto) y el inicio cae en la grilla de slots del horario del profesional.
 - **RN-TU-03**: Un turno debe quedar completo dentro de un tramo de `working_hours` del profesional y fuera de sus licencias.
-- **RN-TU-04**: No se puede agendar un turno con inicio en el pasado.
+- **RN-TU-04**: Un turno con inicio en el pasado nunca es válido; queda cubierto por RN-TU-12 (anticipación mínima).
 - **RN-TU-05**: Cancelar un turno cambia su estado a `cancelled`, no lo borra, y libera el slot.
 - **RN-TU-06**: Reprogramar aplica las mismas validaciones que agendar (RN-TU-01 a RN-TU-04) y no se ejecuta parcialmente.
 - **RN-TU-07**: Solo los estados `completed` y `no_show` se marcan desde el turno ya iniciado; un turno `cancelled` no cambia de estado.
@@ -32,6 +32,7 @@ Cada regla tiene un código único `RN-{DOMINIO}-{NN}` para trazabilidad.
 - **RN-TU-09** (sillones o boxes): en v1 el recurso que se agenda es **el profesional**; no existen sillones ni boxes. Un profesional atiende un turno a la vez y la agenda no controla la ocupación física del consultorio. Es una decisión de alcance (DD-08), no una omisión: el informe de Discovery muestra que solo ClinIA y Órbita evidencian agenda por sillón.
 - **RN-TU-10** (duración de prestaciones): no hay catálogo de prestaciones ni duración por tratamiento. Un tratamiento más largo que `slot_minutes` se agenda con turnos consecutivos (DD-03). La duración variable por prestación queda para una etapa posterior.
 - **RN-TU-11** (sobreturnos): no se permiten. La regla de no superposición (RN-TU-01) no tiene excepciones en v1, y el constraint de la base lo garantiza.
+- **RN-TU-12** (anticipación mínima): un turno solo se puede crear si empieza al menos `min_notice_hours` (6 por defecto, configurable en `clinic_settings`) después del momento actual; un inicio exactamente igual a ese límite se acepta. Reemplaza en la práctica a RN-TU-04 (DD-14).
 
 ## Dominio: Notificaciones (RN-NO)
 - **RN-NO-01**: Al agendar un turno se envía un email de confirmación.

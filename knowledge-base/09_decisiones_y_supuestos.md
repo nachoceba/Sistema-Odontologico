@@ -78,6 +78,13 @@
 **Justificación**: menos complejidad que async para un MVP; FastAPI ejecuta los endpoints síncronos en un pool de hilos.
 **Trade-offs aceptados**: menor rendimiento con mucha concurrencia, irrelevante para un consultorio.
 
+### DD-14 — Anticipación mínima de 6 horas, configurable
+**Decisión**: un turno solo se puede crear si empieza al menos `min_notice_hours` después del momento actual (RN-TU-12); el valor por defecto es 6 horas y se guarda en `clinic_settings.min_notice_hours`. El límite exacto se acepta. Reemplaza en la práctica a "no en el pasado" (RN-TU-04).
+**Contexto**: el doctor y el consultorio necesitan tiempo para organizarse antes de cada turno. Surgió al proponer el change `crear-turno-sin-solapamientos`.
+**Alternativas consideradas**: solo prohibir el pasado (sin margen); 12 horas fijas.
+**Justificación**: 6 horas alcanzan para un consultorio con agenda tranquila; uno con la agenda muy llena puede subirlo a 12 horas sin tocar código.
+**Trade-offs aceptados**: no se pueden cargar turnos urgentes del mismo día con menos margen; queda como pregunta abierta quién podría saltar la regla.
+
 ## Supuestos inferidos
 
 ### SU-01 — Zona horaria única
