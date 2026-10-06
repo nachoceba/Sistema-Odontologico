@@ -1,8 +1,31 @@
-# Informe de Discovery: sistemas odontológicos de gestión de turnos y agenda
+<div class="portada" style="text-align:center; padding-top:120px; page-break-after:always;">
+<p>Tecnicatura Universitaria en Programación</p>
+<p><strong>Metodología I</strong></p>
+<p>Trabajo de Integración: del Discovery al primer Change</p>
+<h1 style="margin-top:60px;">Informe de Discovery</h1>
+<h2 style="border:none;">Sistemas odontológicos de gestión de turnos y agenda de pacientes en Argentina y Latinoamérica</h2>
+<p style="margin-top:80px;"><strong>Integrante:</strong> Ignace Ceballos</p>
+<p><strong>Fecha:</strong> 6 de octubre de 2026</p>
+<p><strong>Fecha de consulta de las fuentes:</strong> 30 de septiembre de 2026</p>
+</div>
 
-**Fecha de consulta de todas las fuentes:** 2026-09-30
-**Alcance:** Argentina (prioridad), Latinoamérica y referentes internacionales.
-**Sistemas relevados:** 19 (más 1 descartado por falta de evidencia).
+## Resumen ejecutivo
+
+**Qué se investigó.** Se relevaron 19 sistemas de gestión odontológica con agenda de turnos (11 de origen argentino declarado o inferido; el resto de Chile, Ecuador, Brasil, Reino Unido, EE. UU. o sin país evidenciado; incluye algunos sistemas de turnos genéricos). Se usaron solo fuentes públicas: el sitio oficial de cada proveedor, consultado el 30/09/2026. Cada dato se marca como funcionalidad comprobada ([P]), afirmación comercial ([C]) o "No evidenciado". Ninguna función se probó en una demo.
+
+**Principales hallazgos.**
+
+- *Estándar de mercado:* agenda multi-profesional en la nube, recordatorios por WhatsApp, odontograma e historia clínica, presupuestos y planes con precio en pesos en los sistemas de entrada.
+- *Precios publicados:* desde ARS 32.800 por profesional al mes (DrApp) hasta ARS 222.999 (plan de hasta 10 profesionales de iAsistemas); Livio cobra ARS 99.000.
+- *Diferenciadores:* facturación ARCA integrada, verificación de cobertura de obras sociales, receta electrónica, seña con Mercado Pago y periodontograma, presentes en pocos competidores.
+- *Vacíos del mercado argentino:* no se evidenciaron sobreturnos, lista de espera con oferta de huecos (solo Dentally, del Reino Unido), exportación de datos ni agenda por sillón con duración variable por prestación.
+- *Calidad de la evidencia:* varios proveedores no publican precios, las cifras de ausentismo e "IA" son afirmaciones comerciales sin metodología, y las puntuaciones de la matriz miden evidencia pública, no calidad real.
+
+**MVP recomendado (sección D).** Imprescindible: agenda multi-profesional con prevención de solapamientos, reserva online, recordatorios por WhatsApp, ficha del paciente con odontograma, roles y permisos, auditoría de accesos y exportación de datos. Diferenciadores: lista de espera, sobreturnos controlados, seña con Mercado Pago y panel de ausentismo. Para etapas posteriores: presupuestos, periodontograma, ARCA, obras sociales, receta electrónica, multi-sucursal y asistente con IA. Se recomiendan demos de Bilog, Dentalink, ClinIA, Livio y DrApp.
+
+**Verificación.** Se comprobaron personalmente cinco fuentes oficiales y se corrigió una afirmación no respaldada (recordatorios de iAsistemas) y dos precisiones (IVA en Turnito, moneda en SimpleTurno).
+
+<div style="page-break-after:always;"></div>
 
 ## 0. Metodología y convenciones
 
@@ -24,27 +47,27 @@ El criterio de orden combina: origen o foco argentino, cobertura de agenda odont
 
 ### A.1 Identificación, segmento, modalidad y modelo comercial
 
-| # | Producto (empresa) | País | URL oficial | Segmento | Modalidad | Modelo comercial [P] |
-|---|---|---|---|---|---|---|
-| 1 | ClinIA (Emprinet) | Argentina | https://www.clinia.com.ar/odontologia | Consultorio, clínica, cadenas, servicios hospitalarios | Plataforma web (nube) | Precios no evidenciados |
-| 2 | Livio | Argentina | https://www.liviodental.com/ | Clínicas | SaaS nube | ARS 99.000/mes; prueba gratis 30 días |
-| 3 | iAsistemas (IA Sistemas) | Argentina | https://iasistemas.com/sistema-de-turnos-online | Clínicas odontológicas y médicas | 100 % nube | Basic ARS 61.999 (1 prof.), Clinic ARS 153.999 (hasta 5), Premium ARS 222.999 (hasta 10); implementación única ARS 1.299.000; sin prueba evidenciada; "sin contrato" |
-| 4 | Bilog | Argentina | https://bilog.com.ar/ | Clínicas y consultorios | SaaS web y mobile | Precios no evidenciados |
-| 5 | DrApp | Argentina (dominio .com.ar) | https://www.drapp.com.ar/ | Profesionales de la salud en general (no exclusivo odonto) | SaaS nube | Desde ARS 32.800/mes por profesional; prueba 15 días sin tarjeta; sin plan gratuito |
-| 6 | Dentalink (Healthatom) | Chile | https://www.softwaredentalink.com/ (AR: /ar/) | Clínicas dentales | SaaS nube | No evidenciado en el sitio. Un tercero informa desde USD 29/mes (ver Verificación) |
-| 7 | Órbita (Órbita Global) | Argentina (La Plata) | https://hiorbita.com/ | Clínicas y consultorios; expansión a multiespecialidad | SaaS nube | Precios no evidenciados |
-| 8 | Dentiqa (Violet Wave) | Declara LATAM (sede no evidenciada) | https://dentiqa.app/ | Clínicas odontológicas | SaaS nube, web responsive | USD 89–249/mes, conversión a moneda local; demo gratuita; sin permanencia |
-| 9 | Geblix (vía Micro Fit S.A. como canal) | Argentina (según prensa) | https://www.geblix.com/ y https://microfit.com.ar/software-de-gestion-odontologica/ | Salud general (médico, odontólogo, psicólogo, etc.) | SaaS nube | Precios no evidenciados; demo gratis |
-| 10 | Turnito | Argentina | https://turnito.app/ | Turnos genéricos (peluquería, salud, etc.); no odontológico | SaaS nube | Gratis (100 reservas/mes); Plus ARS 9.900; Advance ARS 20.300; Pro ARS 34.800; comisión por cobros online 5/3,5/1/0 % |
-| 11 | SimpleTurno (5Studios) | Argentina (inferido por ARS y Mercado Pago) | https://simpleturno.com/rubros/odontologia | Odontología y otros rubros | SaaS nube | Gratis (1 profesional, 20 servicios); Pro ARS 12.900/mes |
-| 12 | AgendaPro (AgendaPro Inc.) | No evidenciado en la página consultada | https://www.agendapro.com/ar | Belleza, salud y bienestar (incluye clínicas) | SaaS nube | Precios en `/ar/planes` (no consultada); prueba gratis |
-| 13 | OdontoGRAMA (Solsoftware) | Argentina | https://odontograma.com.ar/ | Consultorios dentales | Online (nube) | Precios no evidenciados; cuenta gratis disponible |
-| 14 | OdontoApp | Argentina | https://odontoapp.com.ar/ | Consultorios odontológicos | SaaS | Precios no evidenciados |
-| 15 | Doctocliq | No evidenciado | https://www.doctocliq.com/mx/software-dental | Dental, estética, especialistas, fisioterapia | Nube web + apps móviles | Plan gratuito (hasta 30 citas/mes); prueba 7 días; WhatsApp por paquetes de mensajes; Argentina no evidenciada |
-| 16 | Dental-365 (AngWebs) | Ecuador (por prefijo telefónico) | https://dental-365.net/ | Clínicas odontológicas | Nube + escritorio offline | USD 15/mes (nube); USD 80 único (offline); pruebas 7 y 30 días |
-| 17 | Clinicorp | Brasil | https://www.clinicorp.com/ | Clínicas dentales, foco ortodoncia y estética | SaaS web + apps iOS/Android | Precios a consultar |
-| 18 | Dentally (Henry Schein One) | Reino Unido | https://www.dentally.com/en-gb/ | Clínicas y grupos (multi-site) | "Cloud enabled" | Precios no evidenciados |
-| 19 | Open Dental | EE. UU. | https://www.opendental.com/ | Prácticas de cualquier tamaño | Instalación local + servicios en nube | Precio no evidenciado (la página `/site/pricing.html` devolvió 404) |
+| # | Producto / Proveedor | País | URL oficial | Segmento | Modalidad | Modelo comercial [P] | Fecha de consulta |
+|---|---|---|---|---|---|---|---|
+| 1 | ClinIA (Emprinet) | Argentina | https://www.clinia.com.ar/odontologia | Consultorio, clínica, cadenas, servicios hospitalarios | Plataforma web (nube) | Precios no evidenciados | 2026-09-30 |
+| 2 | Livio | Argentina | https://www.liviodental.com/ | Clínicas | SaaS nube | ARS 99.000/mes; prueba gratis 30 días | 2026-09-30 |
+| 3 | iAsistemas (IA Sistemas) | Argentina | https://iasistemas.com/sistema-de-turnos-online | Clínicas odontológicas y médicas | 100 % nube | Basic ARS 61.999 (1 prof.), Clinic ARS 153.999 (hasta 5), Premium ARS 222.999 (hasta 10); implementación única ARS 1.299.000; sin prueba evidenciada; "sin contrato" | 2026-09-30 |
+| 4 | Bilog | Argentina | https://bilog.com.ar/ | Clínicas y consultorios | SaaS web y mobile | Precios no evidenciados | 2026-09-30 |
+| 5 | DrApp | Argentina (dominio .com.ar) | https://www.drapp.com.ar/ | Profesionales de la salud en general (no exclusivo odonto) | SaaS nube | Desde ARS 32.800/mes por profesional; prueba 15 días sin tarjeta; sin plan gratuito | 2026-09-30 |
+| 6 | Dentalink (Healthatom) | Chile | https://www.softwaredentalink.com/ (AR: /ar/) | Clínicas dentales | SaaS nube | No evidenciado en el sitio. Un tercero informa desde USD 29/mes (ver Verificación) | 2026-09-30 |
+| 7 | Órbita (Órbita Global) | Argentina (La Plata) | https://hiorbita.com/ | Clínicas y consultorios; expansión a multiespecialidad | SaaS nube | Precios no evidenciados | 2026-09-30 |
+| 8 | Dentiqa (Violet Wave) | Declara LATAM (sede no evidenciada) | https://dentiqa.app/ | Clínicas odontológicas | SaaS nube, web responsive | USD 89–249/mes, conversión a moneda local; demo gratuita; sin permanencia | 2026-09-30 |
+| 9 | Geblix (vía Micro Fit S.A. como canal) | Argentina (según prensa) | https://www.geblix.com/ y https://microfit.com.ar/software-de-gestion-odontologica/ | Salud general (médico, odontólogo, psicólogo, etc.) | SaaS nube | Precios no evidenciados; demo gratis | 2026-09-30 |
+| 10 | Turnito | Argentina | https://turnito.app/ | Turnos genéricos (peluquería, salud, etc.); no odontológico | SaaS nube | Gratis (100 reservas/mes); Plus ARS 9.900; Advance ARS 20.300; Pro ARS 34.800; comisión por cobros online 5/3,5/1/0 % | 2026-09-30 |
+| 11 | SimpleTurno (5Studios) | Argentina (inferido por ARS y Mercado Pago) | https://simpleturno.com/rubros/odontologia | Odontología y otros rubros | SaaS nube | Gratis (1 profesional, 20 servicios); Pro ARS 12.900/mes | 2026-09-30 |
+| 12 | AgendaPro (AgendaPro Inc.) | No evidenciado en la página consultada | https://www.agendapro.com/ar | Belleza, salud y bienestar (incluye clínicas) | SaaS nube | Precios en `/ar/planes` (no consultada); prueba gratis | 2026-09-30 |
+| 13 | OdontoGRAMA (Solsoftware) | Argentina | https://odontograma.com.ar/ | Consultorios dentales | Online (nube) | Precios no evidenciados; cuenta gratis disponible | 2026-09-30 |
+| 14 | OdontoApp | Argentina | https://odontoapp.com.ar/ | Consultorios odontológicos | SaaS | Precios no evidenciados | 2026-09-30 |
+| 15 | Doctocliq | No evidenciado | https://www.doctocliq.com/mx/software-dental | Dental, estética, especialistas, fisioterapia | Nube web + apps móviles | Plan gratuito (hasta 30 citas/mes); prueba 7 días; WhatsApp por paquetes de mensajes; Argentina no evidenciada | 2026-09-30 |
+| 16 | Dental-365 (AngWebs) | Ecuador (por prefijo telefónico) | https://dental-365.net/ | Clínicas odontológicas | Nube + escritorio offline | USD 15/mes (nube); USD 80 único (offline); pruebas 7 y 30 días | 2026-09-30 |
+| 17 | Clinicorp | Brasil | https://www.clinicorp.com/ | Clínicas dentales, foco ortodoncia y estética | SaaS web + apps iOS/Android | Precios a consultar | 2026-09-30 |
+| 18 | Dentally (Henry Schein One) | Reino Unido | https://www.dentally.com/en-gb/ | Clínicas y grupos (multi-site) | "Cloud enabled" | Precios no evidenciados | 2026-09-30 |
+| 19 | Open Dental | EE. UU. | https://www.opendental.com/ | Prácticas de cualquier tamaño | Instalación local + servicios en nube | Precio no evidenciado (la página `/site/pricing.html` devolvió 404) | 2026-09-30 |
 
 ### A.2 Agenda, turnos digitales y automatización
 
@@ -265,24 +288,6 @@ El criterio de orden combina: origen o foco argentino, cobertura de agenda odont
 
 ---
 
-## Reflexión sobre la etapa de Discovery
-
-Cuando empecé, me pensaba que lo que había que buscar eran páginas de odontólogos o servicios que te arman una web, y me confundí con los primeros resultados. Después entendí que lo que se buscaba era otra cosa: los sistemas de gestión con agenda que un consultorio contrata todos los días. Esos son los competidores reales. Abrir yo mismo las páginas fue lo que me aclaró eso.
-
-Lo que más me sirvió fue no creerle todo al agente. El informe vino bastante prolijo: 19 sistemas, "No evidenciado" donde no había dato y aclaraciones sobre sus propios límites. Igual, al revisar encontré cosas. En iAsistemas había dejado afuera el WhatsApp en los recordatorios, y eso lo corregimos con Ajustar. En Turnito los precios eran más IVA y el informe no lo decía. En SimpleTurno la moneda no figura en la página y se había asumido. El precio de Dentalink en dólares no salía del sitio oficial, así que quedó sin respaldo. No encontré ninguna función inventada, pero sin revisar a mano no lo habría sabido.
-
-Revisé cinco fuentes: Livio, iAsistemas y ClinIA (sitios oficiales y precios), Turnito y DrApp (páginas de precios). Me falta haber mirado un centro de ayuda o reseñas de usuarios reales, y se nota: toda la evidencia sale de las páginas comerciales de cada proveedor, que cuentan lo mejor de cada producto. Tampoco probé ninguna demo, así que la matriz de puntajes vale como orden de evidencia y nada más.
-
-Lo que me llevo para el proyecto:
-- Los recordatorios por WhatsApp ya son lo normal en el mercado. Yo había decidido hacerlos por email para que todo sea gratuito, y eso es una limitación que tengo que tener presente.
-- Los sistemas pagos que relevé salen desde $32.800 por profesional al mes hasta $222.999 (plan de hasta 10 profesionales). Un sistema gratuito para consultorios chicos tiene lugar, y eso justifica el recorte del MVP a pacientes, agenda, login con roles y recordatorios.
-- Casi nadie muestra sobreturnos, lista de espera ni exportación de datos. Son cosas que puedo dejar para después, pero las anoto como oportunidad.
-- El informe no se cruzó con la base de conocimiento ni con `CHANGES.md`. Queda pendiente revisar si algo de lo que salió acá cambia el plan.
-
-Me queda la duda de cuánto pesa cada cosa al momento de elegir un sistema, porque eso solo lo pueden decir odontólogos que lo usen. Sería bueno charlar con alguno antes de construir nada grande.
-
----
-
 ## Verificación de fuentes
 
 **Fecha de consulta de todas las fuentes: 2026-09-30.** Método de lectura: WebFetch (resumen automático) salvo indicación. Páginas de inicio o de rubro únicamente. No se consultaron páginas de precios separadas, centros de ayuda, videos, marketplaces ni reseñas.
@@ -339,7 +344,7 @@ Se volvieron a abrir 9 páginas oficiales y se contrastó cada afirmación citad
 
 ### Verificación personal del estudiante (mínimo 5 fuentes, una de cada tipo)
 
-Completar al abrir cada URL en el navegador. Columna "¿Coincide?": Sí / No / Parcial.
+Fuentes abiertas personalmente en el navegador. Columna "¿Coincide?": Sí / No / Parcial.
 
 | # | Tipo de fuente | URL | Afirmación del informe comprobada | ¿Coincide? | Observaciones |
 |---|---|---|---|---|---|
@@ -360,3 +365,42 @@ Completar al abrir cada URL en el navegador. Columna "¿Coincide?": Sí / No / P
 8. **Precios:** cambian con frecuencia, en especial en ARS. Fecha de validez: 2026-09-30.
 9. **Sin demos ni reseñas verificadas.** La matriz B refleja evidencia documental, no desempeño real.
 10. **Normativa:** este informe no analiza el marco legal. Las menciones a la Ley 25.326 y la Ley 27.706 no se contrastaron con el texto de las normas.
+
+---
+
+## Referencias
+
+### Fuentes oficiales de los proveedores (consultadas el 30 de septiembre de 2026)
+
+1. ClinIA (Emprinet): https://www.clinia.com.ar/odontologia. Consultado el 2026-09-30.
+2. Livio: https://www.liviodental.com/. Consultado el 2026-09-30.
+3. iAsistemas (IA Sistemas): https://iasistemas.com/sistema-de-turnos-online. Consultado el 2026-09-30.
+4. Bilog: https://bilog.com.ar/. Consultado el 2026-09-30.
+5. DrApp: https://www.drapp.com.ar/. Consultado el 2026-09-30.
+6. Dentalink (Healthatom): https://www.softwaredentalink.com/. Consultado el 2026-09-30.
+7. Órbita (Órbita Global): https://hiorbita.com/. Consultado el 2026-09-30.
+8. Dentiqa (Violet Wave): https://dentiqa.app/. Consultado el 2026-09-30.
+9. Geblix (vía Micro Fit S.A. como canal): https://www.geblix.com/; https://microfit.com.ar/software-de-gestion-odontologica/. Consultado el 2026-09-30.
+10. Turnito: https://turnito.app/. Consultado el 2026-09-30.
+11. SimpleTurno (5Studios): https://simpleturno.com/rubros/odontologia. Consultado el 2026-09-30.
+12. AgendaPro (AgendaPro Inc.): https://www.agendapro.com/ar. Consultado el 2026-09-30.
+13. OdontoGRAMA (Solsoftware): https://odontograma.com.ar/. Consultado el 2026-09-30.
+14. OdontoApp: https://odontoapp.com.ar/. Consultado el 2026-09-30.
+15. Doctocliq: https://www.doctocliq.com/mx/software-dental. Consultado el 2026-09-30.
+16. Dental-365 (AngWebs): https://dental-365.net/. Consultado el 2026-09-30.
+17. Clinicorp: https://www.clinicorp.com/. Consultado el 2026-09-30.
+18. Dentally (Henry Schein One): https://www.dentally.com/en-gb/. Consultado el 2026-09-30.
+19. Open Dental: https://www.opendental.com/. Consultado el 2026-09-30.
+
+### Otras fuentes consultadas
+
+- Tu Asistente Dental: https://tuasistentedental.com/. Consultado el 2026-09-30. Sin contenido funcional verificable; descartado.
+- Micro Fit (canal de Geblix): https://microfit.com.ar/software-de-gestion-odontologica/. Consultado el 2026-09-30.
+- Dentalink, página de Argentina: https://www.softwaredentalink.com/ar/. Consultado el 2026-09-30.
+- Doctocliq, software dental gratis: https://www.doctocliq.com/software-dental-gratis-doctocliq. Consultado el 2026-09-30.
+
+### Fuentes mencionadas y no consultadas directamente
+
+- Ley 25.326 de Protección de Datos Personales y Ley 27.706 de Historia Clínica Electrónica: se nombran porque algunos proveedores las declaran; no se contrastaron con el texto de las normas.
+- Comparativas de terceros y notas de prensa (por ejemplo sobre Geblix): aparecieron en búsquedas web del 2026-09-30, no se leyeron y no sustentan datos de las tablas.
+
