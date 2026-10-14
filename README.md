@@ -4,6 +4,10 @@ Trabajo de integración de Metodología I (Tecnicatura Universitaria en Programa
 
 Sistema de gestión de turnos y agenda de pacientes para consultorios odontológicos, pensado para el mercado argentino. Un consultorio puede tener uno o varios odontólogos y la agenda se maneja por profesional.
 
+## Video explicativo
+
+[Ver el video explicativo en YouTube](https://youtu.be/Wz8IocynNSU)
+
 ## Qué hay en este repositorio
 
 | Carpeta o archivo | Contenido |
