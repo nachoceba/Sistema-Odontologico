@@ -1,0 +1,11 @@
+Parcial 2 - Ceballos
+Sistema Odontologico
+
+Cantidad de participantes: 1
+Nombre: Ignace Ceballos
+
+Video explicativo (YouTube):
+https://youtu.be/Wz8IocynNSU
+
+Repositorio (GitHub):
+https://github.com/nachoceba/Sistema-Odontologico
