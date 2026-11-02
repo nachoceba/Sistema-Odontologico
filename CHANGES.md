@@ -34,6 +34,7 @@ C-01 foundation-setup
  │              │    └── C-12 reminders-cron
  │              └── C-10 appointment-management-ui   (+ C-06, C-09)
  └── C-05 domain-scheduling-core   (funciones puras, no requiere BD)
+      └── C-05a crear-turno-sin-solapamientos   [x] archivado (primer recorte de C-05)
 
 C-13 deploy-and-hardening  ← C-04, C-10, C-12
 ```
@@ -169,8 +170,8 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 > C-05 no depende de la base de datos: corre en paralelo con C-02/C-03 (GATE 0).
 
 ### [C-05] `domain-scheduling-core`
-- **Estado**: `[~]` parcial: la validación de crear turno está hecha, archivada y con 33 tests en verde (`openspec/changes/archive/2026-09-30-crear-turno-sin-solapamientos/`; spec principal en `openspec/specs/appointment-creation/spec.md`); el resto del alcance sigue pendiente
-- **Nota**: parte del alcance se ejecutó primero como el change `crear-turno-sin-solapamientos` (validación de crear turno + arranque mínimo `backend/pyproject.toml` y `backend/app/domain/appointments`); el resto de C-05 queda pendiente. C-01 extiende ese esqueleto sin rehacerlo.
+- **Estado**: `[~]` parcial: [C-05a] `crear-turno-sin-solapamientos` está implementado, verificado y archivado (ver entrada propia más abajo); el resto del alcance sigue pendiente
+- **Nota**: C-05 se ejecuta por recortes (sub-changes). El primero es C-05a; los siguientes se registran como C-05b, C-05c, etc. C-01 extiende el esqueleto de C-05a sin rehacerlo.
 - **Scope**:
   - `app/core/timezone.py`: conversión UTC <-> zona del consultorio (RN-GL-01), inicio/fin de día local
   - `app/domain/schedules`: validación de tramos (`start < end`, sin superposición, RN-HO-02); `is_date_in_time_off`
@@ -185,6 +186,20 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `knowledge-base/08_arquitectura_propuesta.md` §Patrones aplicados
   - `knowledge-base/07_flujos_principales.md` §Flujo 2, §Flujo 5
   - `knowledge-base/10_preguntas_abiertas.md` (duración fija de slot, varios turnos por día SU-05, zona horaria SU-01)
+
+### [C-05a] `crear-turno-sin-solapamientos` (recorte ya ejecutado de C-05)
+- **Estado**: `[x]` implementado, verificado y archivado el 2026-09-30 (33 tests de pytest en verde)
+- **Scope** (lo que cubrió):
+  - `validate_appointment` en `backend/app/domain/appointments`: dado un profesional, su horario, sus licencias y sus turnos, responde si se puede crear un turno, con un solo motivo de rechazo en orden fijo: anticipación mínima de 6 horas (DD-14), grilla de 30 minutos, dentro del horario de trabajo, fuera de licencia y sin solapamiento (RN-TU-01 a RN-TU-04, RN-TU-12)
+  - Los turnos pegados (uno empieza cuando termina otro) no se consideran solapados
+  - Arranque mínimo del backend: `backend/pyproject.toml` y esqueleto `backend/app/domain/`
+- **Dependencias**: ninguna
+- **Governance**: MEDIO
+- **Artefactos**:
+  - Change archivado: `openspec/changes/archive/2026-09-30-crear-turno-sin-solapamientos/` (proposal, design, tasks y specs)
+  - Spec principal: `openspec/specs/appointment-creation/spec.md`
+  - Evidencia del flujo: `docs/opsx/explore-crear-turno-sin-solapamientos.md` y `docs/opsx/verify-crear-turno-sin-solapamientos.md`
+- **Queda para C-05b en adelante**: `compute_slots`, zona horaria (`app/core/timezone.py`), validación de tramos y licencias, transiciones de estado, regla de paciente inactivo y puertos de repositorios (ver C-05)
 
 ### [C-06] `patients-crud`
 - **Estado**: `[ ]` pendiente
@@ -401,6 +416,7 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-03 | auth-login-rbac | 1 | C-02 | CRITICO |
 | C-04 | user-management | 1 | C-03 | ALTO |
 | C-05 | domain-scheduling-core | 2 | C-01 | MEDIO |
+| C-05a | crear-turno-sin-solapamientos (recorte de C-05, archivado `[x]`) | 2 | — | MEDIO |
 | C-06 | patients-crud | 2 | C-03 | BAJO |
 | C-07 | professional-schedules | 2 | C-03, C-05 | MEDIO |
 | C-08 | appointment-use-cases | 3 | C-03, C-05 | MEDIO |
