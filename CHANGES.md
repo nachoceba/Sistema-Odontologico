@@ -33,10 +33,11 @@ C-01 foundation-setup
  │              ├── C-11 email-confirmation-infra
  │              │    └── C-12 reminders-cron
  │              └── C-10 appointment-management-ui   (+ C-06, C-09)
- └── C-05 domain-scheduling-core   (funciones puras, no requiere BD)
+ └── C-05 domain-scheduling-core   (funciones puras, no requiere BD)   [x] completo
       ├── C-05a crear-turno-sin-solapamientos   [x] archivado (primer recorte de C-05)
       ├── C-05b calcular-slots-disponibles      [x] archivado (segundo recorte de C-05)
-      └── C-05c completar-dominio-agenda        [x] archivado (tercer recorte de C-05)
+      ├── C-05c completar-dominio-agenda        [x] archivado (tercer recorte de C-05)
+      └── C-05d puertos-repositorios-dominio    [x] archivado (cuarto y último recorte de C-05)
 
 C-13 deploy-and-hardening  ← C-04, C-10, C-12
 ```
@@ -125,6 +126,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `email_notifications`: `UNIQUE (appointment_id, kind, appointment_starts_at)`
   - `backend/scripts/seed.py` (idempotente): 1 admin, 1 recepción, 2 profesionales con `working_hours` L-V, `clinic_settings` (nombre, dirección y teléfono ficticios, 30 min, `America/Argentina/Buenos_Aires`, hora 9), 10 pacientes ficticios con emails `@example.com`; contraseñas de prueba ficticias
   - Tests de integración contra PostgreSQL real (contenedor): el constraint de exclusión rechaza solapamiento `scheduled`, permite solapar con `cancelled` y permite turnos pegados (rango `[)`); UNIQUE de notificaciones; CHECK de horarios
+  - Fuera de C-05d (`puertos-repositorios-dominio`): repositorios SQLAlchemy de los puertos de turnos, horarios, licencias, pacientes y configuración del consultorio, con su fábrica en la batería de contrato de `backend/tests/contract/` (hoy solo corre con `in_memory`)
 - **Dependencias**: `C-01`
 - **Governance**: CRITICO
 - **Leer antes**:
@@ -158,6 +160,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - Al crear un usuario `dentist` se crea su fila `professionals` asociada en la misma operación
   - Caso de uso `gestionar_usuarios` con chequeo `require_role('admin')`
   - Tests: solo admin accede; alta de dentist crea professional; desactivar bloquea login
+  - Fuera de C-05d: repositorio de usuarios (listado, alta, desactivación); el repositorio de profesionales (listado, activo) se define en C-04 o en C-07
 - **Dependencias**: `C-03`
 - **Governance**: ALTO
 - **Leer antes**:
@@ -172,8 +175,8 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 > C-05 no depende de la base de datos: corre en paralelo con C-02/C-03 (GATE 0).
 
 ### [C-05] `domain-scheduling-core`
-- **Estado**: `[~]` parcial: C-05a, C-05b y C-05c están implementados y archivados (ver entradas propias más abajo). Queda C-05d: puertos de repositorio + repos en memoria. Se prepara justo antes de C-07/C-08 o dentro de C-08, porque las firmas dependen de esos casos de uso.
-- **Nota**: C-05 se ejecuta por recortes (sub-changes). Los archivados son C-05a, C-05b y C-05c; el resto se registra como C-05d. C-01 extiende el esqueleto de C-05a sin rehacerlo.
+- **Estado**: `[x]` completo: C-05a, C-05b, C-05c y C-05d están implementados y archivados (ver entradas propias más abajo). Los puertos de repositorio y los repos en memoria quedaron en C-05d; la persistencia SQLAlchemy y los casos de uso se reparten en C-02, C-04, C-06, C-07, C-08, C-11 y C-12.
+- **Nota**: C-05 se ejecuta por recortes (sub-changes). Los archivados son C-05a, C-05b, C-05c y C-05d. C-01 extiende el esqueleto de C-05a sin rehacerlo.
 - **Scope**:
   - `app/core/timezone.py`: conversión UTC <-> zona del consultorio (RN-GL-01), inicio/fin de día local
   - `app/domain/schedules`: validación de tramos (`start < end`, sin superposición, RN-HO-02); `is_date_in_time_off`
@@ -240,6 +243,25 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `knowledge-base/09_decisiones_y_supuestos.md` (DD-21 a DD-30)
   - `openspec/changes/archive/2026-11-03-completar-dominio-agenda/design.md`
 
+### [C-05d] `puertos-repositorios-dominio` (último recorte de C-05, archivado)
+- **Estado**: `[x]` implementado y archivado el 2026-11-03: 31/31 tasks, 199 tests pasando en total (131 de C-05a a C-05c + 68 nuevos). `mypy --strict app/` limpio (30 archivos); sin imports de fastapi, sqlalchemy, celery ni redis en `domain/` ni `infrastructure/`. Decisiones DD-31 a DD-36 confirmadas por el usuario. mypy y ruff siguen sin estar en `pyproject.toml` (pendiente C-01). El intérprete local es Python 3.11 y el proyecto pide 3.12 o más: confirmar en Docker/CI.
+- **Scope**:
+  - Puertos (`typing.Protocol`, sin dependencias de infraestructura) para turnos, horarios y licencias, pacientes (solo `get(id)`) y configuración del consultorio (solo lectura: duración del slot, zona horaria y anticipación mínima)
+  - Tipos con identidad (`Appointment`, `TimeOffEntry`, `Patient`, `ClinicSettings`) y errores de dominio `SlotTakenError` (`SLOT_TAKEN`) y `AppointmentNotFoundError` (`APPOINTMENT_NOT_FOUND`) en `app/domain/appointments/errors.py`
+  - Repositorios en memoria en `app/infrastructure/in_memory/`: rechazan dos turnos `scheduled` superpuestos del mismo profesional al guardar y al reprogramar, con la regla única `overlaps_scheduled` de `rules.py` (RN-TU-01); listados por rango semiabierto, por profesional o por paciente, con todos los estados
+  - Batería de contrato compartida en `backend/tests/contract/`, parametrizada por fábrica (hoy solo `id="in_memory"`)
+  - Sin base de datos, modelos SQLAlchemy, migraciones, casos de uso ni pantallas
+- **Dependencias**: `C-05c` (reutiliza tipos, reglas de solapamiento y bordes del día local)
+- **Governance**: MEDIO
+- **Artefactos**:
+  - Change archivado: `openspec/changes/archive/2026-11-03-puertos-repositorios-dominio/` (proposal, design, tasks y specs)
+  - Specs principales: `openspec/specs/appointment-repository/spec.md`, `openspec/specs/schedule-repository/spec.md`, `openspec/specs/patient-repository/spec.md` y `openspec/specs/clinic-settings-repository/spec.md`
+- **Leer antes**:
+  - `knowledge-base/09_decisiones_y_supuestos.md` (DD-31 a DD-36)
+  - `knowledge-base/05_reglas_de_negocio.md` §RN-TU, §RN-PA-04
+  - `openspec/changes/archive/2026-11-03-puertos-repositorios-dominio/design.md`
+- **Fuera de C-05d**: repartido en C-02, C-04, C-06, C-07, C-08, C-11 y C-12 (ver cada entrada).
+
 ### [C-06] `patients-crud`
 - **Estado**: `[ ]` pendiente
 - **Scope**:
@@ -247,6 +269,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - API `/api/v1/patients`, `PatientRepository` (SQLAlchemy) y casos de uso con validación Pydantic: nombre, apellido, documento y email obligatorios; documento único (RN-PA-01/02); desactivar en lugar de borrar (RN-PA-03)
   - Permisos: admin CRUD, recepción CRU, odontólogo solo lectura
   - Tests: duplicado de documento, búsqueda, desactivación, permisos por rol
+  - Fuera de C-05d: alta, búsqueda por apellido o documento y unicidad del documento (RN-PA-01); extienden el `PatientRepository` de C-05d, que hoy solo tiene `get(id)` (DD-34)
 - **Dependencias**: `C-03`
 - **Governance**: BAJO
 - **Leer antes**:
@@ -263,6 +286,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - Detección de conflictos (RN-HO-04): al cambiar horarios o cargar licencia, listar turnos `scheduled` afectados sin cancelarlos
   - Permisos según matriz: solo admin edita (decisión abierta SU-06: dejar la política en un único punto para cambiarla fácil); recepción y dentist (propio) solo leen
   - Tests: tramos superpuestos rechazados, conflictos listados, licencia bloquea disponibilidad
+  - Fuera de C-05d: borrar o editar licencias (sin respaldo en la KB; US-005 solo pide cargarlas). Los puertos de `schedule-repository` ya cubren leer y reemplazar tramos, y listar y agregar licencias; C-07 agrega el adaptador SQLAlchemy
 - **Dependencias**: `C-03`, `C-05`
 - **Governance**: MEDIO
 - **Leer antes**:
@@ -284,6 +308,9 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - Puerto `NotificationPort` (no-op por defecto) invocado tras agendar/reprogramar/cancelar; C-11 lo implementa (RN-NO-04: nunca bloquea)
   - Endpoints `/api/v1/appointments` con esquemas Pydantic y chequeo de rol
   - Tests: happy path, slot ocupado, fuera de horario, pasado, concurrencia (dos inserciones simultáneas, una falla), reprogramación fallida no muta, permisos
+  - Fuera de C-05d: repositorio de turnos con SQLAlchemy (el puerto ya existe) y test de concurrencia real contra PostgreSQL (dos inserciones simultáneas); decidir si turno y notificación van en una misma transacción (DD-36)
+  - Listado de turnos de todos los profesionales por rango para `NotificationPort` (no existe en C-05d; ver C-11 y C-12)
+  - Pregunta abierta H-2 (paciente con dos turnos a la misma hora con profesionales distintos, SU-05 y `10_preguntas_abiertas.md`): la regla, si existe, se decide en este change
 - **Dependencias**: `C-03`, `C-05`
 - **Governance**: MEDIO
 - **Leer antes**:
@@ -340,6 +367,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - Confirmación al agendar y reprogramar; reprogramar reemplaza el recordatorio pendiente (RN-NO-05); cancelar no genera recordatorio
   - Fallos de envío y Redis caído nunca rompen la operación de turno (RN-NO-04)
   - Tests con `EmailSender` falso y Celery en modo inmediato: éxito, fallo registrado, idempotencia por UNIQUE
+  - Fuera de C-05d: datos del consultorio para los emails (nombre, dirección, teléfono y hora del recordatorio) en `ClinicSettings`; el puerto de C-05d solo expone duración, zona y anticipación mínima
 - **Dependencias**: `C-08`
 - **Governance**: ALTO
 - **Leer antes**:
@@ -354,6 +382,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - Caso de uso `enviar_recordatorios`: turnos `scheduled` del día siguiente (zona del consultorio) sin `reminder`; un fallo se registra y el lote continúa (US-011); registra `{ processed, sent, failed }` en el log
   - Reintento opcional de `failed` del mismo día (decisión a confirmar)
   - Tests: doble ejecución no reenvía, cancelado excluido, fallo parcial no corta el lote, borde de zona horaria, la tarea solo actúa a la hora configurada
+  - Fuera de C-05d: listado de turnos de todos los profesionales por rango para `enviar_recordatorios` (el repositorio de C-05d lista por profesional o por paciente); datos del consultorio para los recordatorios (ver C-11)
 - **Dependencias**: `C-11`
 - **Governance**: ALTO
 - **Leer antes**:
@@ -458,6 +487,7 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-05a | crear-turno-sin-solapamientos (recorte de C-05, archivado `[x]`) | 2 | — | MEDIO |
 | C-05b | calcular-slots-disponibles (recorte de C-05, archivado `[x]`) | 2 | C-05a | MEDIO |
 | C-05c | completar-dominio-agenda (recorte de C-05, archivado `[x]`) | 2 | C-05b | MEDIO |
+| C-05d | puertos-repositorios-dominio (recorte de C-05, archivado `[x]`) | 2 | C-05c | MEDIO |
 | C-06 | patients-crud | 2 | C-03 | BAJO |
 | C-07 | professional-schedules | 2 | C-03, C-05 | MEDIO |
 | C-08 | appointment-use-cases | 3 | C-03, C-05 | MEDIO |

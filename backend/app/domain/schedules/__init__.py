@@ -1,4 +1,6 @@
+from app.domain.schedules.ports import TimeOffRepository, WorkingHoursRepository
 from app.domain.schedules.time_off import is_date_in_time_off
+from app.domain.schedules.types import TimeOffEntry
 from app.domain.schedules.validation import (
     ScheduleProblem,
     ScheduleProblemCode,
@@ -11,6 +13,9 @@ __all__ = [
     "ScheduleProblem",
     "ScheduleProblemCode",
     "ScheduleValidationResult",
+    "TimeOffEntry",
+    "TimeOffRepository",
+    "WorkingHoursRepository",
     "is_date_in_time_off",
     "validate_time_off",
     "validate_working_hours",

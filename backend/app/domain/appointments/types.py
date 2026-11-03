@@ -48,6 +48,40 @@ class ExistingAppointment:
 
 
 @dataclass(frozen=True)
+class NewAppointment:
+    """Entrada del repositorio: turno a guardar. Instantes con zona horaria."""
+
+    patient_id: str
+    professional_id: str
+    starts_at: datetime
+    ends_at: datetime
+    created_by: str
+
+
+@dataclass(frozen=True)
+class Appointment:
+    """Turno guardado, con identidad. Salida del repositorio (design D-3)."""
+
+    id: str
+    patient_id: str
+    professional_id: str
+    starts_at: datetime
+    ends_at: datetime
+    status: AppointmentStatus
+    cancel_reason: str | None
+    created_by: str
+
+    def to_existing(self) -> ExistingAppointment:
+        """Dato que consumen validate_appointment y compute_slots."""
+        return ExistingAppointment(
+            professional_id=self.professional_id,
+            starts_at=self.starts_at,
+            ends_at=self.ends_at,
+            status=self.status,
+        )
+
+
+@dataclass(frozen=True)
 class ValidationResult:
     """Aceptado <=> ends_at presente y reason ausente."""
 

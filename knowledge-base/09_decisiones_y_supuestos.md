@@ -199,6 +199,48 @@
 **Justificación**: `slot_minutes` puede cambiar en `clinic_settings`.
 **Trade-offs aceptados**: ninguno relevante; se reconsidera si C-07/C-08 lo exigen.
 
+### DD-31 — Los listados de turnos se piden por rango desde/hasta (P-1 de C-05d)
+**Decisión**: Los listados por profesional o paciente reciben un rango `[desde, hasta)` de instantes con zona; `hasta` es opcional. Quien necesita un día local lo convierte una vez con `local_day_bounds`.
+**Contexto**: RN-GL-01; la forma del rango no tiene respaldo en la KB (decisión del usuario, change `puertos-repositorios-dominio`).
+**Alternativas consideradas**: Pedir "el día tal" y que el repositorio convierta.
+**Justificación**: La zona horaria queda en un solo lugar y sirve igual para el día, la semana (C-09) y "todos los futuros" (C-07). Un turno que cruza la medianoche aparece en ambos días (DD-19).
+**Trade-offs aceptados**: el llamador convierte el día local; se reconsidera si C-09 lo vuelve incómodo.
+
+### DD-32 — Errores del repositorio de turnos con nombre propio (P-2 de C-05d)
+**Decisión**: El repositorio lanza `SlotTakenError` (`SLOT_TAKEN`, con profesional e inicio pedidos) si una escritura deja dos turnos `scheduled` superpuestos, y `AppointmentNotFoundError` (`APPOINTMENT_NOT_FOUND`) si se modifica un id inexistente. Viven en `domain/appointments/errors.py`.
+**Contexto**: Flujo 2 y entrada C-08 ("traduce el error del constraint"); la forma del error no tiene respaldo en la KB (decisión del usuario).
+**Alternativas consideradas**: Devolver un resultado aceptado/rechazado como `validate_appointment`.
+**Justificación**: Es un caso raro que normalmente ya filtró `validate_appointment`; reproduce lo que hace la base al rechazar y C-08 lo traduce en un solo lugar.
+**Trade-offs aceptados**: dos estilos de rechazo (resultado en las reglas puras, excepción en el repositorio).
+
+### DD-33 — Formas de retorno de los repositorios (P-3 de C-05d)
+**Decisión**: Guardar devuelve el objeto completo con su id nuevo; buscar un id inexistente devuelve "no encontrado" (`None`) sin error; modificar (cambiar estado, reprogramar) un id inexistente lanza `APPOINTMENT_NOT_FOUND`.
+**Contexto**: Sin respaldo en la KB (decisión del usuario).
+**Alternativas consideradas**: Devolver solo el id; lanzar error al buscar.
+**Justificación**: Buscar y no encontrar es normal (un enlace viejo); modificar algo inexistente es un error del llamador; devolver el objeto evita una segunda consulta.
+**Trade-offs aceptados**: ninguno relevante.
+
+### DD-34 — El repositorio de pacientes de C-05d es solo lectura mínima (P-4 de C-05d)
+**Decisión**: El puerto solo tiene `get(id)` (existe y activo). Alta, búsqueda por apellido/documento y unicidad del documento (RN-PA-01) las agrega C-06 al mismo puerto.
+**Contexto**: Entradas C-06 y C-08 de `CHANGES.md`, RN-PA-04.
+**Alternativas consideradas**: Definir ya todo el ABM.
+**Justificación**: Definir el ABM ahora sería adivinar las firmas de C-06.
+**Trade-offs aceptados**: C-06 extiende el puerto.
+
+### DD-35 — Los listados de turnos devuelven todos los estados, ordenados por inicio (P-5 de C-05d)
+**Decisión**: Los listados incluyen `scheduled`, `cancelled`, `completed` y `no_show`, ordenados por hora de inicio; cada pantalla o regla filtra lo que necesita.
+**Contexto**: RN-TU-05, DD-16; el filtro no tiene respaldo en la KB (decisión del usuario).
+**Alternativas consideradas**: Filtrar solo `scheduled` en el repositorio.
+**Justificación**: `compute_slots` y `validate_appointment` ya ignoran los no agendados; la agenda (C-09) y el historial del paciente necesitan ver cancelados y atendidos.
+**Trade-offs aceptados**: ninguno relevante.
+
+### DD-36 — Sin unidad de trabajo en C-05d (P-6 de C-05d)
+**Decisión**: Cada operación del repositorio es "todo o nada" por sí sola (incluida reprogramar, RN-TU-06). C-08 decide, con la base real, si agrupa turno y notificación en una transacción.
+**Contexto**: RN-TU-06, RN-NO-04 (un fallo de email nunca impide agendar); la unidad de trabajo no tiene respaldo en la KB.
+**Alternativas consideradas**: Definir un unit-of-work ahora.
+**Justificación**: Diseñarlo sin base de datos sería adivinar.
+**Trade-offs aceptados**: C-08 puede necesitar extender los puertos.
+
 ## Supuestos inferidos
 
 ### SU-01 — Zona horaria única
