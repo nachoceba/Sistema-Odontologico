@@ -62,3 +62,18 @@ class ValidationResult:
     @classmethod
     def reject(cls, reason: RejectionReason) -> ValidationResult:
         return cls(accepted=False, ends_at=None, reason=reason)
+
+
+class SlotStatus(Enum):
+    FREE = "FREE"
+    BUSY = "BUSY"
+    OUTSIDE_HOURS = "OUTSIDE_HOURS"
+
+
+@dataclass(frozen=True)
+class Slot:
+    """Franja del dia local de un profesional; inicio y fin en UTC (fin excluido)."""
+
+    starts_at: datetime  # UTC
+    ends_at: datetime  # UTC
+    status: SlotStatus

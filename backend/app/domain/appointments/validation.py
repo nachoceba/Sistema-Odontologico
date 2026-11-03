@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, time, timedelta
-from zoneinfo import ZoneInfo
+from datetime import datetime, timedelta
 
+from app.core.timezone import to_local
+from app.domain.appointments.rules import (
+    is_on_grid,
+    is_on_time_off,
+    minutes_of_day,
+    overlaps_scheduled,
+)
 from app.domain.appointments.types import (
-    AppointmentStatus,
     ExistingAppointment,
     RejectionReason,
     TimeOff,
@@ -50,15 +55,15 @@ def validate_appointment(
         raise ValueError("starts_at y now deben ser datetime con zona horaria (UTC)")
     if _has_insufficient_notice(starts_at, now, min_notice_hours):
         return ValidationResult.reject(RejectionReason.INSUFFICIENT_NOTICE)
-    local_start = _to_local(starts_at, timezone)
+    local_start = to_local(starts_at, timezone)
     if _is_off_grid(local_start, working_hours, slot_minutes):
         return ValidationResult.reject(RejectionReason.OFF_GRID)
     ends_at = starts_at + timedelta(minutes=slot_minutes)
     if not _fits_in_working_hours(local_start, ends_at, working_hours, timezone):
         return ValidationResult.reject(RejectionReason.OUTSIDE_WORKING_HOURS)
-    if _is_on_time_off(local_start, time_off):
+    if is_on_time_off(local_start.date(), time_off):
         return ValidationResult.reject(RejectionReason.PROFESSIONAL_TIME_OFF)
-    if _overlaps_existing(professional_id, starts_at, ends_at, existing_appointments):
+    if overlaps_scheduled(professional_id, starts_at, ends_at, existing_appointments):
         return ValidationResult.reject(RejectionReason.OVERLAPS_EXISTING)
     return ValidationResult.accept(ends_at)
 
@@ -68,10 +73,6 @@ def _has_insufficient_notice(
 ) -> bool:
     """RN-TU-12: el inicio debe ser >= now + anticipacion minima (igualdad se acepta)."""
     return starts_at < now + timedelta(hours=min_notice_hours)
-
-
-def _to_local(instant: datetime, timezone: str) -> datetime:
-    return instant.astimezone(ZoneInfo(timezone))
 
 
 def _blocks_containing_start(
@@ -86,17 +87,16 @@ def _blocks_containing_start(
     ]
 
 
-def _minutes_of_day(moment: time) -> int:
-    return moment.hour * 60 + moment.minute
-
-
 def _is_off_grid(
     local_start: datetime, working_hours: Sequence[WorkingHours], slot_minutes: int
 ) -> bool:
     """RN-TU-02: grilla anclada al inicio de cada tramo. Sin tramo -> no es tema de grilla."""
     for block in _blocks_containing_start(local_start, working_hours):
-        offset = _minutes_of_day(local_start.time()) - _minutes_of_day(block.start_time)
-        if offset % slot_minutes != 0:
+        if not is_on_grid(
+            minutes_of_day(local_start.time()),
+            minutes_of_day(block.start_time),
+            slot_minutes,
+        ):
             return True
     return False
 
@@ -108,7 +108,7 @@ def _fits_in_working_hours(
     timezone: str,
 ) -> bool:
     """RN-TU-03: inicio y fin dentro de un mismo tramo del dia de la semana local."""
-    local_end = _to_local(ends_at, timezone)
+    local_end = to_local(ends_at, timezone)
     if local_end.date() != local_start.date():
         return False
     return any(
@@ -116,33 +116,4 @@ def _fits_in_working_hours(
         and block.start_time <= local_start.time()
         and local_end.time() <= block.end_time
         for block in working_hours
-    )
-
-
-def _is_on_time_off(local_start: datetime, time_off: Sequence[TimeOff]) -> bool:
-    """RN-TU-03 / RN-HO-03: la fecha local cae en una licencia [starts_on, ends_on] inclusiva."""
-    return any(
-        leave.starts_on <= local_start.date() <= leave.ends_on for leave in time_off
-    )
-
-
-def _ranges_overlap(
-    start_a: datetime, end_a: datetime, start_b: datetime, end_b: datetime
-) -> bool:
-    """Rangos semiabiertos [inicio, fin): tocarse en el borde no es superponerse."""
-    return start_a < end_b and start_b < end_a
-
-
-def _overlaps_existing(
-    professional_id: str,
-    starts_at: datetime,
-    ends_at: datetime,
-    existing_appointments: Sequence[ExistingAppointment],
-) -> bool:
-    """RN-TU-01: solo cuentan los turnos scheduled del mismo profesional."""
-    return any(
-        existing.professional_id == professional_id
-        and existing.status == AppointmentStatus.SCHEDULED
-        and _ranges_overlap(starts_at, ends_at, existing.starts_at, existing.ends_at)
-        for existing in existing_appointments
     )

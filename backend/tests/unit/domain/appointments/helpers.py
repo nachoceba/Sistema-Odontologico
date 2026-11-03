@@ -74,3 +74,19 @@ def validate(
         existing_appointments=existing_appointments,
         min_notice_hours=min_notice_hours,
     )
+
+
+def slot_at(slots: Sequence, hour: int, minute: int = 0, day=(2026, 10, 5)):
+    """Franja cuyo inicio es la hora local indicada (por defecto, lunes 5/10/2026)."""
+    target = local(day[0], day[1], day[2], hour, minute)
+    matches = [slot for slot in slots if slot.starts_at == target]
+    assert len(matches) == 1, f"no hay una unica franja que empiece a {hour:02d}:{minute:02d}"
+    return matches[0]
+
+
+def count_by_status(slots: Sequence) -> dict:
+    """Cantidad de franjas por nombre de estado, ej. {'FREE': 16, 'OUTSIDE_HOURS': 32}."""
+    counts: dict = {}
+    for slot in slots:
+        counts[slot.status.name] = counts.get(slot.status.name, 0) + 1
+    return counts

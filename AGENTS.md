@@ -99,8 +99,8 @@ El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen:
 - **Total**: 13 changes en 6 fases (0 Fundación, 1 Datos y acceso, 2 Dominio y catálogos, 3 Agenda de turnos MVP, 4 Notificaciones por email, 5 Salida a producción).
 - **Camino crítico** (7): `C-01 → C-02 → C-03 → C-08 → C-11 → C-12 → C-13`, con una cadena paralela de igual longitud `C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13`.
 - **Primer change**: `C-01` (`foundation-setup`).
-- **Changes ya archivados**: `C-05a` `crear-turno-sin-solapamientos` (recorte de C-05, 33 tests; archivo en `openspec/changes/archive/2026-09-30-crear-turno-sin-solapamientos/`, spec principal en `openspec/specs/appointment-creation/spec.md`). C-05 sigue parcial: los próximos recortes se registran como `C-05b`, `C-05c`, etc.
-- **Change preparado (sin implementar)**: `C-05b` `calcular-slots-disponibles`, en `openspec/changes/calcular-slots-disponibles/` (proposal, design, specs y tasks listos; tasks sin ejecutar). La implementación y el archivo quedan para una instancia posterior.
+- **Changes ya archivados**: `C-05a` `crear-turno-sin-solapamientos` (recorte de C-05, 33 tests; archivo en `openspec/changes/archive/2026-09-30-crear-turno-sin-solapamientos/`, spec principal en `openspec/specs/appointment-creation/spec.md`). C-05 sigue parcial: los próximos recortes se registran como `C-05c`, etc.
+  `C-05b` `calcular-slots-disponibles` (recorte de C-05, 71 tests en total con los de C-05a; archivo en `openspec/changes/archive/2026-11-03-calcular-slots-disponibles/`, specs principales en `openspec/specs/slot-availability/spec.md` y `openspec/specs/clinic-timezone/spec.md`).
 
 **Antes de cualquier `/opsx:propose`**: leé [CHANGES.md](CHANGES.md), identificá las dependencias del change y los archivos de "Leer antes".
 
