@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 from app.core.timezone import to_local
 from app.domain.appointments.rules import (
     is_on_grid,
-    is_on_time_off,
     minutes_of_day,
     overlaps_scheduled,
 )
@@ -19,6 +18,7 @@ from app.domain.appointments.types import (
     ValidationResult,
     WorkingHours,
 )
+from app.domain.schedules import is_date_in_time_off
 
 
 def validate_appointment(
@@ -61,7 +61,7 @@ def validate_appointment(
     ends_at = starts_at + timedelta(minutes=slot_minutes)
     if not _fits_in_working_hours(local_start, ends_at, working_hours, timezone):
         return ValidationResult.reject(RejectionReason.OUTSIDE_WORKING_HOURS)
-    if is_on_time_off(local_start.date(), time_off):
+    if is_date_in_time_off(local_start.date(), time_off):
         return ValidationResult.reject(RejectionReason.PROFESSIONAL_TIME_OFF)
     if overlaps_scheduled(professional_id, starts_at, ends_at, existing_appointments):
         return ValidationResult.reject(RejectionReason.OVERLAPS_EXISTING)

@@ -35,7 +35,8 @@ C-01 foundation-setup
  │              └── C-10 appointment-management-ui   (+ C-06, C-09)
  └── C-05 domain-scheduling-core   (funciones puras, no requiere BD)
       ├── C-05a crear-turno-sin-solapamientos   [x] archivado (primer recorte de C-05)
-      └── C-05b calcular-slots-disponibles      [x] archivado (segundo recorte de C-05)
+      ├── C-05b calcular-slots-disponibles      [x] archivado (segundo recorte de C-05)
+      └── C-05c completar-dominio-agenda        [x] archivado (tercer recorte de C-05)
 
 C-13 deploy-and-hardening  ← C-04, C-10, C-12
 ```
@@ -171,8 +172,8 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 > C-05 no depende de la base de datos: corre en paralelo con C-02/C-03 (GATE 0).
 
 ### [C-05] `domain-scheduling-core`
-- **Estado**: `[~]` parcial: [C-05a] `crear-turno-sin-solapamientos` está implementado, verificado y archivado (ver entrada propia más abajo); el resto del alcance sigue pendiente
-- **Nota**: C-05 se ejecuta por recortes (sub-changes). El primero es C-05a; los siguientes se registran como C-05b, C-05c, etc. C-01 extiende el esqueleto de C-05a sin rehacerlo.
+- **Estado**: `[~]` parcial: C-05a, C-05b y C-05c están implementados y archivados (ver entradas propias más abajo). Queda C-05d: puertos de repositorio + repos en memoria. Se prepara justo antes de C-07/C-08 o dentro de C-08, porque las firmas dependen de esos casos de uso.
+- **Nota**: C-05 se ejecuta por recortes (sub-changes). Los archivados son C-05a, C-05b y C-05c; el resto se registra como C-05d. C-01 extiende el esqueleto de C-05a sin rehacerlo.
 - **Scope**:
   - `app/core/timezone.py`: conversión UTC <-> zona del consultorio (RN-GL-01), inicio/fin de día local
   - `app/domain/schedules`: validación de tramos (`start < end`, sin superposición, RN-HO-02); `is_date_in_time_off`
@@ -221,6 +222,23 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `knowledge-base/05_reglas_de_negocio.md` §RN-HO, §RN-TU, §RN-GL-01
   - `knowledge-base/10_preguntas_abiertas.md` (zona horaria SU-01, slot real)
   - `openspec/changes/archive/2026-11-03-calcular-slots-disponibles/design.md`
+
+### [C-05c] `completar-dominio-agenda` (recorte de C-05, archivado)
+- **Estado**: `[x]` implementado y archivado el 2026-11-03: 26/26 tasks, 131 tests pasando en total. `openspec validate --strict` OK y `openspec validate --all` OK. Sin tope de horario (DD-26). Decisiones de dominio DD-21 a DD-30 confirmadas por el usuario. Typecheck: `mypy --strict` sobre `app/` está limpio, pero mypy y ruff no están en `pyproject.toml` (pendiente para C-01).
+- **Scope**:
+  - `app/domain/schedules`: validación de tramos (`start < end`, sin superposición, RN-HO-02), día de la semana dentro de rango (RN-HO-01), horas en minutos exactos, validez de licencias e `is_date_in_time_off` con fecha local (RN-HO-03)
+  - `app/domain/appointments`: transiciones de estado (RN-TU-05, RN-TU-06, RN-TU-07): matriz de transiciones permitidas, marcar atendido o ausente solo con el turno ya iniciado, cancelar solo antes del inicio, y turnos que admiten reprogramación
+  - `app/domain/patients`: paciente inactivo no recibe turnos nuevos (RN-PA-04), como regla separada de la validación del horario
+  - Sin base de datos, pantallas, login ni emails
+- **Dependencias**: `C-05b` (reutiliza tipos, grilla y reglas de solapamiento)
+- **Governance**: MEDIO
+- **Artefactos**:
+  - Change archivado: `openspec/changes/archive/2026-11-03-completar-dominio-agenda/` (proposal, design, tasks y specs)
+  - Specs principales: `openspec/specs/schedule-validation/spec.md`, `openspec/specs/appointment-status-transitions/spec.md` y `openspec/specs/patient-booking-eligibility/spec.md` (capabilities nuevas)
+- **Leer antes**:
+  - `knowledge-base/05_reglas_de_negocio.md` §RN-HO, §RN-TU, §RN-PA
+  - `knowledge-base/09_decisiones_y_supuestos.md` (DD-21 a DD-30)
+  - `openspec/changes/archive/2026-11-03-completar-dominio-agenda/design.md`
 
 ### [C-06] `patients-crud`
 - **Estado**: `[ ]` pendiente
@@ -439,6 +457,7 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-05 | domain-scheduling-core | 2 | C-01 | MEDIO |
 | C-05a | crear-turno-sin-solapamientos (recorte de C-05, archivado `[x]`) | 2 | — | MEDIO |
 | C-05b | calcular-slots-disponibles (recorte de C-05, archivado `[x]`) | 2 | C-05a | MEDIO |
+| C-05c | completar-dominio-agenda (recorte de C-05, archivado `[x]`) | 2 | C-05b | MEDIO |
 | C-06 | patients-crud | 2 | C-03 | BAJO |
 | C-07 | professional-schedules | 2 | C-03, C-05 | MEDIO |
 | C-08 | appointment-use-cases | 3 | C-03, C-05 | MEDIO |

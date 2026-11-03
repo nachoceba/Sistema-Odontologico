@@ -7,7 +7,6 @@ from datetime import date, datetime, time, timedelta
 
 from app.core.timezone import to_utc
 from app.domain.appointments.rules import (
-    is_on_time_off,
     minutes_of_day,
     overlaps_scheduled,
 )
@@ -18,6 +17,7 @@ from app.domain.appointments.types import (
     TimeOff,
     WorkingHours,
 )
+from app.domain.schedules import is_date_in_time_off
 
 _DAY_MINUTES = 24 * 60
 
@@ -49,7 +49,7 @@ def compute_slots(
     solo las OUTSIDE_HOURS pueden durar menos de ``slot_minutes``.
     """
     _validate_inputs(day, slot_minutes)
-    if is_on_time_off(day, time_off):
+    if is_date_in_time_off(day, time_off):
         blocks: list[WorkingHours] = []
     else:
         blocks = sorted(

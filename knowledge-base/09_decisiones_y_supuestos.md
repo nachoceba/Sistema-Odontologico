@@ -129,6 +129,76 @@
 **Justificación**: con dos copias de la misma regla, `compute_slots` podría marcar `FREE` algo que `validate_appointment` rechaza.
 **Trade-offs aceptados**: se toca código ya archivado (en la implementación posterior), mitigado con los 33 tests en verde antes y después de cada paso.
 
+### DD-21 — Un turno ya iniciado no se cancela (P-1)
+**Decisión**: `scheduled` → `cancelled` solo si `now < starts_at`; después corresponde `completed` o `no_show` (`ALREADY_STARTED`).
+**Contexto**: RN-TU-05 no limita el tiempo: sin respaldo en la KB (decisión del usuario).
+**Alternativas consideradas**: Cancelar sin límite de tiempo.
+**Justificación**: Evita que un turno vencido se cancele y oculte una ausencia.
+**Trade-offs aceptados**: ninguno relevante; se reconsidera si C-07/C-08 lo exigen.
+
+### DD-22 — `completed` y `no_show` son finales en v1 (P-2)
+**Decisión**: Una vez registrada la asistencia no se corrige (`ATTENDANCE_ALREADY_RECORDED`); la corrección queda para después junto con la auditoría.
+**Contexto**: RN-TU-07 solo declara final a `cancelled`: sin respaldo en la KB (decisión del usuario).
+**Alternativas consideradas**: Permitir `completed` ↔ `no_show`.
+**Justificación**: Sin auditoría, corregir en silencio pierde trazabilidad.
+**Trade-offs aceptados**: ninguno relevante; se reconsidera si C-07/C-08 lo exigen.
+
+### DD-23 — "Iniciado" significa `now >= starts_at` (P-3)
+**Decisión**: El instante exacto del inicio cuenta como iniciado; la comparación es entre instantes UTC.
+**Contexto**: US-010 dice "ya iniciados"; el borde exacto no tiene respaldo en la KB (decisión del usuario).
+**Alternativas consideradas**: `now >= ends_at`.
+**Justificación**: Permite registrar la asistencia mientras el turno está en curso.
+**Trade-offs aceptados**: ninguno relevante; se reconsidera si C-07/C-08 lo exigen.
+
+### DD-24 — Solo se reprograman turnos `scheduled` que no empezaron (P-4)
+**Decisión**: `validate_reschedule_eligibility` rechaza `cancelled`, `completed`, `no_show` y turnos iniciados.
+**Contexto**: RN-TU-06 habla solo del nuevo horario: sin respaldo en la KB (decisión del usuario).
+**Alternativas consideradas**: Reprogramar también turnos iniciados.
+**Justificación**: Coherente con DD-21.
+**Trade-offs aceptados**: ninguno relevante; se reconsidera si C-07/C-08 lo exigen.
+
+### DD-25 — RN-PA-04 aplica también al reprogramar; desactivar un paciente no cancela sus turnos futuros (P-5)
+**Decisión**: El caso de uso C-08 aplica `check_patient_can_book` al crear y al reprogramar; al desactivar a un paciente, sus turnos `scheduled` futuros se listan, no se cancelan (como RN-HO-04).
+**Contexto**: RN-PA-03, RN-PA-04, RN-TU-06: sin respaldo en la KB (decisión del usuario).
+**Alternativas consideradas**: Cancelar en cascada.
+**Justificación**: La cancelación automática afecta al paciente sin aviso.
+**Trade-offs aceptados**: ninguno relevante; se reconsidera si C-07/C-08 lo exigen.
+
+### DD-26 — Un tramo no cruza la medianoche y no hay tope máximo de horario (P-6)
+**Decisión**: `start_time < end_time` literal; el último fin posible es 23:59. El usuario descartó explícitamente un tope de horario configurable (por ejemplo un máximo en `clinic_settings`).
+**Contexto**: RN-HO-02 y constraint de `working_hours`; 24:00 sin respaldo en la KB (decisión del usuario).
+**Alternativas consideradas**: Tope máximo configurable de horario.
+**Justificación**: Evita configuración extra sin necesidad demostrada en v1.
+**Trade-offs aceptados**: ninguno relevante; se reconsidera si C-07/C-08 lo exigen.
+
+### DD-27 — Tramos contiguos no se superponen (P-7)
+**Decisión**: Intervalos semiabiertos `[inicio, fin)`: 09:00–13:00 y 13:00–17:00 son válidos.
+**Contexto**: RN-HO-02 no define el borde; coherente con `slot-availability` (decisión del usuario).
+**Alternativas consideradas**: Contiguos = superpuestos.
+**Justificación**: Misma semántica que `ranges_overlap`.
+**Trade-offs aceptados**: ninguno relevante; se reconsidera si C-07/C-08 lo exigen.
+
+### DD-28 — Licencias superpuestas o pasadas se aceptan (P-8)
+**Decisión**: La validación solo exige `starts_on <= ends_on` (`END_BEFORE_START`).
+**Contexto**: Constraint de `time_off`; el resto sin respaldo en la KB (decisión del usuario).
+**Alternativas consideradas**: Rechazar superposición o fechas pasadas.
+**Justificación**: Superponerlas no cambia la disponibilidad.
+**Trade-offs aceptados**: ninguno relevante; se reconsidera si C-07/C-08 lo exigen.
+
+### DD-29 — Se rechazan tramos con segundos (P-9)
+**Decisión**: `SUB_MINUTE_PRECISION` si `start_time` o `end_time` tienen segundos o microsegundos.
+**Contexto**: Sin respaldo en la KB (decisión del usuario).
+**Alternativas consideradas**: Ignorar los segundos.
+**Justificación**: La grilla trabaja en minutos y `minutes_of_day` ignora los segundos.
+**Trade-offs aceptados**: ninguno relevante; se reconsidera si C-07/C-08 lo exigen.
+
+### DD-30 — Un tramo más corto que `slot_minutes` es válido (P-10)
+**Decisión**: La validación de tramos no depende de `slot_minutes`; `compute_slots` lo muestra `OUTSIDE_HOURS`.
+**Contexto**: RN-TU-02, DD-15; la validez del tramo sin respaldo en la KB (decisión del usuario).
+**Alternativas consideradas**: Rechazar tramos más cortos que un slot.
+**Justificación**: `slot_minutes` puede cambiar en `clinic_settings`.
+**Trade-offs aceptados**: ninguno relevante; se reconsidera si C-07/C-08 lo exigen.
+
 ## Supuestos inferidos
 
 ### SU-01 — Zona horaria única

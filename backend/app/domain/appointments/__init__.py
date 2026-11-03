@@ -1,3 +1,10 @@
+from app.domain.appointments.slots import compute_slots
+from app.domain.appointments.transitions import (
+    TransitionRejection,
+    TransitionResult,
+    validate_reschedule_eligibility,
+    validate_status_change,
+)
 from app.domain.appointments.types import (
     AppointmentStatus,
     ExistingAppointment,
@@ -8,7 +15,6 @@ from app.domain.appointments.types import (
     ValidationResult,
     WorkingHours,
 )
-from app.domain.appointments.slots import compute_slots
 from app.domain.appointments.validation import validate_appointment
 
 __all__ = [
@@ -18,8 +24,12 @@ __all__ = [
     "Slot",
     "SlotStatus",
     "TimeOff",
+    "TransitionRejection",
+    "TransitionResult",
     "ValidationResult",
     "WorkingHours",
     "compute_slots",
     "validate_appointment",
+    "validate_reschedule_eligibility",
+    "validate_status_change",
 ]

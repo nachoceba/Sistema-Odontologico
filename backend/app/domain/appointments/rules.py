@@ -7,13 +7,9 @@ y el calculo de franjas diverjan (design D-8).
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import date, datetime, time
+from datetime import datetime, time
 
-from app.domain.appointments.types import (
-    AppointmentStatus,
-    ExistingAppointment,
-    TimeOff,
-)
+from app.domain.appointments.types import AppointmentStatus, ExistingAppointment
 
 
 def minutes_of_day(moment: time) -> int:
@@ -24,11 +20,6 @@ def minutes_of_day(moment: time) -> int:
 def is_on_grid(minutes: int, block_start_minutes: int, slot_minutes: int) -> bool:
     """RN-TU-02: la grilla se cuenta desde el inicio del tramo en pasos de slot_minutes."""
     return (minutes - block_start_minutes) % slot_minutes == 0
-
-
-def is_on_time_off(local_date: date, time_off: Sequence[TimeOff]) -> bool:
-    """RN-HO-03: la fecha local cae en una licencia [starts_on, ends_on] inclusiva."""
-    return any(leave.starts_on <= local_date <= leave.ends_on for leave in time_off)
 
 
 def ranges_overlap(
