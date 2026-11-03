@@ -12,9 +12,13 @@ from app.core.errors import DomainError
 logger = logging.getLogger(__name__)
 
 DEFAULT_DOMAIN_STATUS = 400
+HTTP_401 = 401
 STATUS_BY_CODE: dict[str, int] = {
     "APPOINTMENT_NOT_FOUND": 404,
     "SLOT_TAKEN": 409,
+    "INVALID_CREDENTIALS": 401,
+    "NOT_AUTHENTICATED": 401,
+    "FORBIDDEN": 403,
 }
 
 
@@ -25,7 +29,8 @@ def _body(code: str, message: str) -> dict[str, dict[str, str]]:
 async def handle_domain_error(_request: Request, error: Exception) -> JSONResponse:
     assert isinstance(error, DomainError)
     status = STATUS_BY_CODE.get(error.code, DEFAULT_DOMAIN_STATUS)
-    return JSONResponse(status_code=status, content=_body(error.code, str(error)))
+    headers = {"WWW-Authenticate": "Bearer"} if status == HTTP_401 else None
+    return JSONResponse(status_code=status, content=_body(error.code, str(error)), headers=headers)
 
 
 async def handle_unexpected_error(_request: Request, error: Exception) -> JSONResponse:

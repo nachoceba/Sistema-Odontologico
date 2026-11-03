@@ -26,7 +26,7 @@ C = crear, R = leer, U = actualizar, D = eliminar. "propio" = solo registros del
 
 \* Los pacientes y turnos no se eliminan físicamente en el uso normal: se cancelan o se desactivan (RN-TU-05, RN-PA-03). El borrado físico es solo para el administrador.
 
-Quién edita los horarios de los profesionales es una decisión abierta (ver `10_preguntas_abiertas.md`); esta matriz asume que solo el administrador.
+Matriz confirmada por el usuario el 2026-11-03 (C-03, DD-48): solo el administrador edita horarios y licencias (SU-06 resuelto). Un odontólogo sin ficha de profesional puede iniciar sesión pero no accede a datos de ningún profesional (DD-53).
 
 ## Rutas públicas
 

@@ -17,6 +17,7 @@ import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.domain.appointments.ports import AppointmentRepository
+from app.domain.auth import Role, UserAccount, UserAccountRepository
 from app.domain.patients.ports import PatientRepository
 from app.domain.patients.types import Patient
 from app.domain.schedules.ports import TimeOffRepository, WorkingHoursRepository
@@ -34,6 +35,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyClinicSettingsRepository,
     SqlAlchemyPatientRepository,
     SqlAlchemyTimeOffRepository,
+    SqlAlchemyUserAccountRepository,
     SqlAlchemyWorkingHoursRepository,
 )
 from app.infrastructure.in_memory import (
@@ -41,6 +43,7 @@ from app.infrastructure.in_memory import (
     InMemoryClinicSettingsRepository,
     InMemoryPatientRepository,
     InMemoryTimeOffRepository,
+    InMemoryUserAccountRepository,
     InMemoryWorkingHoursRepository,
 )
 
@@ -70,9 +73,26 @@ class RepositoryFactory(Protocol):
 
     def settings(self, initial: ClinicSettings | None = None) -> ClinicSettingsRepository: ...
 
+    def add_account(
+        self,
+        name: str,
+        *,
+        email: str,
+        role: Role,
+        active: bool = True,
+        with_professional: bool = False,
+    ) -> UserAccount:
+        """Crea una cuenta (y su ficha si es odontologo) y devuelve lo que debe leer el repo."""
+        ...
+
+    def user_accounts(self) -> UserAccountRepository: ...
+
 
 class InMemoryFactory:
     """Las referencias son el propio nombre: en memoria no hay claves foraneas."""
+
+    def __init__(self) -> None:
+        self._accounts = InMemoryUserAccountRepository()
 
     def professional(self, name: str) -> str:
         return name
@@ -97,6 +117,30 @@ class InMemoryFactory:
 
     def settings(self, initial: ClinicSettings | None = None) -> ClinicSettingsRepository:
         return InMemoryClinicSettingsRepository(initial)
+
+    def add_account(
+        self,
+        name: str,
+        *,
+        email: str,
+        role: Role,
+        active: bool = True,
+        with_professional: bool = False,
+    ) -> UserAccount:
+        account = UserAccount(
+            id=str(uuid.uuid4()),
+            email=email,
+            full_name=f"Usuario {name}",
+            password_hash="hash-ficticio",
+            role=role,
+            active=active,
+            professional_id=str(uuid.uuid4()) if with_professional else None,
+        )
+        self._accounts.add(account)
+        return account
+
+    def user_accounts(self) -> UserAccountRepository:
+        return self._accounts
 
 
 class PostgresFactory:
@@ -189,6 +233,43 @@ class PostgresFactory:
             with self._sessions.begin() as session:
                 session.add(row)
         return SqlAlchemyClinicSettingsRepository(self._sessions)
+
+    def add_account(
+        self,
+        name: str,
+        *,
+        email: str,
+        role: Role,
+        active: bool = True,
+        with_professional: bool = False,
+    ) -> UserAccount:
+        user = UserModel(
+            email=email,
+            password_hash="hash-ficticio",
+            full_name=f"Usuario {name}",
+            role=UserRole(role.value),
+            active=active,
+        )
+        with self._sessions.begin() as session:
+            session.add(user)
+        professional_id: str | None = None
+        if with_professional:
+            row = ProfessionalModel(user_id=user.id, display_name=f"Profesional {name}")
+            with self._sessions.begin() as session:
+                session.add(row)
+            professional_id = str(row.id)
+        return UserAccount(
+            id=str(user.id),
+            email=email,
+            full_name=f"Usuario {name}",
+            password_hash="hash-ficticio",
+            role=role,
+            active=active,
+            professional_id=professional_id,
+        )
+
+    def user_accounts(self) -> UserAccountRepository:
+        return SqlAlchemyUserAccountRepository(self._sessions)
 
 
 FACTORIES = [

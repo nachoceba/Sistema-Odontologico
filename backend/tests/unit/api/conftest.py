@@ -8,7 +8,11 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.api.dependencies import get_user_repository
 from app.core.config import get_settings
+from app.core.security import hash_password
+from app.domain.auth import Role, UserAccount
+from app.infrastructure.in_memory import InMemoryUserAccountRepository
 
 API_ENV: dict[str, str] = {
     "DATABASE_URL": "postgresql+psycopg://odonto:odonto_dev@db-inexistente.invalid:5432/odonto",
@@ -45,3 +49,81 @@ def make_client() -> Callable[[], tuple[FastAPI, TestClient]]:
 @pytest.fixture
 def client(make_client: Callable[[], tuple[FastAPI, TestClient]]) -> TestClient:
     return make_client()[1]
+
+
+# --- Autenticacion: repositorio en memoria sustituye al de PostgreSQL (design D-10) ---
+
+AUTH_PASSWORD = "clave-ficticia-de-prueba"
+PROFESSIONAL_A = "11111111-1111-4111-8111-111111111111"
+PROFESSIONAL_B = "22222222-2222-4222-8222-222222222222"
+
+
+def make_account(
+    user_id: str,
+    email: str,
+    role: Role,
+    *,
+    active: bool = True,
+    professional_id: str | None = None,
+    full_name: str = "Usuario Demo",
+) -> UserAccount:
+    return UserAccount(
+        id=user_id,
+        email=email,
+        full_name=full_name,
+        password_hash=hash_password(AUTH_PASSWORD),
+        role=role,
+        active=active,
+        professional_id=professional_id,
+    )
+
+
+@pytest.fixture(scope="session")
+def seeded_accounts() -> list[UserAccount]:
+    """Un usuario por rol, uno desactivado y un odontologo sin ficha (hash calculado una vez)."""
+    return [
+        make_account("u-admin", "admin@example.com", Role.ADMIN, full_name="Admin Demo"),
+        make_account("u-rec", "recepcion@example.com", Role.RECEPTIONIST, full_name="Rec Demo"),
+        make_account(
+            "u-dra-a",
+            "dra.a@example.com",
+            Role.DENTIST,
+            professional_id=PROFESSIONAL_A,
+            full_name="Dra A",
+        ),
+        make_account("u-dr-sin-ficha", "sinficha@example.com", Role.DENTIST),
+        make_account("u-baja", "baja@example.com", Role.RECEPTIONIST, active=False),
+    ]
+
+
+@pytest.fixture
+def user_repo(seeded_accounts: list[UserAccount]) -> InMemoryUserAccountRepository:
+    return InMemoryUserAccountRepository(seeded_accounts)
+
+
+@pytest.fixture
+def auth_app(
+    make_client: Callable[[], tuple[FastAPI, TestClient]],
+    user_repo: InMemoryUserAccountRepository,
+) -> tuple[FastAPI, TestClient]:
+    app, test_client = make_client()
+    app.dependency_overrides[get_user_repository] = lambda: user_repo
+    return app, test_client
+
+
+@pytest.fixture
+def auth_client(auth_app: tuple[FastAPI, TestClient]) -> TestClient:
+    return auth_app[1]
+
+
+def login_token(test_client: TestClient, email: str) -> str:
+    response = test_client.post(
+        "/api/v1/auth/login", json={"email": email, "password": AUTH_PASSWORD}
+    )
+    assert response.status_code == 200, response.text
+    token: str = response.json()["access_token"]
+    return token
+
+
+def bearer(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}

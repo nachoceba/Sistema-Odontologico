@@ -1,19 +1,36 @@
-import { useApiHealth, type ApiHealth } from './useApiHealth'
+import { Navigate, Route, Routes } from 'react-router'
+import { AuthProvider } from './auth/AuthProvider'
+import RequireAuth from './auth/RequireAuth'
+import { useAuth } from './auth/useAuth'
+import AgendaPlaceholderPage from './pages/AgendaPlaceholderPage'
+import LoginPage from './pages/LoginPage'
 
-const MESSAGES: Record<ApiHealth, string> = {
-  unconfigured: 'Falta configurar la URL de la API',
-  checking: 'Verificando…',
-  up: 'API disponible',
-  down: 'API no disponible',
-}
-
-export default function App() {
-  const health = useApiHealth()
+function AppRoutes() {
+  const { status } = useAuth()
+  if (status === 'loading') {
+    return (
+      <main className="page">
+        <p role="status">Cargando…</p>
+      </main>
+    )
+  }
 
   return (
-    <main style={{ fontFamily: 'system-ui, sans-serif', margin: '3rem auto', maxWidth: '40rem', padding: '0 1rem' }}>
-      <h1>Sistema Odontológico</h1>
-      <p role="status">{MESSAGES[health]}</p>
-    </main>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<RequireAuth />}>
+        <Route path="/agenda" element={<AgendaPlaceholderPage />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/agenda" replace />} />
+    </Routes>
+  )
+}
+
+/** Raíz de la app; el router (BrowserRouter o MemoryRouter en tests) lo pone quien la monta. */
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   )
 }

@@ -18,8 +18,6 @@
 | Prioridad | Pregunta | Bloquea | Decisor |
 |-----------|----------|---------|---------|
 | Alta | ¿Qué proveedor SMTP gratuito se usa en producción o demo y qué cupo tiene? (SU-02) | Recordatorios | Equipo técnico |
-| Media | ¿Hace falta refresh token o alcanza con un token de 30 minutos? (SU-07) | Login | Product Owner |
-| Alta | ¿Quién define y edita los horarios de los profesionales? (SU-06) | Matriz RBAC, US-004 | Dueño / Product Owner |
 | Media | Si cambia un horario y hay turnos afectados, ¿se avisa al paciente o solo a recepción? (RN-HO-04) | US-004 | Product Owner |
 | Media | ¿Un paciente puede tener varios turnos el mismo día? (SU-05) | Validación de turnos | Product Owner |
 | Media | ¿Un paciente puede tener dos turnos a la misma hora con profesionales distintos? (SU-05; el repositorio de C-05d lo acepta igual que la base; la regla, si existe, es de C-08) | Validación de turnos (C-08) | Product Owner |
@@ -39,3 +37,10 @@
 | Baja | Precio de Dentalink (USD 29 según un tercero, sin respaldo del sitio oficial): no verificado. | Contexto de mercado | Equipo |
 | Baja | Normativa: Ley 25.326 y Ley 27.706 no fueron contrastadas con su texto. ¿Hace falta revisión legal si el proyecto pasara a datos reales? | Cumplimiento | Dueño |
 | Baja | Adopción: ¿cómo se hace que recepción abandone planilla y WhatsApp? | Éxito del proyecto | Dueño |
+
+## Preguntas resueltas
+
+| Pregunta | Resolución | Decisión |
+|----------|------------|----------|
+| ¿Hace falta refresh token o alcanza con un token de 30 minutos? (SU-07) | Alcanza con 30 minutos y sin refresh token (2026-11-03, C-03) | DD-45 |
+| ¿Quién define y edita los horarios de los profesionales? (SU-06) | Solo el administrador; la recepción y los odontólogos solo leen (2026-11-03, C-03) | DD-48 |

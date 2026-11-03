@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.core.errors import DomainError
 from app.domain.appointments.errors import AppointmentNotFoundError, SlotTakenError
+from app.domain.auth import ForbiddenError, InvalidCredentialsError, NotAuthenticatedError
 
 
 class CodigoSinEstadoError(DomainError):
@@ -74,3 +75,59 @@ def test_unexpected_error_is_500_without_internal_details(raising_client: TestCl
     assert response.json() == {"error": {"code": "INTERNAL_ERROR", "message": "Error interno"}}
     assert "hunter2" not in response.text
     assert "Traceback" not in response.text
+
+
+def _boom_invalid_credentials() -> None:
+    raise InvalidCredentialsError
+
+
+def _boom_not_authenticated() -> None:
+    raise NotAuthenticatedError
+
+
+def _boom_forbidden() -> None:
+    raise ForbiddenError
+
+
+@pytest.fixture
+def auth_client(make_client: Callable[[], tuple[FastAPI, TestClient]]) -> TestClient:
+    app, test_client = make_client()
+    app.add_api_route("/__test__/invalid-credentials", _boom_invalid_credentials)
+    app.add_api_route("/__test__/not-authenticated", _boom_not_authenticated)
+    app.add_api_route("/__test__/forbidden", _boom_forbidden)
+    return test_client
+
+
+@pytest.mark.parametrize(
+    ("path", "code"),
+    [
+        ("/__test__/invalid-credentials", "INVALID_CREDENTIALS"),
+        ("/__test__/not-authenticated", "NOT_AUTHENTICATED"),
+    ],
+)
+def test_authentication_errors_are_401_with_www_authenticate(
+    auth_client: TestClient, path: str, code: str
+) -> None:
+    response = auth_client.get(path)
+
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
+    assert response.json()["error"]["code"] == code
+    assert response.json()["error"]["message"]
+
+
+def test_forbidden_is_403_without_www_authenticate(auth_client: TestClient) -> None:
+    response = auth_client.get("/__test__/forbidden")
+
+    assert response.status_code == 403
+    assert "www-authenticate" not in response.headers
+    assert response.json() == {
+        "error": {"code": "FORBIDDEN", "message": "No tenés permiso para esta acción"}
+    }
+
+
+def test_non_401_domain_errors_do_not_get_www_authenticate(raising_client: TestClient) -> None:
+    response = raising_client.get("/__test__/slot-taken")
+
+    assert response.status_code == 409
+    assert "www-authenticate" not in response.headers

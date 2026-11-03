@@ -1,0 +1,53 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #1a2733;
+  background: #f5f8fa;
+}
+
+.page {
+  margin: 3rem auto;
+  max-width: 24rem;
+  padding: 0 1rem;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+}
+
+.login-form input {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #8a99a6;
+  border-radius: 0.4rem;
+  font-size: 1rem;
+}
+
+button {
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: #0b6e8a;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+:focus-visible {
+  outline: 3px solid #f0a500;
+  outline-offset: 2px;
+}
+
+[role='alert'] {
+  margin: 0.25rem 0;
+  padding: 0.5rem 0.7rem;
+  border-left: 4px solid #b3261e;
+  background: #fdecea;
+  color: #7a1612;
+}

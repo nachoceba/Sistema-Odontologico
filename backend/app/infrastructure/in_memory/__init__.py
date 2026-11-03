@@ -10,11 +10,13 @@ from app.infrastructure.in_memory.schedules import (
     InMemoryWorkingHoursRepository,
 )
 from app.infrastructure.in_memory.settings import InMemoryClinicSettingsRepository
+from app.infrastructure.in_memory.users import InMemoryUserAccountRepository
 
 __all__ = [
     "InMemoryAppointmentRepository",
     "InMemoryClinicSettingsRepository",
     "InMemoryPatientRepository",
     "InMemoryTimeOffRepository",
+    "InMemoryUserAccountRepository",
     "InMemoryWorkingHoursRepository",
 ]

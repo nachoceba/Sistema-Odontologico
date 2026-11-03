@@ -297,6 +297,58 @@
 **Justificación**: valores sin sentido (0 minutos, hora 25) nunca deben llegar al cálculo de franjas ni al job de recordatorios.
 **Trade-offs aceptados**: ninguno relevante.
 
+### DD-45 — Sesión de 30 minutos sin refresh token; "Salir" solo borra el token del navegador (P-1 y P-11 de C-03)
+**Decisión**: el token de acceso dura `ACCESS_TOKEN_EXPIRE_MINUTES` (30 por defecto) y no hay refresh token ni lista de tokens revocados. "Salir" borra el token del navegador; un token copiado antes sigue sirviendo hasta que venza.
+**Contexto**: el servidor no guarda sesiones; revocar exigiría consultar Redis en cada request y un endpoint de logout.
+**Alternativas consideradas**: 8 horas; refresh token; lista negra en Redis.
+**Justificación**: vida corta limita el daño de un token robado y `current_user()` recarga la cuenta en cada request (desactivarla corta el acceso al instante). Resuelve SU-07.
+**Trade-offs aceptados**: el usuario reingresa cada 30 minutos; el token no se puede anular antes de vencer.
+
+### DD-46 — El token vive en `sessionStorage` (P-2 de C-03)
+**Decisión**: el frontend guarda el token en `sessionStorage` (se pierde al cerrar la pestaña; sobrevive a recargar). Si el almacenamiento falla, la sesión vive en memoria. Nunca en `localStorage` ni en cookies creadas por el frontend; la contraseña no se guarda en ningún lado.
+**Contexto**: una cookie httpOnly cambia el diseño de la API (CSRF, CORS con credenciales).
+**Alternativas consideradas**: solo memoria; `localStorage`; cookie httpOnly.
+**Justificación**: equilibrio entre comodidad (F5 no saca de la sesión) y exposición.
+**Trade-offs aceptados**: un XSS podría leer el token (riesgo ya aceptado; la cookie httpOnly se evalúa en C-13).
+
+### DD-47 — Sin límite de intentos fallidos en C-03 (P-3 de C-03)
+**Decisión**: no hay bloqueo de cuenta ni límite por email/IP; se revisa en C-13. Para no revelar si una cuenta existe, el login verifica contra un hash ficticio cuando el email no existe.
+**Alternativas consideradas**: límite con Redis (429); bloqueo hasta que el administrador desbloquee.
+**Justificación**: datos ficticios; argon2 ya es lento; el bloqueo permitiría dejar fuera a otra persona a propósito.
+**Trade-offs aceptados**: fuerza bruta posible hasta C-13.
+
+### DD-48 — Matriz RBAC confirmada; solo el administrador edita horarios (P-4 de C-03)
+**Decisión**: se confirma la matriz de `03_actores_y_roles.md` tal cual, incluido que solo el administrador edita horarios y licencias. Resuelve SU-06.
+**Justificación**: los horarios cambian poco y concentrarlos en una persona evita conflictos.
+**Trade-offs aceptados**: la recepción no puede corregir un horario sin el administrador.
+
+### DD-49 — Errores de autenticación y autorización genéricos (P-5 de C-03)
+**Decisión**: email inexistente, contraseña incorrecta y cuenta desactivada responden 401 `INVALID_CREDENTIALS` con el mismo mensaje ("Email o contraseña incorrectos"); sin sesión, vencida o inválida: 401 `NOT_AUTHENTICATED`; sin permiso: 403 `FORBIDDEN`. Toda respuesta 401 lleva `WWW-Authenticate: Bearer`. El 422 de validación mantiene el formato de FastAPI.
+**Justificación**: un mensaje distinto para cuentas desactivadas permitiría averiguar qué emails existen (Flujo 1: mensaje genérico).
+
+### DD-50 — Email normalizado en el login (P-6 de C-03)
+**Decisión**: el email se recorta y se compara sin distinguir mayúsculas (coherente con DD-38); la contraseña se compara exacta, sin recortar. Máximos: email 254, contraseña 128 caracteres.
+
+### DD-51 — Redirección, cambio de rol y datos de `/auth/me` (P-7, P-8 y P-9 de C-03)
+**Decisión**: los tres roles van a `/agenda` (página provisoria con nombre y rol hasta C-10). Si cambia el rol de una cuenta o se la desactiva, la sesión abierta recibe 401 en la siguiente llamada. `GET /auth/me` devuelve id, email, nombre, rol y `professional_id` (nunca el hash ni el token).
+**Justificación**: nunca conviven dos roles en una misma sesión; el frontend necesita `professional_id` para filtrar la agenda del odontólogo.
+
+### DD-52 — Sin variables de entorno nuevas en C-03 (P-10 de C-03)
+**Decisión**: se usan `JWT_SECRET_KEY`, `JWT_ALGORITHM` y `ACCESS_TOKEN_EXPIRE_MINUTES` ya validadas desde C-01; el frontend sigue usando solo `VITE_API_URL`.
+
+### DD-53 — El odontólogo solo accede a lo propio; sin ficha no ve nada; 403 en lo ajeno (P-12 y P-13 de C-03)
+**Decisión**: la regla pura `can_access_professional` y la dependencia `require_professional_access` entregan RN-AU-04. Un odontólogo sin ficha puede entrar pero no accede a datos de ningún profesional; con la ficha desactivada ve lo suyo (el ingreso lo decide solo `users.active`); un id ajeno o mal formado responde 403, no 404. Se prueba con una ruta registrada solo en los tests; el test de punta a punta contra el endpoint real de turnos es obligatorio en C-08.
+**Justificación**: separa "puede entrar" (RN-AU-03) de "qué ve" (RN-AU-04); el personal del consultorio ya conoce a los demás profesionales.
+
+### DD-54 — `react-router` y un solo change C-03 (P-14 y P-15 de C-03)
+**Decisión**: el frontend usa `react-router` en modo librería (`BrowserRouter`, `Routes`, `Navigate`) y C-03 se ejecutó como un solo change por grupos (backend primero, frontend al final).
+
+### DD-55 — Técnica de autenticación (C-03)
+**Decisión**: PyJWT y argon2-cffi viven en `app/core/security.py`; el token lleva solo `sub`, `role`, `iat` y `exp`; la lista blanca de algoritmos y los claims obligatorios los fija el decode, y el vencimiento se compara contra un reloj inyectable. `current_user` usa `HTTPBearer(auto_error=False)` para responder con el cuerpo uniforme. Un test de inventario de rutas exige que toda ruta fuera de login y health dependa de `current_user`.
+**Consultado con Context7**: `/jpadilla/pyjwt` (`algorithms` obligatorio, `require`), `/hynek/argon2-cffi` (`verify`, `check_needs_rehash`), `/websites/fastapi_tiangolo` (`HTTPBearer(auto_error=False)`).
+**Hallazgo**: FastAPI 0.162 ya no aplana `app.routes` (los routers incluidos aparecen como `_IncludedRouter`); el inventario recorre las rutas con `fastapi.routing.iter_route_contexts`. Un inventario que solo mirara `app.routes` pasaría en vacío.
+**Pendiente para C-04**: rehash con `check_needs_rehash` al iniciar sesión (necesita escritura de usuarios).
+
 ## Supuestos inferidos
 
 ### SU-01 — Zona horaria única
@@ -328,13 +380,13 @@
 **Riesgo si es falso**: agregar una regla y una validación más.
 **Cómo validar**: preguntar al usuario.
 
-### SU-06 — Solo el administrador edita horarios
+### SU-06 — Solo el administrador edita horarios (RESUELTO en C-03, DD-48)
 **Supuesto**: recepción solo consulta horarios.
+**Resolución**: confirmado por el usuario el 2026-11-03 al aprobar la matriz RBAC de C-03 (DD-48).
 **Riesgo si es falso**: cambiar la matriz RBAC.
-**Cómo validar**: preguntar al usuario.
 
-### SU-07 — Sin refresh token en v1
+### SU-07 — Sin refresh token en v1 (RESUELTO en C-03, DD-45)
 **Supuesto**: alcanza con un token de acceso de 30 minutos; al vencer, el usuario vuelve a iniciar sesión.
+**Resolución**: confirmado por el usuario el 2026-11-03 (DD-45). Si la recepción se queja, se sube `ACCESS_TOKEN_EXPIRE_MINUTES` sin tocar código.
 **Origen**: simplicidad del MVP.
 **Riesgo si es falso**: la recepción se molesta por reingresar; se agrega un refresh token.
-**Cómo validar**: probar con una recepcionista real.

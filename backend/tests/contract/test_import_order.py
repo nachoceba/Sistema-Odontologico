@@ -12,6 +12,7 @@ PACKAGES = [
     "app.domain.appointments",
     "app.domain.patients",
     "app.domain.settings",
+    "app.domain.auth",
     "app.infrastructure.in_memory",
     "app.infrastructure.db.models",
     "app.infrastructure.db.repositories",
