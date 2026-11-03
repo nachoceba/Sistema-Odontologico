@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -133,5 +133,5 @@ def test_reschedule_eligibility(current: S, now: datetime, expected: R | None) -
 
 
 def test_utc_offset_zero_now_equals_start_boundary() -> None:
-    now = STARTS_AT.astimezone(timezone.utc) - timedelta(seconds=1)
+    now = STARTS_AT.astimezone(UTC) - timedelta(seconds=1)
     assert change(S.SCHEDULED, S.CANCELLED, now).allowed is True

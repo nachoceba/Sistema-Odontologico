@@ -76,9 +76,7 @@ def _validate_inputs(day: object, slot_minutes: int) -> None:
         raise ValueError("slot_minutes debe ser mayor que cero")
 
 
-def _classify(
-    slot: Slot, professional_id: str, existing: Sequence[ExistingAppointment]
-) -> Slot:
+def _classify(slot: Slot, professional_id: str, existing: Sequence[ExistingAppointment]) -> Slot:
     """Unico punto de precedencia: OUTSIDE_HOURS > BUSY > FREE."""
     if slot.status is SlotStatus.OUTSIDE_HOURS:
         return slot
@@ -87,9 +85,7 @@ def _classify(
     return slot
 
 
-def _make_slot(
-    day: date, start_min: int, end_min: int, status: SlotStatus, timezone: str
-) -> Slot:
+def _make_slot(day: date, start_min: int, end_min: int, status: SlotStatus, timezone: str) -> Slot:
     midnight = datetime.combine(day, time.min)
     return Slot(
         starts_at=to_utc(midnight + timedelta(minutes=start_min), timezone),
@@ -118,9 +114,7 @@ def _block_slots(
     slots: list[Slot] = []
     cursor = start_min
     while cursor + slot_minutes <= end_min:
-        slots.append(
-            _make_slot(day, cursor, cursor + slot_minutes, SlotStatus.FREE, timezone)
-        )
+        slots.append(_make_slot(day, cursor, cursor + slot_minutes, SlotStatus.FREE, timezone))
         cursor += slot_minutes
     if cursor < end_min:
         slots.append(_make_slot(day, cursor, end_min, SlotStatus.OUTSIDE_HOURS, timezone))

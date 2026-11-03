@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, time, timezone
+from datetime import UTC, datetime, time
 from zoneinfo import ZoneInfo
 
 from app.domain.appointments import (
     AppointmentStatus,
     ExistingAppointment,
+    Slot,
     TimeOff,
     ValidationResult,
     WorkingHours,
@@ -22,7 +23,7 @@ TUESDAY = 1
 
 def local(year: int, month: int, day: int, hour: int, minute: int = 0) -> datetime:
     """Instante UTC correspondiente a una hora local de Buenos Aires."""
-    return datetime(year, month, day, hour, minute, tzinfo=BA).astimezone(timezone.utc)
+    return datetime(year, month, day, hour, minute, tzinfo=BA).astimezone(UTC)
 
 
 def monday(hour: int, minute: int = 0) -> datetime:
@@ -76,7 +77,9 @@ def validate(
     )
 
 
-def slot_at(slots: Sequence, hour: int, minute: int = 0, day=(2026, 10, 5)):
+def slot_at(
+    slots: Sequence[Slot], hour: int, minute: int = 0, day: tuple[int, int, int] = (2026, 10, 5)
+) -> Slot:
     """Franja cuyo inicio es la hora local indicada (por defecto, lunes 5/10/2026)."""
     target = local(day[0], day[1], day[2], hour, minute)
     matches = [slot for slot in slots if slot.starts_at == target]
@@ -84,9 +87,9 @@ def slot_at(slots: Sequence, hour: int, minute: int = 0, day=(2026, 10, 5)):
     return matches[0]
 
 
-def count_by_status(slots: Sequence) -> dict:
+def count_by_status(slots: Sequence[Slot]) -> dict[str, int]:
     """Cantidad de franjas por nombre de estado, ej. {'FREE': 16, 'OUTSIDE_HOURS': 32}."""
-    counts: dict = {}
+    counts: dict[str, int] = {}
     for slot in slots:
         counts[slot.status.name] = counts.get(slot.status.name, 0) + 1
     return counts

@@ -15,9 +15,7 @@ MON, TUE, WED = 0, 1, 2
 
 
 def block(weekday: int, start_hour: int, end_hour: int) -> WorkingHours:
-    return WorkingHours(
-        weekday=weekday, start_time=time(start_hour), end_time=time(end_hour)
-    )
+    return WorkingHours(weekday=weekday, start_time=time(start_hour), end_time=time(end_hour))
 
 
 # --- Tramos de horario ------------------------------------------------------------
@@ -39,9 +37,7 @@ def test_replace_then_read_returns_week_ordered_by_weekday_and_start(
 def test_new_replacement_discards_previous_blocks(
     working_hours_repo: WorkingHoursRepository,
 ) -> None:
-    working_hours_repo.replace_for_professional(
-        "dra-a", [block(MON, 9, 13), block(TUE, 9, 13)]
-    )
+    working_hours_repo.replace_for_professional("dra-a", [block(MON, 9, 13), block(TUE, 9, 13)])
     working_hours_repo.replace_for_professional("dra-a", [block(WED, 9, 13)])
     assert working_hours_repo.list_for_professional("dra-a") == [block(WED, 9, 13)]
 

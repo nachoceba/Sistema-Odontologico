@@ -22,9 +22,7 @@ def is_on_grid(minutes: int, block_start_minutes: int, slot_minutes: int) -> boo
     return (minutes - block_start_minutes) % slot_minutes == 0
 
 
-def ranges_overlap(
-    start_a: datetime, end_a: datetime, start_b: datetime, end_b: datetime
-) -> bool:
+def ranges_overlap(start_a: datetime, end_a: datetime, start_b: datetime, end_b: datetime) -> bool:
     """Rangos semiabiertos [inicio, fin): tocarse en el borde no es superponerse."""
     return start_a < end_b and start_b < end_a
 

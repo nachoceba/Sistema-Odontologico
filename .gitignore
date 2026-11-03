@@ -1,0 +1,18 @@
+# Secretos locales (regla dura 5): solo se versiona .env.example
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Frontend
+node_modules/
+dist/
+coverage/

@@ -5,13 +5,50 @@ description = "Backend del sistema odontologico (dominio puro, sin frameworks po
 requires-python = ">=3.12"
 dependencies = [
     "tzdata",  # zoneinfo en Windows
+    "pydantic>=2.7,<3",
+    "pydantic-settings>=2.3,<3",
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "celery[redis]>=5.4,<6",
+    "sqlalchemy>=2.0,<3",
+    "alembic>=1.13,<2",
+    "psycopg[binary]>=3.2,<4",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest",
+    "pytest>=8,<10",
+    "ruff>=0.6,<1",
+    "mypy>=1.11,<3",
+    "httpx>=0.27,<1",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+markers = [
+    "integration: tests que requieren base de datos o Redis reales (se piden con -m integration)",
+]
+addopts = "-m 'not integration'"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "SIM", "TRY"]
+# DD-18: la entrada invalida del llamador se informa con ValueError (con mensajes en espanol y
+# tambien tras un isinstance). Es una convencion global del dominio archivado; TRY003 y TRY004
+# pedirian mensajes en excepciones propias y TypeError, lo que cambiaria escenarios archivados.
+ignore = ["TRY003", "TRY004"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+files = ["app", "tests"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["celery", "celery.*"]
+ignore_missing_imports = true

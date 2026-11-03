@@ -61,7 +61,7 @@
 **Contexto**: la cátedra pide Redis "para las funcionalidades asincrónicas que correspondan".
 **Alternativas consideradas**: ARQ o RQ (más livianos); tareas en segundo plano de FastAPI (no sobreviven a un reinicio ni programan en el tiempo).
 **Justificación**: Celery es el estándar más documentado y trae programación (Beat) sin agregar otro servicio.
-**Trade-offs aceptados**: dos contenedores más (`worker` y `beat`). La elección de Celery es una propuesta a confirmar con la cátedra.
+**Trade-offs aceptados**: dos contenedores más (`worker` y `beat`). Confirmada por el usuario (no se consulta a la cátedra: son herramientas gratuitas dentro de la base del profesor); el esqueleto queda aislado en `infrastructure/tasks/`.
 
 ### DD-11 — JWT de acceso con expiración corta
 **Decisión**: login en `POST /api/v1/auth/login` que devuelve un JWT firmado (HS256) con el rol; contraseñas con hash argon2 o bcrypt.

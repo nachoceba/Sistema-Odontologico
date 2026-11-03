@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
 from app.core.timezone import local_day_bounds, to_local, to_utc
 
 BA = "America/Argentina/Buenos_Aires"
-UTC = timezone.utc
+UTC = UTC
 
 
 @pytest.mark.parametrize(

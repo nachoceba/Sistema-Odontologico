@@ -38,9 +38,7 @@ class RepositoryFactory(Protocol):
 
     def patients(self, initial: Sequence[Patient] = ()) -> PatientRepository: ...
 
-    def settings(
-        self, initial: ClinicSettings | None = None
-    ) -> ClinicSettingsRepository: ...
+    def settings(self, initial: ClinicSettings | None = None) -> ClinicSettingsRepository: ...
 
 
 class InMemoryFactory:
@@ -56,9 +54,7 @@ class InMemoryFactory:
     def patients(self, initial: Sequence[Patient] = ()) -> PatientRepository:
         return InMemoryPatientRepository(initial)
 
-    def settings(
-        self, initial: ClinicSettings | None = None
-    ) -> ClinicSettingsRepository:
+    def settings(self, initial: ClinicSettings | None = None) -> ClinicSettingsRepository:
         return InMemoryClinicSettingsRepository(initial)
 
 

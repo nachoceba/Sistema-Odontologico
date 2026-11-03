@@ -34,9 +34,7 @@ def _require_query_range(start: datetime, end: datetime | None) -> None:
         raise ValueError("desde debe ser anterior a hasta")
 
 
-def _touches_range(
-    appointment: Appointment, start: datetime, end: datetime | None
-) -> bool:
+def _touches_range(appointment: Appointment, start: datetime, end: datetime | None) -> bool:
     if end is None:
         return appointment.ends_at > start
     return ranges_overlap(appointment.starts_at, appointment.ends_at, start, end)
@@ -125,8 +123,6 @@ class InMemoryAppointmentRepository:
     ) -> list[Appointment]:
         _require_query_range(start, end)
         matches = [
-            a
-            for a in self._appointments.values()
-            if belongs(a) and _touches_range(a, start, end)
+            a for a in self._appointments.values() if belongs(a) and _touches_range(a, start, end)
         ]
         return sorted(matches, key=lambda a: a.starts_at)

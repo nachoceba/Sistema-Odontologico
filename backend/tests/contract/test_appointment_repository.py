@@ -48,9 +48,7 @@ def book(
     )
 
 
-def day_of(
-    repo: AppointmentRepository, professional: str, day: date
-) -> list[Appointment]:
+def day_of(repo: AppointmentRepository, professional: str, day: date) -> list[Appointment]:
     start, end = local_day_bounds(day, BA)
     return repo.list_for_professional(professional, start, end)
 
@@ -199,9 +197,7 @@ def test_cancelled_appointment_does_not_block(
     assert sorted(statuses) == ["cancelled", "scheduled"]
 
 
-@pytest.mark.parametrize(
-    "status", [AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW]
-)
+@pytest.mark.parametrize("status", [AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW])
 def test_completed_or_no_show_appointments_do_not_block(
     appointment_repo: AppointmentRepository, status: AppointmentStatus
 ) -> None:
@@ -338,9 +334,7 @@ def test_listing_range_is_half_open(appointment_repo: AppointmentRepository) -> 
 def test_midnight_crossing_appointment_appears_on_both_days(
     appointment_repo: AppointmentRepository,
 ) -> None:
-    crossing = book(
-        appointment_repo, local(2026, 10, 5, 23, 45), local(2026, 10, 6, 0, 15)
-    )
+    crossing = book(appointment_repo, local(2026, 10, 5, 23, 45), local(2026, 10, 6, 0, 15))
     monday_ids = [a.id for a in day_of(appointment_repo, "dra-a", date(2026, 10, 5))]
     tuesday_ids = [a.id for a in day_of(appointment_repo, "dra-a", date(2026, 10, 6))]
     assert monday_ids == [crossing.id]
@@ -352,9 +346,7 @@ def test_listing_without_upper_bound_returns_future_appointments(
 ) -> None:
     book(appointment_repo, monday(10), monday(10, 30))
     friday = book(appointment_repo, local(2026, 10, 9, 10), local(2026, 10, 9, 10, 30))
-    next_monday = book(
-        appointment_repo, local(2026, 10, 12, 10), local(2026, 10, 12, 10, 30)
-    )
+    next_monday = book(appointment_repo, local(2026, 10, 12, 10), local(2026, 10, 12, 10, 30))
     listed = appointment_repo.list_for_professional("dra-a", local(2026, 10, 6, 0))
     assert [a.id for a in listed] == [friday.id, next_monday.id]
 

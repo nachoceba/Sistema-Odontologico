@@ -1,20 +1,19 @@
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 
 import pytest
 
 from app.domain.appointments import (
     AppointmentStatus,
     RejectionReason,
+    TimeOff,
+    WorkingHours,
     validate_appointment,
 )
-
-from app.domain.appointments import TimeOff, WorkingHours
 
 from .helpers import (
     DR_B_HOURS,
     DRA_A_HOURS,
     MONDAY,
-    NOW,
     appointment,
     local,
     monday,
@@ -32,12 +31,12 @@ def test_accepts_free_slot_and_computes_ends_at() -> None:
 
 def test_utc_instant_is_evaluated_in_clinic_local_time() -> None:
     # 13:00 UTC == 10:00 en Buenos Aires (UTC-3): cae dentro del horario 09-13.
-    starts_at_utc = datetime(2026, 10, 5, 13, 0, tzinfo=timezone.utc)
+    starts_at_utc = datetime(2026, 10, 5, 13, 0, tzinfo=UTC)
 
     result = validate(starts_at_utc)
 
     assert result.accepted is True
-    assert result.ends_at == datetime(2026, 10, 5, 13, 30, tzinfo=timezone.utc)
+    assert result.ends_at == datetime(2026, 10, 5, 13, 30, tzinfo=UTC)
 
 
 def test_naive_datetime_raises_value_error() -> None:
@@ -57,7 +56,6 @@ def test_naive_now_raises_value_error() -> None:
             time_off=[],
             existing_appointments=[],
         )
-
 
 
 # --- Anticipacion minima (RN-TU-12) -----------------------------------------
@@ -114,9 +112,7 @@ def test_rejects_off_grid_start_in_second_block() -> None:
 def test_grid_is_anchored_to_block_start() -> None:
     dr_b_offset_hours = [WorkingHours(MONDAY, time(9, 15), time(13, 15))]
 
-    result = validate(
-        monday(9, 45), professional_id="dr-b", working_hours=dr_b_offset_hours
-    )
+    result = validate(monday(9, 45), professional_id="dr-b", working_hours=dr_b_offset_hours)
 
     assert result.accepted is True
     assert result.ends_at == monday(10, 15)
@@ -125,9 +121,7 @@ def test_grid_is_anchored_to_block_start() -> None:
 def test_hour_on_the_hour_is_off_grid_when_block_starts_at_09_15() -> None:
     dr_b_offset_hours = [WorkingHours(MONDAY, time(9, 15), time(13, 15))]
 
-    result = validate(
-        monday(10, 0), professional_id="dr-b", working_hours=dr_b_offset_hours
-    )
+    result = validate(monday(10, 0), professional_id="dr-b", working_hours=dr_b_offset_hours)
 
     assert result.accepted is False
     assert result.reason == RejectionReason.OFF_GRID
@@ -259,9 +253,7 @@ def test_accepts_same_time_other_professional() -> None:
 
 def test_cancelled_appointment_does_not_block() -> None:
     booked = [
-        appointment(
-            "dra-a", monday(10, 0), monday(10, 30), status=AppointmentStatus.CANCELLED
-        )
+        appointment("dra-a", monday(10, 0), monday(10, 30), status=AppointmentStatus.CANCELLED)
     ]
 
     result = validate(monday(10, 0), existing_appointments=booked)
@@ -270,9 +262,7 @@ def test_cancelled_appointment_does_not_block() -> None:
     assert result.ends_at == monday(10, 30)
 
 
-@pytest.mark.parametrize(
-    "status", [AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW]
-)
+@pytest.mark.parametrize("status", [AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW])
 def test_non_scheduled_statuses_do_not_block(status: AppointmentStatus) -> None:
     booked = [appointment("dra-a", monday(10, 0), monday(10, 30), status=status)]
 

@@ -22,7 +22,7 @@ Stack: FastAPI + SQLAlchemy + PostgreSQL + Redis (Celery) + Docker Compose; Reac
 ## Árbol de dependencias
 
 ```
-C-01 foundation-setup
+C-01 foundation-setup     [x] archivado (2026-11-03)
  ├── C-02 db-schema-and-seed
  │    └── C-03 auth-login-rbac
  │         ├── C-04 user-management
@@ -97,16 +97,20 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 ## FASE 0 — Fundación
 
 ### [C-01] `foundation-setup`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` implementado y archivado el 2026-11-03: 38/38 tasks (todas verificadas, incluidas las de Docker); 262 tests; mypy --strict y ruff limpios en `app` y `tests`; Docker Compose con los 7 servicios verificado; frontend con Vitest; tests del backend en Python 3.12 dentro del contenedor. Celery confirmado por el usuario (P-1 / DD-10). `GET /api/v1/health` público. TypeScript fijado en ~5.9 y ESLint en lugar de oxlint.
 - **Scope**:
   - Estructura del repositorio: `backend/` (FastAPI con `app/{api,domain,application,infrastructure,core}`, `alembic/`, `scripts/`, `tests/`) y `frontend/` (React + TypeScript + Vite)
   - `docker-compose.yml` con los servicios `db` (PostgreSQL), `redis`, `api`, `worker`, `beat`, `frontend` y `mailpit`; Dockerfiles de backend y frontend; un comando levanta todo
   - pytest configurado (unit de dominio + carpeta de integración) y Vitest en el frontend; lint y format (ruff y eslint)
   - `.env.example` con todas las variables de la tabla de `08_arquitectura_propuesta.md` §Variables de entorno; configuración validada con Pydantic Settings; `.env` ignorado por git
   - `app/core/errors.py` (errores de dominio tipados) y endpoint de salud `GET /api/v1/health`
-  - Riesgo a registrar: elegir el proveedor SMTP gratuito de demo y verificar su cupo (SU-02); confirmar Celery con la cátedra (DD-10)
+  - Riesgo a registrar: elegir el proveedor SMTP gratuito de demo y verificar su cupo (SU-02); confirmar Celery con la cátedra (DD-10). Celery ya quedó confirmado por el usuario; SU-02 sigue abierto para C-11
 - **Dependencias**: ninguna
 - **Governance**: BAJO
+- **Artefactos**:
+  - Change archivado: `openspec/changes/archive/2026-11-03-foundation-setup/` (proposal, design, tasks y specs)
+  - Specs principales (capabilities nuevas): `openspec/specs/runtime-configuration/spec.md`, `openspec/specs/api-health/spec.md`, `openspec/specs/error-model/spec.md`, `openspec/specs/local-environment/spec.md`, `openspec/specs/quality-checks/spec.md` y `openspec/specs/frontend-shell/spec.md`
+- **Nota**: `uvicorn --reload` en el compose de desarrollo mantiene vivo el contenedor `api` aunque falle la configuración. El error sale en el log y el servicio no llega a `healthy`.
 - **Leer antes**:
   - `knowledge-base/02_descripcion_general.md` §Stack
   - `knowledge-base/08_arquitectura_propuesta.md` §Estructura de directorios, §Variables de entorno
@@ -207,7 +211,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 - **Queda para C-05b en adelante**: `compute_slots`, zona horaria (`app/core/timezone.py`), validación de tramos y licencias, transiciones de estado, regla de paciente inactivo y puertos de repositorios (ver C-05)
 
 ### [C-05b] `calcular-slots-disponibles` (recorte de C-05, archivado)
-- **Estado**: `[x]` implementado y archivado el 2026-11-03: 41/41 tasks, 71 tests pasando (33 de C-05a + 38 nuevos). Sin typecheck ni lint: mypy y ruff no están instalados (regla dura 9). El intérprete local es Python 3.11 y el proyecto pide 3.12 o más: confirmar en Docker/CI.
+- **Estado**: `[x]` implementado y archivado el 2026-11-03: 41/41 tasks, 71 tests pasando (33 de C-05a + 38 nuevos). Typecheck y lint resueltos en C-01: mypy y ruff están en `pyproject.toml` y limpios; la verificación en Python 3.12 se hizo en el contenedor.
 - **Scope**:
   - `compute_slots`: clasifica cada franja del día local completo de un profesional como `FREE` / `BUSY` / `OUTSIDE_HOURS`, con inicio y fin en UTC. Solo ocupan los turnos `scheduled`; la licencia sale `OUTSIDE_HOURS`; no aplica anticipación mínima (la sigue rechazando `validate_appointment`)
   - `app/core/timezone.py`: conversión UTC <-> zona del consultorio, inicio y fin del día local (RN-GL-01); se asume una zona sin horario de verano (SU-01, sin confirmar)
@@ -227,7 +231,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `openspec/changes/archive/2026-11-03-calcular-slots-disponibles/design.md`
 
 ### [C-05c] `completar-dominio-agenda` (recorte de C-05, archivado)
-- **Estado**: `[x]` implementado y archivado el 2026-11-03: 26/26 tasks, 131 tests pasando en total. `openspec validate --strict` OK y `openspec validate --all` OK. Sin tope de horario (DD-26). Decisiones de dominio DD-21 a DD-30 confirmadas por el usuario. Typecheck: `mypy --strict` sobre `app/` está limpio, pero mypy y ruff no están en `pyproject.toml` (pendiente para C-01).
+- **Estado**: `[x]` implementado y archivado el 2026-11-03: 26/26 tasks, 131 tests pasando en total. `openspec validate --strict` OK y `openspec validate --all` OK. Sin tope de horario (DD-26). Decisiones de dominio DD-21 a DD-30 confirmadas por el usuario. Typecheck: `mypy --strict` sobre `app/` está limpio; mypy y ruff quedaron en `pyproject.toml` en C-01 (resuelto).
 - **Scope**:
   - `app/domain/schedules`: validación de tramos (`start < end`, sin superposición, RN-HO-02), día de la semana dentro de rango (RN-HO-01), horas en minutos exactos, validez de licencias e `is_date_in_time_off` con fecha local (RN-HO-03)
   - `app/domain/appointments`: transiciones de estado (RN-TU-05, RN-TU-06, RN-TU-07): matriz de transiciones permitidas, marcar atendido o ausente solo con el turno ya iniciado, cancelar solo antes del inicio, y turnos que admiten reprogramación
@@ -244,7 +248,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `openspec/changes/archive/2026-11-03-completar-dominio-agenda/design.md`
 
 ### [C-05d] `puertos-repositorios-dominio` (último recorte de C-05, archivado)
-- **Estado**: `[x]` implementado y archivado el 2026-11-03: 31/31 tasks, 199 tests pasando en total (131 de C-05a a C-05c + 68 nuevos). `mypy --strict app/` limpio (30 archivos); sin imports de fastapi, sqlalchemy, celery ni redis en `domain/` ni `infrastructure/`. Decisiones DD-31 a DD-36 confirmadas por el usuario. mypy y ruff siguen sin estar en `pyproject.toml` (pendiente C-01). El intérprete local es Python 3.11 y el proyecto pide 3.12 o más: confirmar en Docker/CI.
+- **Estado**: `[x]` implementado y archivado el 2026-11-03: 31/31 tasks, 199 tests pasando en total (131 de C-05a a C-05c + 68 nuevos). `mypy --strict app/` limpio (30 archivos); sin imports de fastapi, sqlalchemy, celery ni redis en `domain/` ni `infrastructure/`. Decisiones DD-31 a DD-36 confirmadas por el usuario. mypy y ruff quedaron en `pyproject.toml` en C-01 (resuelto); la verificación en Python 3.12 se hizo en el contenedor de C-01.
 - **Scope**:
   - Puertos (`typing.Protocol`, sin dependencias de infraestructura) para turnos, horarios y licencias, pacientes (solo `get(id)`) y configuración del consultorio (solo lectura: duración del slot, zona horaria y anticipación mínima)
   - Tipos con identidad (`Appointment`, `TimeOffEntry`, `Patient`, `ClinicSettings`) y errores de dominio `SlotTakenError` (`SLOT_TAKEN`) y `AppointmentNotFoundError` (`APPOINTMENT_NOT_FOUND`) en `app/domain/appointments/errors.py`
@@ -479,7 +483,7 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 
 | ID | Change | Fase | Deps | Governance |
 |----|--------|------|------|------------|
-| C-01 | foundation-setup | 0 | — | BAJO |
+| C-01 | foundation-setup (archivado `[x]`) | 0 | — | BAJO |
 | C-02 | db-schema-and-seed | 1 | C-01 | CRITICO |
 | C-03 | auth-login-rbac | 1 | C-02 | CRITICO |
 | C-04 | user-management | 1 | C-03 | ALTO |
@@ -497,4 +501,4 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-12 | reminders-cron | 4 | C-11 | ALTO |
 | C-13 | deploy-and-hardening | 5 | C-04, C-10, C-12 | MEDIO |
 
-**Primer change recomendado**: `C-01` (foundation-setup). Para arrancar: `/opsx:propose C-01-foundation-setup`
+**Siguiente change recomendado**: `C-02` (db-schema-and-seed); C-01 ya está archivado. Para arrancar: `/opsx:propose C-02-db-schema-and-seed`

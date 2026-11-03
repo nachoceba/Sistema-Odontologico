@@ -47,7 +47,7 @@ La fuente de verdad del dominio vive en `knowledge-base/`. **Leé el archivo rel
 | [10_preguntas_abiertas.md](knowledge-base/10_preguntas_abiertas.md) | ⚠️ Inconsistencias a resolver ANTES de codear |
 | [11_recordatorios_email.md](knowledge-base/11_recordatorios_email.md) | Emails de confirmación y recordatorio |
 
-> ⚠️ Preguntas de prioridad **Alta** abiertas en `10_preguntas_abiertas.md`: proveedor SMTP gratuito y su cupo (SU-02), aceptación de Celery por la cátedra (DD-10) y quién edita los horarios de los profesionales (SU-06). Resolverlas antes de los changes que dependen de ellas (C-01, C-07, C-11/C-12).
+> ⚠️ Preguntas de prioridad **Alta** abiertas en `10_preguntas_abiertas.md`: proveedor SMTP gratuito y su cupo (SU-02) y quién edita los horarios de los profesionales (SU-06). Resolverlas antes de los changes que dependen de ellas (C-07, C-11/C-12).
 
 Contexto de mercado (no normativo): [docs/discovery/informe-discovery.md](docs/discovery/informe-discovery.md).
 
@@ -98,11 +98,11 @@ El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen:
 
 - **Total**: 13 changes en 6 fases (0 Fundación, 1 Datos y acceso, 2 Dominio y catálogos, 3 Agenda de turnos MVP, 4 Notificaciones por email, 5 Salida a producción).
 - **Camino crítico** (7): `C-01 → C-02 → C-03 → C-08 → C-11 → C-12 → C-13`, con una cadena paralela de igual longitud `C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13`.
-- **Primer change**: `C-01` (`foundation-setup`).
-- **Changes ya archivados**: `C-05a` `crear-turno-sin-solapamientos` (recorte de C-05, 33 tests; archivo en `openspec/changes/archive/2026-09-30-crear-turno-sin-solapamientos/`, spec principal en `openspec/specs/appointment-creation/spec.md`). C-05 completo: C-05a a C-05d archivados.
+- **Primer change**: C-01 archivado; siguiente: C-02 (`db-schema-and-seed`).
+- **Changes ya archivados**: `C-01` `foundation-setup` (archivo en `openspec/changes/archive/2026-11-03-foundation-setup/`, specs principales en `openspec/specs/runtime-configuration/spec.md`, `openspec/specs/api-health/spec.md`, `openspec/specs/error-model/spec.md`, `openspec/specs/local-environment/spec.md`, `openspec/specs/quality-checks/spec.md` y `openspec/specs/frontend-shell/spec.md`). `C-05a` `crear-turno-sin-solapamientos` (recorte de C-05, 33 tests; archivo en `openspec/changes/archive/2026-09-30-crear-turno-sin-solapamientos/`, spec principal en `openspec/specs/appointment-creation/spec.md`). C-05 completo: C-05a a C-05d archivados.
   `C-05b` `calcular-slots-disponibles` (recorte de C-05, 71 tests en total con los de C-05a; archivo en `openspec/changes/archive/2026-11-03-calcular-slots-disponibles/`, specs principales en `openspec/specs/slot-availability/spec.md` y `openspec/specs/clinic-timezone/spec.md`).
   `C-05c` `completar-dominio-agenda` (recorte de C-05, 131 tests en total; archivo en `openspec/changes/archive/2026-11-03-completar-dominio-agenda/`, specs principales en `openspec/specs/schedule-validation/spec.md`, `openspec/specs/appointment-status-transitions/spec.md` y `openspec/specs/patient-booking-eligibility/spec.md`).
-  `C-05d` `puertos-repositorios-dominio` (último recorte de C-05, 199 tests en total; archivo en `openspec/changes/archive/2026-11-03-puertos-repositorios-dominio/`, specs principales en `openspec/specs/appointment-repository/spec.md`, `openspec/specs/schedule-repository/spec.md`, `openspec/specs/patient-repository/spec.md` y `openspec/specs/clinic-settings-repository/spec.md`; decisiones DD-31 a DD-36; `mypy --strict app/` limpio; mypy y ruff siguen fuera de `pyproject.toml` (pendiente C-01); intérprete local Python 3.11 frente a `requires-python >=3.12`).
+  `C-05d` `puertos-repositorios-dominio` (último recorte de C-05, 199 tests en total; archivo en `openspec/changes/archive/2026-11-03-puertos-repositorios-dominio/`, specs principales en `openspec/specs/appointment-repository/spec.md`, `openspec/specs/schedule-repository/spec.md`, `openspec/specs/patient-repository/spec.md` y `openspec/specs/clinic-settings-repository/spec.md`; decisiones DD-31 a DD-36; `mypy --strict app/` limpio; mypy y ruff ya están en `pyproject.toml` y Python 3.12 se verifica en el contenedor (resuelto en C-01)).
 
 **Antes de cualquier `/opsx:propose`**: leé [CHANGES.md](CHANGES.md), identificá las dependencias del change y los archivos de "Leer antes".
 
@@ -117,7 +117,7 @@ El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen:
 1. Python con type hints en todo el código; en el frontend, TypeScript estricto, sin `any`.
 2. NUNCA importar FastAPI, SQLAlchemy, Celery ni Redis desde `domain/` → funciones puras; el I/O solo va en `infrastructure/`.
 3. La no superposición de turnos se garantiza con el constraint de exclusión en la migración de Alembic y se valida también en el dominio; NUNCA confiar solo en la aplicación.
-4. Todo endpoint exige JWT y chequeo de rol (`require_role`), salvo el login; cada endpoint lleva su test de permisos por rol.
+4. Todo endpoint exige JWT y chequeo de rol (`require_role`), salvo el login y el chequeo de salud público (`GET /api/v1/health`, que solo responde `{"status": "ok"}` sin datos); cada endpoint lleva su test de permisos por rol.
 5. NUNCA commitear `.env` ni claves → solo `.env.example`; los secretos (`JWT_SECRET_KEY`, `SMTP_PASSWORD`, base de datos) jamás van al frontend ni a variables `VITE_`.
 
 **Regla de dominio**

@@ -68,9 +68,7 @@ def validate_appointment(
     return ValidationResult.accept(ends_at)
 
 
-def _has_insufficient_notice(
-    starts_at: datetime, now: datetime, min_notice_hours: int
-) -> bool:
+def _has_insufficient_notice(starts_at: datetime, now: datetime, min_notice_hours: int) -> bool:
     """RN-TU-12: el inicio debe ser >= now + anticipacion minima (igualdad se acepta)."""
     return starts_at < now + timedelta(hours=min_notice_hours)
 

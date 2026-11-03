@@ -18,7 +18,6 @@
 | Prioridad | Pregunta | Bloquea | Decisor |
 |-----------|----------|---------|---------|
 | Alta | ¿Qué proveedor SMTP gratuito se usa en producción o demo y qué cupo tiene? (SU-02) | Recordatorios | Equipo técnico |
-| Alta | ¿La cátedra acepta Celery como herramienta de tareas sobre Redis, o prefiere otra? (DD-10) | Tareas asincrónicas | Profesor |
 | Media | ¿Hace falta refresh token o alcanza con un token de 30 minutos? (SU-07) | Login | Product Owner |
 | Alta | ¿Quién define y edita los horarios de los profesionales? (SU-06) | Matriz RBAC, US-004 | Dueño / Product Owner |
 | Media | Si cambia un horario y hay turnos afectados, ¿se avisa al paciente o solo a recepción? (RN-HO-04) | US-004 | Product Owner |

@@ -25,7 +25,11 @@ def test_inactive_patient_rejected() -> None:
 
 @pytest.mark.parametrize(
     "value",
-    [pytest.param(None, id="none"), pytest.param("false", id="texto_false"), pytest.param(0, id="cero")],
+    [
+        pytest.param(None, id="none"),
+        pytest.param("false", id="texto_false"),
+        pytest.param(0, id="cero"),
+    ],
 )
 def test_non_bool_active_raises(value: Any) -> None:
     with pytest.raises(ValueError):

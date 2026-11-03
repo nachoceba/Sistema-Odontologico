@@ -7,7 +7,7 @@ que el dia dura 24 horas.
 
 from __future__ import annotations
 
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 
@@ -28,7 +28,7 @@ def to_utc(local_naive: datetime, timezone_name: str) -> datetime:
     """
     if local_naive.tzinfo is not None:
         raise ValueError("local_naive no debe traer zona horaria")
-    return local_naive.replace(tzinfo=ZoneInfo(timezone_name)).astimezone(timezone.utc)
+    return local_naive.replace(tzinfo=ZoneInfo(timezone_name)).astimezone(UTC)
 
 
 def local_day_bounds(day: date, timezone_name: str) -> tuple[datetime, datetime]:

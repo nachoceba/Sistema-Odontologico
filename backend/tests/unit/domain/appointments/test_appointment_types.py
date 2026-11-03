@@ -30,9 +30,7 @@ def _appointment(status: AppointmentStatus = AppointmentStatus.SCHEDULED) -> App
     )
 
 
-@pytest.mark.parametrize(
-    "status", [AppointmentStatus.SCHEDULED, AppointmentStatus.CANCELLED]
-)
+@pytest.mark.parametrize("status", [AppointmentStatus.SCHEDULED, AppointmentStatus.CANCELLED])
 def test_to_existing_keeps_professional_range_and_status(
     status: AppointmentStatus,
 ) -> None:

@@ -21,37 +21,74 @@ Sistema de gestión de turnos y agenda de pacientes para consultorios odontológ
 | `.active-orchestrator-state.json` | Estado de la fundación del proyecto |
 | `openspec/specs/` | Especificaciones vigentes (`appointment-creation`) |
 | `openspec/changes/archive/` | Change archivado `crear-turno-sin-solapamientos` (proposal, design, tasks y specs) |
-| `backend/app/` | Implementación del change (lógica de dominio en Python) |
+| `backend/app/` | Backend: lógica de dominio, configuración, API base (`/api/v1/health`) y esqueleto de Celery |
+| `frontend/` | SPA React + TypeScript + Vite con la pantalla inicial que muestra el estado de la API |
+| `docker-compose.yml`, `.env.example` | Entorno de desarrollo de un solo comando y variables de ejemplo (sin secretos) |
 | `backend/tests/` | Tests automatizados, uno por cada escenario de la especificación |
 | `docs/opsx/` | Resumen de Explore y registro de Verify del change |
 | `docs/engram/` | Evidencia de la memoria del agente (Engram) |
 | `.claude/skills/revisor-escenarios-turnos/` | Skill propia del agente para revisar escenarios de agenda |
 | `docs/skills-mcp/` | Ficha de investigación, referencia de la skill creadora, configuración de ejemplo del MCP y evidencias |
 
-El código está en `backend/` porque el stack del proyecto tiene backend y frontend separados (FastAPI y React). Por ahora solo existe la lógica de dominio del change elegido.
+El código está en `backend/` porque el stack del proyecto tiene backend y frontend separados (FastAPI y React). Hoy hay lógica de dominio, configuración, API base de salud y un frontend mínimo; la base de datos, el login y la agenda llegan en los próximos changes.
 
-## Cómo instalar y correr los tests
+## Cómo levantar el entorno y correr los chequeos
 
-Requisitos: Python 3.12 o superior.
+### Con Docker (recomendado)
+
+Requisito: Docker Desktop. No hace falta instalar Python, PostgreSQL ni Redis: el contenedor del backend usa Python 3.12 (el `python` 3.11 del sistema no sirve para este proyecto).
+
+1. Copiar el archivo de ejemplo y completar la clave JWT (la API no arranca sin ella):
+
+   ```bash
+   cp .env.example .env
+   python -c "import secrets; print(secrets.token_urlsafe(48))"   # pegar el resultado en JWT_SECRET_KEY
+   ```
+
+2. Levantar los siete servicios (`db`, `redis`, `api`, `worker`, `beat`, `frontend`, `mailpit`):
+
+   ```bash
+   docker compose up
+   ```
+
+| Servicio | URL en la máquina |
+|---|---|
+| API (docs en `/docs`, salud en `/api/v1/health`) | http://localhost:8000 |
+| Frontend | http://localhost:5173 |
+| Mailpit (emails de desarrollo) | http://localhost:8025 |
+
+PostgreSQL y Redis no publican puertos: solo los ven los demás contenedores (`docker compose exec db psql -U odonto`).
+
+3. Chequeos del backend dentro del contenedor:
+
+   ```bash
+   docker compose run --rm api pytest
+   docker compose run --rm api ruff check .
+   docker compose run --rm api ruff format --check .
+   docker compose run --rm api mypy
+   ```
+
+   Los tests de integración no corren por defecto; se piden con `pytest -m integration`.
+
+### Sin Docker (solo backend, Python 3.12 o superior)
 
 ```bash
 cd backend
 python -m venv .venv
+.venv\Scripts\Activate.ps1        # PowerShell; en Git Bash o Linux: source .venv/Scripts/activate (o .venv/bin/activate)
+pip install -e ".[dev]"
+pytest && ruff check . && ruff format --check . && mypy
 ```
 
-Activar el entorno virtual:
-
-- Windows (PowerShell): `.venv\Scripts\Activate.ps1`
-- Windows (Git Bash) o Linux/macOS: `source .venv/Scripts/activate` o `source .venv/bin/activate`
-
-Instalar las dependencias y correr los tests:
+### Frontend
 
 ```bash
-pip install pytest tzdata
-pytest
+cd frontend
+npm ci
+npm test            # Vitest
+npm run typecheck   # TypeScript estricto
+npm run lint        # ESLint (any explícito es error)
 ```
-
-Resultado esperado: `33 passed`.
 
 ## El change implementado
 
@@ -82,4 +119,4 @@ Está en `.claude/skills/revisor-escenarios-turnos/` y viene con el repositorio:
 
 ## Stack previsto
 
-Backend: Python, FastAPI, JWT, SQLAlchemy, PostgreSQL, Redis y Docker Compose. Frontend: React, TypeScript y Vite. Todo gratuito, con datos de pacientes ficticios. El detalle está en `knowledge-base/02_descripcion_general.md`.
+Backend: Python, FastAPI, JWT, SQLAlchemy, PostgreSQL, Redis, Celery y Docker Compose. Frontend: React, TypeScript y Vite. Todo gratuito, con datos de pacientes ficticios. El detalle está en `knowledge-base/02_descripcion_general.md`.
