@@ -2,7 +2,7 @@
 
 **Delegator use only.** Any agent that launches sub-agents reads this registry to resolve compact rules, then injects them directly into sub-agent prompts. Sub-agents do NOT read this registry or individual SKILL.md files.
 
-Proyecto: Sistema Odontológico (agenda de turnos). Generado el 2026-09-30.
+Proyecto: Sistema Odontológico (agenda de turnos). Generado el 2026-09-30. Actualizado el 2026-11-03: se agregó la skill propia `revisor-escenarios-turnos` (no se regeneró el resto del registro).
 
 ## Decisiones de find-skill (una línea por recomendación)
 
@@ -34,6 +34,7 @@ Find-skill solo recomienda; la elección la tomó el equipo. Fuente de las recom
 | Crear la knowledge-base de 10 archivos | kb-creator | `~/.claude/skills/kb-creator/SKILL.md` |
 | Generar CHANGES.md (roadmap de changes) | roadmap-generator | `~/.claude/skills/roadmap-generator/SKILL.md` |
 | Crear o mejorar skills | skill-creator | `~/.claude/skills/skill-creator/SKILL.md` |
+| Explorar, proponer o escribir spec, design o tasks de un change de turnos, horarios, licencias, slots, zona horaria o estados (C-05b, C-07, C-08, C-09); revisar escenarios, buscar ambigüedades o bordes faltantes | revisor-escenarios-turnos | `.claude/skills/revisor-escenarios-turnos/SKILL.md` |
 | Skills de frontend (UI prolija de la agenda) | frontend-design:frontend-design | plugin local `frontend-design` |
 
 ## Compact Rules
@@ -71,6 +72,13 @@ Pre-digested rules per skill. Delegators copy matching blocks into sub-agent pro
 ### frontend-design
 - UI con intención visual clara: tipografía y jerarquía propias, sin plantillas genéricas.
 - Mantener accesibilidad y consistencia en las pantallas de agenda y formularios.
+
+### revisor-escenarios-turnos
+- Skill propia del proyecto (TP Skills+MCP), creada con `skill-creator`; herramienta de desarrollo para el agente, no parte del producto.
+- Usarla antes de cerrar la spec de cualquier change de agenda: compara los escenarios con la KB y lista ambigüedades, bordes faltantes, reglas solapadas, preguntas abiertas que bloquean, decisiones sin respaldo y contrato incompleto.
+- Leer en el momento `05_reglas_de_negocio.md`, `10_preguntas_abiertas.md`, `09_decisiones_y_supuestos.md`, `04_modelo_de_datos.md` y la entrada del change en `CHANGES.md`; no responder de memoria.
+- Cada hallazgo cita su regla (RN, DD, SU) o dice "sin respaldo en la KB"; las decisiones de dominio nuevas se devuelven como preguntas al usuario, no se incorporan solas.
+- Solo revisa: no escribe código ni modifica la KB.
 
 ## Project Conventions
 

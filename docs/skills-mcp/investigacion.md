@@ -1,0 +1,82 @@
+# Ficha de investigación: skill propia y MCP para el sistema odontológico
+
+Metodología I, TUP. Integrante: Ceballos (trabajo individual). Fecha de consulta de las fuentes: 2026-11-02.
+
+## 1. Necesidad detectada
+
+Al preparar un change, la revisión de los escenarios contra las reglas de la base de conocimiento se hace a mano y se repite en cada change. Es donde se escapan las reglas ambiguas y los casos de borde. Por ejemplo, la KB no dice qué pasa con un tramo de 9:00 a 9:45 cuando el slot dura 30 minutos, ni cómo se comporta un turno a las 23:30 hora local, que en UTC cae al día siguiente.
+
+Además, el código de zona horaria y los tests dependen del detalle de `zoneinfo`, pytest y Pydantic, y conviene consultar su documentación vigente en lugar de responder de memoria.
+
+Las dos incorporaciones son herramientas de desarrollo para el agente. No forman parte del producto.
+
+## 2. Change elegido
+
+**C-05b `calcular-slots-disponibles`**, segundo recorte de C-05 `domain-scheduling-core` (el primero, C-05a `crear-turno-sin-solapamientos`, ya está archivado).
+
+- Alcance: `compute_slots` (cada franja del día como libre, ocupada o fuera de horario) y `app/core/timezone.py` (UTC y zona del consultorio, RN-GL-01).
+- Son funciones puras, sin base de datos ni red. Depende solo de C-01, así que se puede preparar sin funcionalidades inexistentes.
+- Es la base de la agenda (C-09) y, a futuro, de una reserva online, hoy fuera de v1 (DD-07).
+- Descartados: C-02 (nivel CRÍTICO, requiere Docker), C-03 en adelante (dependen del login) y C-01 (infraestructura, la skill casi no aportaría).
+- En esta entrega el change solo se prepara. No se implementa ni se archiva.
+
+## 3. Skill creadora y diseño de la skill propia
+
+**Skill creadora: `skill-creator`.** Fuente oficial: repositorio de Anthropic, `anthropics/skills`, carpeta `skills/skill-creator` (https://github.com/anthropics/skills/tree/main/skills/skill-creator). Licencia Apache 2.0, verificada en el `LICENSE.txt` instalado. Compatible con Claude Code, que carga skills desde una carpeta con `SKILL.md` (`~/.claude/skills/` o `.claude/skills/`). Está instalada de forma global en `~/.claude/skills/skill-creator/` y aparece disponible en la sesión del agente.
+
+**Skill propia: `revisor-escenarios-turnos`.**
+
+| Campo | Definición |
+|---|---|
+| Propósito | Encontrar reglas ambiguas y bordes faltantes en escenarios de agenda |
+| Cuándo se activa | Al explorar o escribir la spec de un change de turnos o agenda |
+| Entradas | Escenarios o spec borrador, y las reglas RN de la KB |
+| Procedimiento | Comparar los escenarios con `05_reglas_de_negocio.md` y `10_preguntas_abiertas.md` y listar los huecos |
+| Resultado | Lista de hallazgos, cada uno con la regla que lo respalda o "sin respaldo en la KB" |
+| Criterios de revisión | Todo hallazgo cita una regla; las decisiones de dominio nuevas se marcan como tales y no se incorporan solas |
+
+Ubicación: `.claude/skills/revisor-escenarios-turnos/SKILL.md`, dentro del repositorio y versionada. Se registra en `.atl/skill-registry.md`.
+
+## 4. Comparación de dos MCP y elección
+
+| | Context7 | Postgres MCP Pro |
+|---|---|---|
+| Propósito | Documentación actualizada de librerías con ejemplos | Consultar y analizar una base PostgreSQL |
+| Herramientas | `resolve-library-id`, `query-docs` | `list_schemas`, `list_objects`, `get_object_details`, `execute_sql`, `explain_query`, `get_top_queries`, `analyze_workload_indexes`, `analyze_query_indexes`, `analyze_db_health` |
+| Instalación | Remoto (`https://mcp.context7.com/mcp`) o `npx ctx7 setup` (Node 22.13+) | Docker, `pipx` o `uv`, con `DATABASE_URI` |
+| Credenciales | API key opcional y gratuita | `DATABASE_URI` obligatoria |
+| Permisos | Solo lectura de documentación pública | Modo `unrestricted` (lee y escribe) o `restricted` (solo lectura) |
+| Costo | Gratuito con key opcional | Gratuito (MIT); el ajuste con IA, opcional, usa una key de OpenAI |
+| Versiones | n/a | Probado en PostgreSQL 15, 16 y 17 |
+
+**Elegido: Context7.** Aporta a C-05b porque ayuda a escribir bien la zona horaria y los tests, y no toca datos ni credenciales sensibles. Postgres MCP Pro necesita una base con datos y C-05b no la usa; encaja mejor en C-02. Descartado también Stitch (diseño de interfaces): sirve para changes de frontend, no para este.
+
+**Límites de uso:** solo se consulta documentación pública de librerías. No se envían datos de pacientes, ni reales ni ficticios, ni se accede a ninguna base.
+
+## 5. Pasos de instalación y configuración
+
+1. **Skill creadora:** ya instalada de forma global. Para reproducirla se documentará `npx skills add anthropics/skills@skill-creator -y -a claude-code` (el patrón que usa este proyecto) junto con una copia versionada de su fuente. *Pendiente de verificar el comando exacto.*
+2. **Skill propia:** generarla con `skill-creator`, adaptarla al dominio y guardarla en `.claude/skills/`. Comprobar en una sesión nueva que el agente la encuentra.
+3. **Context7:** conectar el servidor remoto o ejecutar `npx ctx7 setup` y verificar con `resolve-library-id` y `query-docs`. Configuración de ejemplo sin secretos en el README. *Pendiente de verificar el comando para Claude Code, que la documentación revisada no detalla.*
+
+## 6. Archivos de la fundación a actualizar
+
+- `.atl/skill-registry.md` (alta de la skill: nombre, propósito, ubicación y usos)
+- `CLAUDE.md` y `AGENTS.md` (cuándo usar la skill y el MCP, qué necesitan, cómo revisar el resultado y los límites del MCP; ambos archivos se mantienen iguales)
+- `README.md` (requisitos, variables, comprobación y solución de problemas del MCP)
+- `CHANGES.md` (referencia a C-05b)
+- `knowledge-base/` y `skills-lock.json`, solo si resultan afectados
+- `openspec/changes/calcular-slots-disponibles/` (proposal, design, specs y tasks)
+
+## 7. Pendientes no verificados
+
+- Límites de uso y manejo de datos de Context7: la documentación revisada no los detalla.
+- Soporte de Postgres MCP Pro con PostgreSQL 18 (el entorno local usa la 18).
+- Comando exacto de instalación de `skill-creator` con `npx skills` y de Context7 para Claude Code.
+
+## 8. Fuentes (consultadas el 2026-11-02)
+
+- skill-creator: https://github.com/anthropics/skills/tree/main/skills/skill-creator
+- Context7: https://github.com/upstash/context7
+- Postgres MCP Pro: https://github.com/crystaldba/postgres-mcp (README: https://raw.githubusercontent.com/crystaldba/postgres-mcp/main/README.md)
+- MCP oficial de PostgreSQL, archivado el 2025-05-29: https://github.com/modelcontextprotocol/servers-archived/tree/main/src/postgres

@@ -1,0 +1,23 @@
+{
+  "skill_name": "revisor-escenarios-turnos",
+  "evals": [
+    {
+      "id": 1,
+      "name": "compute-slots-huecos",
+      "prompt": "Revisar 5 escenarios borrador de compute_slots (C-05b).",
+      "expected_output": "Detecta: tramo 14:00-15:45 con slot de 30 min (la franja 15:30 no entra completa, RN-TU-02/RN-TU-03); zona horaria del consultorio sin resolver (SU-01); falta escenario de licencia parcial o dia sin horarios; cada hallazgo cita regla o dice 'sin respaldo en la KB'."
+    },
+    {
+      "id": 2,
+      "name": "spec-archivada-c05a",
+      "prompt": "Revisar la spec principal vigente appointment-creation (C-05a).",
+      "expected_output": "No inventa problemas: cada hallazgo esta respaldado por una RN, una pregunta abierta o se marca como sospecha."
+    },
+    {
+      "id": 3,
+      "name": "reglas-solapadas",
+      "prompt": "Revisar 4 escenarios de agenda que citan RN-TU-04, aceptan un turno a 5 horas, pasan cancelled a completed y aceptan dos turnos del mismo paciente el mismo dia.",
+      "expected_output": "Detecta: RN-TU-04 esta cubierta por RN-TU-12; escenario 2 contradice RN-TU-12 (6 h de anticipacion); escenario 3 contradice RN-TU-07; escenario 4 depende de SU-05 (pregunta abierta)."
+    }
+  ]
+}

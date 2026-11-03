@@ -60,7 +60,7 @@ Contexto de mercado (no normativo): [docs/discovery/informe-discovery.md](docs/d
 | Agente | Rol | Skills que carga |
 |--------|-----|------------------|
 | **Backend Core** | FastAPI / SQLAlchemy / Alembic / PostgreSQL | `supabase-postgres-best-practices` (solo la parte de PostgreSQL: esquema, índices, constraints), `tdd` |
-| **Backend Aux / Dominio** | Funciones puras de `domain/`, Celery, email | `tdd` |
+| **Backend Aux / Dominio** | Funciones puras de `domain/`, Celery, email | `revisor-escenarios-turnos` (al preparar specs de agenda), `tdd` |
 | **Frontend** | React + TypeScript + Vite | `frontend-design:frontend-design`, `vercel-react-best-practices` (solo la parte de React), `tdd` |
 | **Orquestación** | OPSX / SDD / docs | `kb-creator`, `roadmap-generator`, `agent-instruction`, `skill-creator` |
 
@@ -69,6 +69,26 @@ Cargá la skill correspondiente al contexto ANTES de escribir código.
 > La skill `supabase` se desinstaló porque no aplica a este stack (no hay Supabase, RLS ni Next.js). De `supabase-postgres-best-practices` ignorar lo específico de Supabase (RLS, `auth.uid()`). De `vercel-react-best-practices` usar solo las reglas de React; ignorar lo de Next.js y Server Components.
 
 > Los compact rules de cada skill los resuelve el orquestador desde `.atl/skill-registry.md` (generado por `skill-registry`). Esta tabla solo mapea skill→rol.
+
+### Skill propia: `revisor-escenarios-turnos`
+
+Herramienta de desarrollo para el agente (no forma parte del producto), creada con `skill-creator`. Investigación y diseño en [docs/skills-mcp/investigacion.md](docs/skills-mcp/investigacion.md).
+
+- **Ubicación**: `.claude/skills/revisor-escenarios-turnos/SKILL.md`, versionada en el repo y registrada en `.atl/skill-registry.md`.
+- **Cuándo usarla**: al explorar o escribir proposal, specs, design o tasks de un change de turnos, horarios, licencias, slots, zona horaria o estados (por ejemplo C-05b, C-07, C-08, C-09), antes de cerrar la spec.
+- **Qué necesita**: los escenarios o la spec borrador, y leer en el momento `05_reglas_de_negocio.md`, `10_preguntas_abiertas.md`, `09_decisiones_y_supuestos.md`, `04_modelo_de_datos.md` y la entrada del change en `CHANGES.md`.
+- **Cómo revisar el resultado**: cada hallazgo cita una regla (RN, DD o SU) o dice "sin respaldo en la KB"; los códigos citados existen en el archivo; las decisiones de dominio nuevas quedan como preguntas al usuario y no se incorporan solas; hay al menos un escenario esperado, uno de error de negocio y uno de borde.
+- **Límite**: solo revisa. No escribe código ni modifica la KB.
+
+### Integración MCP: Context7
+
+Es una integración con un servicio externo, no una skill (no figura en `.atl/skill-registry.md`). Configuración y comprobación en el [README](README.md#herramientas-del-agente-skill-propia-y-mcp).
+
+- **Propósito**: consultar la documentación vigente de librerías en lugar de responder de memoria.
+- **Capacidades que se usan**: `resolve-library-id` y después `query-docs` (siempre en ese orden).
+- **Cuándo usarlo**: al preparar o implementar algo que depende de detalles de una librería del stack (por ejemplo `zoneinfo`, pytest, Pydantic, FastAPI, SQLAlchemy). No hace falta para lógica propia del dominio.
+- **Límites de acceso**: solo lectura de documentación pública. NUNCA incluir en las consultas datos de pacientes, claves, tokens ni código propio: el texto de la consulta viaja a un servicio externo. No usa base de datos ni credenciales.
+- **Cómo revisar el resultado**: contrastar lo que devuelve con la versión de la librería que usa el proyecto (por ejemplo Python 3.12 o superior) y registrar en la spec o el design qué se consultó cuando influya en una decisión.
 
 ---
 
