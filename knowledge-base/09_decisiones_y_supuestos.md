@@ -241,6 +241,62 @@
 **Justificación**: Diseñarlo sin base de datos sería adivinar.
 **Trade-offs aceptados**: C-08 puede necesitar extender los puertos.
 
+### DD-37 — Identificadores UUID generados por la base (P-1 de C-02)
+**Decisión**: todas las tablas usan `uuid` como clave primaria con `DEFAULT gen_random_uuid()`; el dominio sigue tratando los ids como texto.
+**Contexto**: `04_modelo_de_datos.md` ya decía `uuid PK`; el usuario confirmó la opción.
+**Alternativas consideradas**: números correlativos (expone cantidades y es adivinable en una URL).
+**Justificación**: no deja adivinar ids; para el tamaño de un consultorio la diferencia de rendimiento no se nota.
+**Trade-offs aceptados**: la batería de contrato deja de usar ids inventados (`"dra-a"`): las referencias las entrega la fábrica de cada implementación; un id con otro formato se trata como "no encontrado".
+
+### DD-38 — Todo profesional tiene cuenta; email de usuario único sin distinguir mayúsculas (P-2 de C-02)
+**Decisión**: `users` y `professionals` van unidas: `professionals.user_id` es `NOT NULL UNIQUE` (cada profesional tiene exactamente una cuenta; una cuenta, como mucho una ficha). El email de `users` es único sobre `lower(email)` (índice `uq_users_email_lower`).
+**Contexto**: la KB decía "`UNIQUE`" sin hablar de mayúsculas ni de profesionales sin cuenta.
+**Alternativas consideradas**: profesionales sin cuenta; una sola tabla.
+**Justificación**: evita dos cuentas para la misma persona y errores al iniciar sesión.
+**Trade-offs aceptados**: un odontólogo que no use el sistema igual necesita una cuenta (puede quedar inactiva). C-03/C-04 deben comparar emails sin distinguir mayúsculas.
+
+### DD-39 — Nada se borra en cadena: las claves foráneas son `ON DELETE RESTRICT` (P-3 de C-02)
+**Decisión**: la base impide borrar pacientes, profesionales y usuarios con turnos, y turnos con notificaciones; un paciente sin turnos sí se puede borrar. Los tramos de horario y las licencias también bloquean el borrado de su profesional (se reemplazan o se borran antes).
+**Contexto**: RN-PA-03 (paciente con turnos se desactiva) y DD-05 (cancelar no borra).
+**Alternativas consideradas**: borrado en cadena (pierde el historial).
+**Justificación**: conserva la historia; la baja es marcar `active = false`.
+**Trade-offs aceptados**: para borrar un profesional creado por error hay que borrar antes sus tramos y licencias.
+
+### DD-40 — Seed idempotente con contraseña de demo desde `SEED_DEMO_PASSWORD` (P-4 de C-02)
+**Decisión**: `backend/scripts/seed.py` carga 1 admin, 1 recepcionista, 2 profesionales con su cuenta de odontólogo y horario de lunes a viernes, la configuración del consultorio (zona de `CLINIC_TIMEZONE`) y 10 pacientes, todo ficticio con emails `@example.com`. La contraseña sale de la variable `SEED_DEMO_PASSWORD` (nunca del código); si falta, el seed termina con error y no crea nada. Solo agrega lo que falta y no pisa cambios ni contraseñas.
+**Contexto**: regla dura 5 y R-10; `04_modelo_de_datos.md` decía "contraseñas de prueba definidas en el script", lo que contradice la regla dura 5.
+**Alternativas consideradas**: contraseña fija en el script.
+**Justificación**: no deja una contraseña conocida en el repositorio; el seed corre en una sola transacción.
+**Trade-offs aceptados**: C-13 debe definir una contraseña propia si usa el seed en la demo pública.
+
+### DD-41 — C-02 agrega solo `hash_password` (argon2); el resto de la seguridad es de C-03 (P-5 de C-02)
+**Decisión**: `app/core/security.py` expone `hash_password` con `argon2-cffi` (parámetros por defecto, sal aleatoria). La verificación y el JWT se hacen en C-03.
+**Contexto**: el seed necesita guardar contraseñas como hash desde ahora.
+**Alternativas consideradas**: hash "imposible" y actualizarlo en C-03; mover los usuarios del seed a C-03.
+**Justificación**: función pequeña y probada que deja el seed completo.
+**Trade-offs aceptados**: la imagen del backend debe reconstruirse por la dependencia nueva.
+
+### DD-42 — Horarios como `time`; la base rechaza segundos; la superposición de tramos queda en el dominio (P-6 de C-02)
+**Decisión**: `working_hours.start_time` y `end_time` son `time` sin zona; CHECK `EXTRACT(SECOND FROM col) = 0` (DD-29 reforzado en la base), `weekday BETWEEN 0 AND 6` y `start_time < end_time`. La no superposición de tramos del mismo día NO la verifica la base: la valida `validate_working_hours` antes de guardar.
+**Contexto**: RN-HO-02 y DD-29; una exclusión de rangos de horas haría que la base y el repositorio en memoria se comporten distinto.
+**Alternativas consideradas**: minutos desde la medianoche; exclusión de rangos en la base.
+**Justificación**: `time` es lo que ya usa el dominio y es legible.
+**Trade-offs aceptados**: un caller que escriba tramos sin validar puede dejar tramos superpuestos en la base.
+
+### DD-43 — Un solo change C-02 ejecutado por grupos (P-7 de C-02)
+**Decisión**: tablas, migración, tests de la base, seed, hash, repositorios PostgreSQL y la fábrica `postgres` de la batería de contrato van en un solo change. El test con dos conexiones simultáneas y la unidad de trabajo quedan para C-08.
+**Contexto**: la batería de contrato contra PostgreSQL es la mejor prueba de que el esquema sirve al dominio.
+**Alternativas consideradas**: partirlo en C-02a/C-02b; dejar los repositorios para C-08.
+**Justificación**: una sola revisión del esquema con su verificación principal.
+**Trade-offs aceptados**: change grande.
+
+### DD-44 — Rangos de `clinic_settings` verificados por la base (C-02)
+**Decisión**: CHECK `slot_minutes > 0` (coherente con DD-18), `min_notice_hours >= 0` y `reminder_send_hour BETWEEN 0 AND 23`; fila única con `id smallint PRIMARY KEY DEFAULT 1 CHECK (id = 1)`. `reminder_send_hour` es `NOT NULL DEFAULT 9`.
+**Contexto**: la KB solo pedía defaults; los rangos no tenían respaldo y el usuario aprobó estas tres reglas triviales. La KB marcaba `reminder_send_hour` como nulable; se hizo `NOT NULL` porque el recordatorio (C-11) necesita siempre una hora.
+**Alternativas consideradas**: no validar en la base.
+**Justificación**: valores sin sentido (0 minutos, hora 25) nunca deben llegar al cálculo de franjas ni al job de recordatorios.
+**Trade-offs aceptados**: ninguno relevante.
+
 ## Supuestos inferidos
 
 ### SU-01 — Zona horaria única

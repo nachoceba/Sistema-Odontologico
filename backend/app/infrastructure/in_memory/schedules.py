@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from datetime import date
 from uuid import uuid4
 
+from app.domain.appointments.ranges import require_time_off_range
 from app.domain.appointments.types import WorkingHours
 from app.domain.schedules.types import TimeOffEntry
 
@@ -35,8 +36,7 @@ class InMemoryTimeOffRepository:
         ends_on: date,
         reason: str | None = None,
     ) -> TimeOffEntry:
-        if ends_on < starts_on:
-            raise ValueError("la licencia no puede terminar antes de empezar")
+        require_time_off_range(starts_on, ends_on)
         entry = TimeOffEntry(
             id=str(uuid4()),
             professional_id=professional_id,

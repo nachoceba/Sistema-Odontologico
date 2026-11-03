@@ -70,6 +70,21 @@ PostgreSQL y Redis no publican puertos: solo los ven los demás contenedores (`d
 
    Los tests de integración no corren por defecto; se piden con `pytest -m integration`.
 
+### Base de datos: migración, datos de demostración y tests contra PostgreSQL
+
+El backend agregó la dependencia `argon2-cffi`: tras actualizar el código, reconstruir la imagen (`docker compose build api worker beat`) y volver a levantar.
+
+Agregar al `.env` (los valores de ejemplo están en `.env.example`): `SEED_DEMO_PASSWORD` (contraseña ficticia de las cuentas de demo; no se escribe en el código) y `TEST_DATABASE_URL` (una base **aparte** del mismo servidor, cuyo nombre termina en `_test`; los tests de integración se niegan a correr sobre otra).
+
+```bash
+docker compose exec api alembic upgrade head       # crea las 8 tablas, los enumerados y el constraint de exclusión
+docker compose exec api python -m scripts.seed     # carga datos ficticios; se puede repetir sin duplicar nada
+docker compose exec api alembic downgrade base     # deja la base sin tablas ni tipos del sistema
+docker compose exec api pytest -m integration      # tests contra la base *_test (la crea y la migra sola)
+```
+
+El seed crea: 1 administrador, 1 recepcionista, 2 profesionales (cada uno con su cuenta de odontólogo) con horario de lunes a viernes, la configuración del consultorio (30 minutos, zona de `CLINIC_TIMEZONE`) y 10 pacientes, todo con emails `@example.com`. Las contraseñas se guardan solo como hash argon2.
+
 ### Sin Docker (solo backend, Python 3.12 o superior)
 
 ```bash

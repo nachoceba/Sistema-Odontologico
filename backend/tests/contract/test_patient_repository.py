@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from app.domain.patients import EligibilityRejection, check_patient_can_book
 from app.domain.patients.types import Patient
 from tests.contract.conftest import RepositoryFactory
@@ -24,8 +26,9 @@ ANA = Patient(
 
 def test_active_patient_is_found_with_all_fields(factory: RepositoryFactory) -> None:
     repo = factory.patients([JUAN])
-    found = repo.get("pac-1")
-    assert found == JUAN
+    juan_id = factory.patient("pac-1")
+    found = repo.get(juan_id)
+    assert found == replace(JUAN, id=juan_id)
     assert found is not None
     assert found.active is True
 
@@ -34,13 +37,13 @@ def test_inactive_patient_active_flag_feeds_eligibility_rule(
     factory: RepositoryFactory,
 ) -> None:
     repo = factory.patients([JUAN, ANA])
-    found = repo.get("pac-2")
+    found = repo.get(factory.patient("pac-2"))
     assert found is not None
     assert found.active is False
     result = check_patient_can_book(found.active)
     assert not result.allowed
     assert result.reason == EligibilityRejection.PATIENT_INACTIVE
-    juan = repo.get("pac-1")
+    juan = repo.get(factory.patient("pac-1"))
     assert juan is not None
     assert check_patient_can_book(juan.active).allowed
 

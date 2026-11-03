@@ -1,16 +1,20 @@
-"""Fixtures de la bateria de contrato, parametrizadas por fabrica (design D-7).
+"""Fixtures de la bateria de contrato, parametrizadas por fabrica (design D-7, D-9).
 
-Hoy solo existe la fabrica en memoria; C-02/C-08 agrega la de PostgreSQL con
-``pytest.param(make_sqlalchemy, id="postgres", marks=pytest.mark.integration)``.
-Los tests solo usan los puertos, nunca atributos de una implementacion concreta.
+Cada escenario corre contra la fabrica en memoria y contra la de PostgreSQL (esta ultima solo
+con ``pytest -m integration``). Los tests solo usan los puertos, nunca atributos de una
+implementacion concreta, y piden a la fabrica las referencias a profesionales, pacientes y
+usuarios: en memoria son el mismo texto, en PostgreSQL el UUID de una fila creada para el test.
 """
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Protocol
 
 import pytest
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.domain.appointments.ports import AppointmentRepository
 from app.domain.patients.ports import PatientRepository
@@ -18,6 +22,20 @@ from app.domain.patients.types import Patient
 from app.domain.schedules.ports import TimeOffRepository, WorkingHoursRepository
 from app.domain.settings.ports import ClinicSettingsRepository
 from app.domain.settings.types import ClinicSettings
+from app.infrastructure.db.enums import UserRole
+from app.infrastructure.db.models import (
+    ClinicSettingsModel,
+    PatientModel,
+    ProfessionalModel,
+    UserModel,
+)
+from app.infrastructure.db.repositories import (
+    SqlAlchemyAppointmentRepository,
+    SqlAlchemyClinicSettingsRepository,
+    SqlAlchemyPatientRepository,
+    SqlAlchemyTimeOffRepository,
+    SqlAlchemyWorkingHoursRepository,
+)
 from app.infrastructure.in_memory import (
     InMemoryAppointmentRepository,
     InMemoryClinicSettingsRepository,
@@ -29,6 +47,18 @@ from app.infrastructure.in_memory import (
 
 class RepositoryFactory(Protocol):
     """Crea repositorios vacios (o con estado inicial) para un test."""
+
+    def professional(self, name: str) -> str:
+        """Referencia a un profesional (y su cuenta) que existe donde la implementacion lo exige."""
+        ...
+
+    def user(self, name: str) -> str:
+        """Referencia a un usuario creador de turnos."""
+        ...
+
+    def patient(self, name: str) -> str:
+        """Referencia a un paciente: el cargado con ese id en ``patients(initial)`` o uno minimo."""
+        ...
 
     def appointments(self) -> AppointmentRepository: ...
 
@@ -42,6 +72,17 @@ class RepositoryFactory(Protocol):
 
 
 class InMemoryFactory:
+    """Las referencias son el propio nombre: en memoria no hay claves foraneas."""
+
+    def professional(self, name: str) -> str:
+        return name
+
+    def user(self, name: str) -> str:
+        return name
+
+    def patient(self, name: str) -> str:
+        return name
+
     def appointments(self) -> AppointmentRepository:
         return InMemoryAppointmentRepository()
 
@@ -58,13 +99,133 @@ class InMemoryFactory:
         return InMemoryClinicSettingsRepository(initial)
 
 
-FACTORIES = [pytest.param(InMemoryFactory, id="in_memory")]
+class PostgresFactory:
+    """Repositorios sobre la base de pruebas; crea las filas que exigen las claves foraneas.
+
+    Cada referencia con nombre se crea una sola vez por test (la base se vacia entre tests).
+    """
+
+    def __init__(self, session_factory: sessionmaker[Session]) -> None:
+        self._sessions = session_factory
+        self._professionals: dict[str, str] = {}
+        self._users: dict[str, str] = {}
+        self._patients: dict[str, str] = {}
+
+    def _new_user(self, name: str, role: UserRole) -> uuid.UUID:
+        user = UserModel(
+            email=f"{name}-{uuid.uuid4().hex[:8]}@example.com",
+            password_hash="hash-ficticio",
+            full_name=f"Usuario {name}",
+            role=role,
+        )
+        with self._sessions.begin() as session:
+            session.add(user)
+        return user.id
+
+    def professional(self, name: str) -> str:
+        if name not in self._professionals:
+            owner = self._new_user(name, UserRole.DENTIST)
+            row = ProfessionalModel(user_id=owner, display_name=f"Profesional {name}")
+            with self._sessions.begin() as session:
+                session.add(row)
+            self._professionals[name] = str(row.id)
+        return self._professionals[name]
+
+    def user(self, name: str) -> str:
+        if name not in self._users:
+            self._users[name] = str(self._new_user(name, UserRole.RECEPTIONIST))
+        return self._users[name]
+
+    def patient(self, name: str) -> str:
+        if name not in self._patients:
+            self._add_patient(
+                name,
+                Patient(
+                    id=name,
+                    first_name="Paciente",
+                    last_name=name,
+                    email=f"{name}@example.com",
+                    active=True,
+                ),
+            )
+        return self._patients[name]
+
+    def _add_patient(self, name: str, patient: Patient) -> None:
+        row = PatientModel(
+            first_name=patient.first_name,
+            last_name=patient.last_name,
+            document_number=f"DOC-{name}-{uuid.uuid4().hex[:8]}",
+            email=patient.email,
+            active=patient.active,
+        )
+        with self._sessions.begin() as session:
+            session.add(row)
+        self._patients[name] = str(row.id)
+
+    def appointments(self) -> AppointmentRepository:
+        return SqlAlchemyAppointmentRepository(self._sessions)
+
+    def working_hours(self) -> WorkingHoursRepository:
+        return SqlAlchemyWorkingHoursRepository(self._sessions)
+
+    def time_off(self) -> TimeOffRepository:
+        return SqlAlchemyTimeOffRepository(self._sessions)
+
+    def patients(self, initial: Sequence[Patient] = ()) -> PatientRepository:
+        for patient in initial:
+            self._add_patient(patient.id, patient)
+        return SqlAlchemyPatientRepository(self._sessions)
+
+    def settings(self, initial: ClinicSettings | None = None) -> ClinicSettingsRepository:
+        if initial is not None:
+            row = ClinicSettingsModel(
+                id=1,
+                clinic_name="Consultorio Demo",
+                address="Calle Ficticia 123",
+                slot_minutes=initial.slot_minutes,
+                timezone=initial.timezone,
+                min_notice_hours=initial.min_notice_hours,
+            )
+            with self._sessions.begin() as session:
+                session.add(row)
+        return SqlAlchemyClinicSettingsRepository(self._sessions)
+
+
+FACTORIES = [
+    pytest.param("in_memory", id="in_memory"),
+    pytest.param("postgres", id="postgres", marks=pytest.mark.integration),
+]
 
 
 @pytest.fixture(params=FACTORIES)
 def factory(request: pytest.FixtureRequest) -> RepositoryFactory:
-    factory_class: type[RepositoryFactory] = request.param
-    return factory_class()
+    if request.param == "in_memory":
+        return InMemoryFactory()
+    # La base solo se pide (y se vacia) cuando corre la variante postgres.
+    session_factory: sessionmaker[Session] = request.getfixturevalue("session_factory")
+    return PostgresFactory(session_factory)
+
+
+@dataclass(frozen=True)
+class Refs:
+    """Las referencias con nombre que usan los escenarios de turnos y horarios."""
+
+    dra_a: str
+    dr_b: str
+    pac_1: str
+    pac_2: str
+    rec_1: str
+
+
+@pytest.fixture
+def ids(factory: RepositoryFactory) -> Refs:
+    return Refs(
+        dra_a=factory.professional("dra-a"),
+        dr_b=factory.professional("dr-b"),
+        pac_1=factory.patient("pac-1"),
+        pac_2=factory.patient("pac-2"),
+        rec_1=factory.user("rec-1"),
+    )
 
 
 @pytest.fixture

@@ -23,7 +23,7 @@ Stack: FastAPI + SQLAlchemy + PostgreSQL + Redis (Celery) + Docker Compose; Reac
 
 ```
 C-01 foundation-setup     [x] archivado (2026-11-03)
- ├── C-02 db-schema-and-seed
+ ├── C-02 db-schema-and-seed        [x] archivado (2026-11-03)
  │    └── C-03 auth-login-rbac
  │         ├── C-04 user-management
  │         ├── C-06 patients-crud
@@ -121,7 +121,8 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 ## FASE 1 — Datos y acceso
 
 ### [C-02] `db-schema-and-seed`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` implementado, verificado y archivado el 2026-11-03 (`openspec/changes/archive/2026-11-03-db-schema-and-seed/`): 39/39 tasks; 315 tests por defecto y 151 de integración contra PostgreSQL en el contenedor; `alembic upgrade head` y el seed verificados en la base de desarrollo, seed idempotente. Specs principales nuevas: `database-schema` y `seed-data`; modificadas: `appointment-repository`, `schedule-repository`, `patient-repository` y `clinic-settings-repository`. 8 tablas, 4 enumerados y el constraint de exclusión en `alembic/versions/0001_initial_schema.py`; seed `backend/scripts/seed.py`; hash argon2 en `app/core/security.py`; repositorios PostgreSQL en `app/infrastructure/db/repositories/` y fábrica `postgres` en la batería de contrato (corre con `pytest -m integration`). Decisiones DD-37 a DD-44.
+- **Queda para C-08**: test de concurrencia con dos sesiones simultáneas y unidad de trabajo que agrupe turno y notificación (DD-36). Repositorio de usuarios (C-04) y de notificaciones (C-11) tampoco están.
 - **Scope**:
   - Modelos SQLAlchemy 2.0 y migraciones Alembic: extensión `btree_gist`; enums `user_role`, `appointment_status`, `notification_kind`, `notification_status`
   - Migración inicial escrita a mano: `CREATE EXTENSION IF NOT EXISTS btree_gist` antes de crear `appointments`; `downgrade` elimina constraint, tablas y tipos enum; revisar siempre el autogenerate (no genera bien `ExcludeConstraint` con `tstzrange` y `WHERE`)
@@ -312,7 +313,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - Puerto `NotificationPort` (no-op por defecto) invocado tras agendar/reprogramar/cancelar; C-11 lo implementa (RN-NO-04: nunca bloquea)
   - Endpoints `/api/v1/appointments` con esquemas Pydantic y chequeo de rol
   - Tests: happy path, slot ocupado, fuera de horario, pasado, concurrencia (dos inserciones simultáneas, una falla), reprogramación fallida no muta, permisos
-  - Fuera de C-05d: repositorio de turnos con SQLAlchemy (el puerto ya existe) y test de concurrencia real contra PostgreSQL (dos inserciones simultáneas); decidir si turno y notificación van en una misma transacción (DD-36)
+  - Heredado de C-02: el repositorio de turnos con SQLAlchemy ya existe (`app/infrastructure/db/repositories/`, con la traducción de `23P01` a `SlotTakenError`). Queda para este change: test de concurrencia real con dos sesiones simultáneas contra PostgreSQL (una inserción falla) y unidad de trabajo que agrupe turno y notificación en una misma transacción (DD-36)
   - Listado de turnos de todos los profesionales por rango para `NotificationPort` (no existe en C-05d; ver C-11 y C-12)
   - Pregunta abierta H-2 (paciente con dos turnos a la misma hora con profesionales distintos, SU-05 y `10_preguntas_abiertas.md`): la regla, si existe, se decide en este change
 - **Dependencias**: `C-03`, `C-05`
@@ -484,7 +485,7 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | ID | Change | Fase | Deps | Governance |
 |----|--------|------|------|------------|
 | C-01 | foundation-setup (archivado `[x]`) | 0 | — | BAJO |
-| C-02 | db-schema-and-seed | 1 | C-01 | CRITICO |
+| C-02 | db-schema-and-seed (archivado `[x]`) | 1 | C-01 | CRITICO |
 | C-03 | auth-login-rbac | 1 | C-02 | CRITICO |
 | C-04 | user-management | 1 | C-03 | ALTO |
 | C-05 | domain-scheduling-core | 2 | C-01 | MEDIO |
@@ -501,4 +502,4 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-12 | reminders-cron | 4 | C-11 | ALTO |
 | C-13 | deploy-and-hardening | 5 | C-04, C-10, C-12 | MEDIO |
 
-**Siguiente change recomendado**: `C-02` (db-schema-and-seed); C-01 ya está archivado. Para arrancar: `/opsx:propose C-02-db-schema-and-seed`
+**Siguiente change recomendado**: `C-03` (auth-login-rbac); C-01 y C-02 ya están archivados. Gobernanza CRÍTICA: requiere aprobación del usuario antes de escribir código. Para arrancar: `/opsx:propose C-03-auth-login-rbac`

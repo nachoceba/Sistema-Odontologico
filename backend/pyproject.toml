@@ -13,6 +13,7 @@ dependencies = [
     "sqlalchemy>=2.0,<3",
     "alembic>=1.13,<2",
     "psycopg[binary]>=3.2,<4",
+    "argon2-cffi>=23.1,<26",
 ]
 
 [project.optional-dependencies]
@@ -46,7 +47,7 @@ ignore = ["TRY003", "TRY004"]
 [tool.mypy]
 strict = true
 python_version = "3.12"
-files = ["app", "tests"]
+files = ["app", "tests", "scripts/seed.py"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]

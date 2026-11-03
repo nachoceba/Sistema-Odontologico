@@ -11,27 +11,13 @@ from datetime import datetime
 from uuid import uuid4
 
 from app.domain.appointments.errors import AppointmentNotFoundError, SlotTakenError
+from app.domain.appointments.ranges import require_query_range, require_range
 from app.domain.appointments.rules import overlaps_scheduled, ranges_overlap
 from app.domain.appointments.types import (
     Appointment,
     AppointmentStatus,
     NewAppointment,
 )
-
-
-def _require_range(starts_at: datetime, ends_at: datetime) -> None:
-    """Equivalente a los CHECK de la base: instantes con zona e inicio < fin."""
-    if starts_at.tzinfo is None or ends_at.tzinfo is None:
-        raise ValueError("inicio y fin deben tener zona horaria")
-    if starts_at >= ends_at:
-        raise ValueError("el inicio debe ser anterior al fin")
-
-
-def _require_query_range(start: datetime, end: datetime | None) -> None:
-    if start.tzinfo is None or (end is not None and end.tzinfo is None):
-        raise ValueError("desde y hasta deben tener zona horaria")
-    if end is not None and start >= end:
-        raise ValueError("desde debe ser anterior a hasta")
 
 
 def _touches_range(appointment: Appointment, start: datetime, end: datetime | None) -> bool:
@@ -45,7 +31,7 @@ class InMemoryAppointmentRepository:
         self._appointments: dict[str, Appointment] = {}
 
     def add(self, new: NewAppointment) -> Appointment:
-        _require_range(new.starts_at, new.ends_at)
+        require_range(new.starts_at, new.ends_at)
         saved = Appointment(
             id=str(uuid4()),
             patient_id=new.patient_id,
@@ -77,7 +63,7 @@ class InMemoryAppointmentRepository:
         self, appointment_id: str, starts_at: datetime, ends_at: datetime
     ) -> Appointment:
         current = self._existing(appointment_id)
-        _require_range(starts_at, ends_at)
+        require_range(starts_at, ends_at)
         updated = replace(current, starts_at=starts_at, ends_at=ends_at)
         self._store(updated)
         return updated
@@ -121,7 +107,7 @@ class InMemoryAppointmentRepository:
         start: datetime,
         end: datetime | None,
     ) -> list[Appointment]:
-        _require_query_range(start, end)
+        require_query_range(start, end)
         matches = [
             a for a in self._appointments.values() if belongs(a) and _touches_range(a, start, end)
         ]
