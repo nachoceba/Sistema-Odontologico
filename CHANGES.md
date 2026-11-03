@@ -34,7 +34,8 @@ C-01 foundation-setup
  │              │    └── C-12 reminders-cron
  │              └── C-10 appointment-management-ui   (+ C-06, C-09)
  └── C-05 domain-scheduling-core   (funciones puras, no requiere BD)
-      └── C-05a crear-turno-sin-solapamientos   [x] archivado (primer recorte de C-05)
+      ├── C-05a crear-turno-sin-solapamientos   [x] archivado (primer recorte de C-05)
+      └── C-05b calcular-slots-disponibles      [ ] preparado, sin implementar (segundo recorte de C-05)
 
 C-13 deploy-and-hardening  ← C-04, C-10, C-12
 ```
@@ -175,7 +176,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 - **Scope**:
   - `app/core/timezone.py`: conversión UTC <-> zona del consultorio (RN-GL-01), inicio/fin de día local
   - `app/domain/schedules`: validación de tramos (`start < end`, sin superposición, RN-HO-02); `is_date_in_time_off`
-  - `app/domain/appointments`: `compute_slots(working_hours, time_off, appointments, slot_minutes, date)` (libre / ocupado / fuera de horario); `validate_appointment` (RN-TU-01 a RN-TU-04 y RN-TU-12: grilla, dentro de tramo, fuera de licencia, anticipación mínima que incluye no pasado, sin solape); transiciones de estado (RN-TU-05, RN-TU-07)
+  - `app/domain/appointments`: `compute_slots(*, professional_id, day, working_hours, time_off, existing_appointments, slot_minutes=30, timezone="America/Argentina/Buenos_Aires") -> list[Slot]` (franjas del día local completo, con inicio y fin en UTC y estado libre / ocupado / fuera de horario; firma definida en C-05b); `validate_appointment` (RN-TU-01 a RN-TU-04 y RN-TU-12: grilla, dentro de tramo, fuera de licencia, anticipación mínima que incluye no pasado, sin solape); transiciones de estado (RN-TU-05, RN-TU-07)
   - `app/domain/patients`: regla de paciente inactivo (RN-PA-04)
   - Puertos (interfaces) de repositorios + repos en memoria para tests
   - Tests pytest exhaustivos (puros, sin base ni red): bordes de tramos, cambio de día por zona horaria, licencias, turnos pegados
@@ -200,6 +201,26 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - Spec principal: `openspec/specs/appointment-creation/spec.md`
   - Evidencia del flujo: `docs/opsx/explore-crear-turno-sin-solapamientos.md` y `docs/opsx/verify-crear-turno-sin-solapamientos.md`
 - **Queda para C-05b en adelante**: `compute_slots`, zona horaria (`app/core/timezone.py`), validación de tramos y licencias, transiciones de estado, regla de paciente inactivo y puertos de repositorios (ver C-05)
+
+### [C-05b] `calcular-slots-disponibles` (recorte de C-05, preparado)
+- **Estado**: `[ ]` preparado para implementar: change creado en OpenSpec con proposal, design, specs y tasks completos (`openspec validate --strict` válido). Las 41 tasks siguen sin ejecutar: **no está implementado, verificado ni archivado**.
+- **Scope**:
+  - `compute_slots`: clasifica cada franja del día local completo de un profesional como `FREE` / `BUSY` / `OUTSIDE_HOURS`, con inicio y fin en UTC. Solo ocupan los turnos `scheduled`; la licencia sale `OUTSIDE_HOURS`; no aplica anticipación mínima (la sigue rechazando `validate_appointment`)
+  - `app/core/timezone.py`: conversión UTC <-> zona del consultorio, inicio y fin del día local (RN-GL-01); se asume una zona sin horario de verano (SU-01, sin confirmar)
+  - Refactor de C-05a: extraer helpers compartidos de `validation.py`, con sus 33 tests en verde como red de seguridad
+  - Entradas inválidas (`slot_minutes <= 0`, `day` inválido) lanzan `ValueError`
+  - Sin base de datos, pantallas, login ni emails
+- **Dependencias**: `C-05a` (reutiliza tipos, grilla y reglas de solapamiento)
+- **Governance**: MEDIO
+- **Artefactos**:
+  - Change: `openspec/changes/calcular-slots-disponibles/` (proposal, design, tasks y specs `slot-availability` y `clinic-timezone`, 31 escenarios)
+  - Explore: `docs/opsx/explore-calcular-slots-disponibles.md`
+  - Evidencias de la skill y del MCP usados en la preparación: `docs/skills-mcp/evidencias/aplicacion/`
+- **Próximo paso**: implementación y archivo en una instancia posterior (`/opsx:apply calcular-slots-disponibles`)
+- **Leer antes**:
+  - `knowledge-base/05_reglas_de_negocio.md` §RN-HO, §RN-TU, §RN-GL-01
+  - `knowledge-base/10_preguntas_abiertas.md` (zona horaria SU-01, slot real)
+  - `openspec/changes/calcular-slots-disponibles/design.md`
 
 ### [C-06] `patients-crud`
 - **Estado**: `[ ]` pendiente
@@ -417,6 +438,7 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-04 | user-management | 1 | C-03 | ALTO |
 | C-05 | domain-scheduling-core | 2 | C-01 | MEDIO |
 | C-05a | crear-turno-sin-solapamientos (recorte de C-05, archivado `[x]`) | 2 | — | MEDIO |
+| C-05b | calcular-slots-disponibles (recorte de C-05, preparado, sin implementar) | 2 | C-05a | MEDIO |
 | C-06 | patients-crud | 2 | C-03 | BAJO |
 | C-07 | professional-schedules | 2 | C-03, C-05 | MEDIO |
 | C-08 | appointment-use-cases | 3 | C-03, C-05 | MEDIO |

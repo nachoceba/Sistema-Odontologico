@@ -1,0 +1,55 @@
+# Evidencia: skill `revisor-escenarios-turnos` sobre la spec propuesta de C-05b
+
+Fecha: 2026-11-03. Fase: PROPOSE del change `calcular-slots-disponibles` (C-05b). Invocada con la herramienta Skill (`skill: "revisor-escenarios-turnos"`), después de escribir el primer borrador completo de las dos specs delta y antes de escribir `design.md` y `tasks.md`.
+
+Esta revisión es distinta de la del explore (`skill-revisor-c05b.md`): aquella revisó 14 escenarios candidatos con decisiones abiertas; esta revisa los escenarios FINALES de la spec, con las decisiones 1 a 9 ya tomadas por el usuario.
+
+## Solicitud (argumentos pasados a la skill, textual)
+
+> Revisá la spec PROPUESTA del change C-05b calcular-slots-disponibles (fase propose, primer borrador completo). Archivos: openspec/changes/calcular-slots-disponibles/specs/slot-availability/spec.md y openspec/changes/calcular-slots-disponibles/specs/clinic-timezone/spec.md. Decisiones ya tomadas por el usuario (no reabrir): 1 compute_slots recibe professional_id y zona, devuelve franjas UTC con estado FREE/BUSY/OUTSIDE_HOURS; 2 devuelve el día local completo, fuera de tramos y franja que no entra completa = OUTSIDE_HOURS; 3 licencia = OUTSIDE_HOURS, sin cuarto estado; 4 no considera anticipación mínima; 5 solo scheduled ocupa; 6 entradas inválidas -> ValueError; 7 supuesto sin horario de verano (SU-01); 8 refactor de helpers de validation.py a módulo común y app/core/timezone.py con 33 tests de C-05a en verde; 9 turno que cruza medianoche local cuenta por solapamiento. Buscá: escenarios mal calculados (conteos de franjas, horas UTC), contradicciones con la KB (05_reglas_de_negocio, 09, 06 US-005/US-006, 07 Flujo 2), reglas citadas mal, ambigüedades y casos de borde faltantes.
+
+Fuentes leídas en el momento por la skill: `knowledge-base/05_reglas_de_negocio.md` (RN-HO-01 a 04, RN-TU-01 a 12, RN-GL-01), `04_modelo_de_datos.md` (`working_hours`, `time_off`, `appointments`, `clinic_settings`), `09_decisiones_y_supuestos.md` (DD-03, DD-04, DD-05, DD-14, SU-01), `10_preguntas_abiertas.md`, `06_funcionalidades.md` (US-004, US-005, US-006), `CHANGES.md` (C-05, C-05a, C-07, C-09) y `openspec/specs/appointment-creation/spec.md`.
+
+## Salida completa de la skill
+
+## Revisión de escenarios: C-05b `calcular-slots-disponibles` (spec propuesta, primer borrador)
+
+### Resumen
+29 escenarios revisados (22 de `slot-availability` y 7 de `clinic-timezone`), 8 hallazgos (1 ambigüedad, 1 borde faltante, 0 reglas solapadas, 1 pregunta abierta, 2 sin respaldo, 2 contrato incompleto, 1 contradicción).
+
+Verificación de cálculos: los conteos y las horas UTC se recalcularon y son correctos. Lunes sin turnos: 18 + 8 + 2 + 8 + 12 = 48 franjas, 16 `FREE`. Lunes 5/10/2026 local = [05/10 03:00 UTC, 06/10 03:00 UTC). Franja 09:00 local = 12:00 UTC. Tramo 14:00-15:45: `FREE` 14:00, 14:30 y 15:00; resto 15:30-15:45. Dr. B 09:15-13:15: 8 franjas `FREE`, la última termina 13:15. Slot de 45 sobre 09:00-13:00: 5 `FREE`, resto 12:45-13:00. Coherencia: 16 − 2 (10:00 y 10:30 por el turno 10:15-10:45) = 14 validaciones aceptadas. Sin errores de cálculo.
+
+Cobertura mínima exigida: hay escenario esperado ("Lunes sin turnos"), de error de entrada ("Duración de slot no positiva", "Día que no es una fecha", "Instante sin zona") y de borde ("Tramo que no es múltiplo del slot", "Turnos pegados", "Turno que cruza la medianoche local", entre otros). Se cumple.
+
+### Hallazgos
+| # | Tipo | Escenario afectado | Qué pasa | Respaldo en la KB | Sugerencia (a confirmar) |
+|---|------|--------------------|----------|-------------------|--------------------------|
+| 1 | Contradicción (parcial) | "La licencia prevalece sobre un turno ya cargado" y "Turno que cruza la medianoche local" (lista del lunes) | La spec manda `OUTSIDE_HOURS` sobre una franja que tiene un turno `scheduled` real. RN-HO-04 dice que el sistema "los marca como conflicto para que recepción los resuelva": con esta spec, la agenda que se arme solo con las franjas esconde el turno en conflicto. Además, la precedencia `OUTSIDE_HOURS` > `BUSY` solo está escrita para la licencia; para un turno fuera de tramo (Dr. D, lunes 23:30) queda implícita en "Una franja dentro de un tramo y fuera de licencia MUST salir `BUSY`…" y no se dice qué pasa fuera del tramo. | `RN-HO-04`, `05_reglas_de_negocio.md`; `US-004` criterio "se listan para revisión", `06_funcionalidades.md`. La precedencia en sí: **sin respaldo en la KB** | Escribir la precedencia como requisito explícito (`OUTSIDE_HOURS` > `BUSY` > `FREE`) y aclarar en la spec que el cálculo de franjas no informa conflictos: los lista C-07 (RN-HO-04) y la vista de agenda (C-09) debe mostrar los turnos por su propia consulta. Agregar el escenario de un turno `scheduled` fuera de tramo dentro del mismo día. |
+| 2 | Borde faltante | Requisito "Ocupación por turnos `scheduled`" | No hay escenario de turnos consecutivos del mismo profesional (dos `scheduled` 10:00-10:30 y 10:30-11:00). Es el caso que la KB prevé para tratamientos largos y es el borde del rango semiabierto visto desde dos turnos a la vez. | `RN-TU-10` y `DD-03`, `05_reglas_de_negocio.md` / `09_decisiones_y_supuestos.md` | Agregar: "dos turnos consecutivos marcan `BUSY` las franjas 10:00 y 10:30; 09:30 y 11:00 siguen `FREE`". |
+| 3 | Sin respaldo | Requisito "Franjas del día local completo" (cómo se cortan las franjas fuera de tramo) | La KB no dice cómo se parte en franjas el tiempo fuera de horario: la spec las ancla a las 00:00 o al fin del tramo anterior y las recorta antes del tramo siguiente, y permite franjas `OUTSIDE_HOURS` más cortas que `slot_minutes`. La decisión 2 del usuario fija el rango (día completo), no esta grilla. | **sin respaldo en la KB** | Mantenerlo, pero registrarlo en `design.md` como decisión de diseño sin respaldo, con el motivo (lista contigua, sin solapes con la grilla anclada al tramo) y la alternativa descartada. Proponer una entrada DD. |
+| 4 | Sin respaldo | "Día que no es una fecha" (la variante fecha y hora `2026-10-05 10:00`) | La decisión 6 dice "day inválido → ValueError", pero no dice que una fecha y hora sea inválida. En Python `datetime` hereda de `date`, así que rechazarla es una elección, no una consecuencia. | **sin respaldo en la KB** (decisión 6 del usuario solo la cubre en general) | Dejar el escenario, justificarlo en `design.md` (una hora ignorada en silencio esconde un error del llamador) y marcarlo como decisión de diseño. |
+| 5 | Contrato incompleto | Todos los de `slot-availability` (parámetro de zona) | No hay escenario ni regla para una zona horaria que no existe (por ejemplo `"America/Inexistente"`). La decisión 6 nombra solo `slot_minutes` y `day`. `clinic_settings.timezone` es `text` libre en el modelo, sin constraint. | `04_modelo_de_datos.md` (`clinic_settings.timezone` text NOT NULL, sin validación); **sin respaldo en la KB** para el comportamiento | Decisión a confirmar: ¿`ValueError` también para una zona inválida, o se deja propagar el error de la librería? No se agrega escenario hasta que el usuario decida. |
+| 6 | Contrato incompleto | "Turno existente desalineado", "Turno que cruza la medianoche local" (entradas de turnos) | La spec no dice qué pasa si un turno existente llega con fecha y hora sin zona. Hoy en C-05a ese contrato es implícito (el docstring dice UTC). Comparar un naive con una franja con zona daría un error distinto de `ValueError`. | `RN-GL-01` (fechas en UTC), `05_reglas_de_negocio.md`; `appointments.starts_at timestamptz`, `04_modelo_de_datos.md` | Decisión a confirmar: documentar como precondición heredada de C-05a (los turnos llegan con zona) o validarla con `ValueError`. |
+| 7 | Ambigüedad | "Día cubierto por una licencia (error de negocio)" | El rótulo dice "error de negocio", pero el cálculo no rechaza nada: devuelve franjas `OUTSIDE_HOURS`. El "error de negocio" de esta capability no existe como tal (no hay motivo de rechazo); el caso de error real es el de entrada (`ValueError`). El rótulo puede hacer creer que la función lanza o rechaza. | `RN-HO-03` y `US-005` ("los días de licencia no ofrecen slots") | Renombrar a "caso de negocio: día no disponible" y dejar claro que los errores de esta capability son solo de entrada. |
+| 8 | Pregunta abierta | "Inicio y fin de cada franja en UTC", "Límites del lunes…" (`clinic-timezone`) y todos los conteos de 48 franjas | Los conteos (48 franjas, 24 horas de día) dependen de SU-01 (zona sin horario de verano) y de la duración real del slot; ambas siguen abiertas. No bloquea: está declarado como supuesto en la spec. | `SU-01`, `09_decisiones_y_supuestos.md`; preguntas "zona horaria del consultorio" (Media) y "duración de slot" (Baja), `10_preguntas_abiertas.md` | Mantener el supuesto declarado y repetirlo en `design.md` (riesgos). |
+
+### Escenarios sin hallazgos
+- Lunes sin turnos (conteos verificados), Inicio y fin de cada franja en UTC.
+- Tramo que no es múltiplo del slot, La grilla se cuenta desde el inicio del tramo, Slot de 45 minutos, Tramos contiguos con anclas distintas (coherentes con RN-TU-02 / RN-TU-03 y con la spec `appointment-creation`).
+- Turno ocupado y turnos pegados, Un turno cancelado libera la franja (RN-TU-05, DD-05), Turnos `completed` o `no_show` no ocupan (coherente con el `WHERE (status = 'scheduled')` del constraint), El turno de otro profesional no ocupa, Turno existente desalineado (RN-TU-01).
+- Licencia de un solo día y día siguiente (RN-HO-03, `starts_on <= ends_on` inclusivo).
+- Martes sin tramos, Turno del lunes local que en UTC cae el martes, Turno del martes a las 00:00 locales no pertenece al lunes (RN-GL-01).
+- Franja libre aunque falten menos de 6 horas (RN-TU-12, DD-14; cita correcta: no usa RN-TU-04, que quedó cubierta por RN-TU-12).
+- Duración de slot no positiva, Toda franja libre es aceptada al validar.
+- `clinic-timezone`: Conversión simple, La conversión cambia la fecha, Instante sin zona, Hora local a UTC, Hora local que ya trae zona, El fin del día pertenece al día siguiente.
+
+### Decisiones que necesitan al usuario
+1. Precedencia y conflictos (hallazgo 1): ¿se confirma `OUTSIDE_HOURS` > `BUSY` > `FREE` y que el cálculo de franjas no informa conflictos de RN-HO-04 (los lista C-07 y la agenda muestra los turnos aparte)?
+2. Grilla fuera de horario (hallazgo 3): ¿se acepta anclar las franjas fuera de tramo a las 00:00 o al fin del tramo anterior, con recorte?
+3. Fecha y hora como día (hallazgo 4): ¿se rechaza con `ValueError`?
+4. Zona horaria inexistente (hallazgo 5): ¿`ValueError` o error de la librería?
+5. Turnos existentes sin zona (hallazgo 6): ¿precondición documentada o `ValueError`?
+
+## Qué se hizo con los hallazgos
+
+Se corrigió la spec por los hallazgos 1, 2 y 7 (defectos reales del borrador). Antes y después, con la regla de cada uno, en `revision-critica.md` (sección C-05b, fase propose). Los hallazgos 3 y 4 quedan como "decisión de diseño sin respaldo en la KB" en `design.md`. Los hallazgos 5 y 6 quedan como preguntas abiertas en `design.md` (sin escenario, para no inventar comportamiento sin confirmar). El hallazgo 8 queda como riesgo y supuesto declarado.

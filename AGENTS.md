@@ -100,6 +100,7 @@ El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen:
 - **Camino crítico** (7): `C-01 → C-02 → C-03 → C-08 → C-11 → C-12 → C-13`, con una cadena paralela de igual longitud `C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13`.
 - **Primer change**: `C-01` (`foundation-setup`).
 - **Changes ya archivados**: `C-05a` `crear-turno-sin-solapamientos` (recorte de C-05, 33 tests; archivo en `openspec/changes/archive/2026-09-30-crear-turno-sin-solapamientos/`, spec principal en `openspec/specs/appointment-creation/spec.md`). C-05 sigue parcial: los próximos recortes se registran como `C-05b`, `C-05c`, etc.
+- **Change preparado (sin implementar)**: `C-05b` `calcular-slots-disponibles`, en `openspec/changes/calcular-slots-disponibles/` (proposal, design, specs y tasks listos; tasks sin ejecutar). La implementación y el archivo quedan para una instancia posterior.
 
 **Antes de cualquier `/opsx:propose`**: leé [CHANGES.md](CHANGES.md), identificá las dependencias del change y los archivos de "Leer antes".
 

@@ -85,6 +85,50 @@
 **Justificación**: 6 horas alcanzan para un consultorio con agenda tranquila; uno con la agenda muy llena puede subirlo a 12 horas sin tocar código.
 **Trade-offs aceptados**: no se pueden cargar turnos urgentes del mismo día con menos margen; queda como pregunta abierta quién podría saltar la regla.
 
+> DD-15 a DD-20 surgieron al preparar el change `calcular-slots-disponibles` (C-05b), que está preparado pero todavía no implementado. Detalle y alternativas descartadas en `openspec/changes/calcular-slots-disponibles/design.md`. Las decisiones marcadas "sin respaldo en la KB" son decisiones de diseño tomadas por el usuario en esa preparación.
+
+### DD-15 — `compute_slots` devuelve el día local completo con tres estados
+**Decisión**: la función recibe el profesional y la zona horaria del consultorio y devuelve las franjas del día local completo (00:00 a 24:00), con inicio y fin en UTC y estado `FREE`, `BUSY` u `OUTSIDE_HOURS`. Lo que no es un slot completo dentro de un tramo (incluido el resto de un tramo que no alcanza para un slot) y los días de licencia salen `OUTSIDE_HOURS`; no hay un cuarto estado. Dentro de un tramo la grilla se ancla al inicio del tramo; fuera de tramos las franjas se cuentan desde las 00:00 o desde el fin del tramo anterior y se recortan, de modo que solo las franjas `OUTSIDE_HOURS` pueden durar menos de `slot_minutes`.
+**Contexto**: C-09 (vistas de agenda) necesita dibujar la grilla del día sin recalcular nada. Respaldo en la KB: RN-GL-01, RN-TU-03, RN-HO-03 y US-006 (tres estados). **Sin respaldo en la KB** sobre qué rango devuelve la función ni sobre la grilla fuera de tramos.
+**Alternativas consideradas**: devolver solo del primer al último tramo; devolver solo las franjas dentro de tramos (lista vacía en un día sin horario); un estado `TIME_OFF` para la licencia.
+**Justificación**: con el día completo, el día sin tramos y el de licencia tienen la misma forma que un día normal, y la lista es contigua, sin huecos ni solapes.
+**Trade-offs aceptados**: hay franjas `OUTSIDE_HOURS` más cortas que un slot; la pantalla no distingue una licencia de un día sin atención.
+
+### DD-16 — Solo `scheduled` ocupa una franja y la precedencia es `OUTSIDE_HOURS` > `BUSY` > `FREE`
+**Decisión**: únicamente los turnos `scheduled` del mismo profesional marcan una franja `BUSY` (un turno cancelado la libera; `completed` y `no_show` no ocupan). Si una franja está fuera de horario o en licencia y además tiene un turno, sale `OUTSIDE_HOURS`. `compute_slots` no informa los conflictos de RN-HO-04: los lista C-07 y C-09 dibuja los turnos con su propia consulta.
+**Contexto**: respaldo en RN-TU-01, RN-TU-05, DD-05 y el constraint de exclusión de `04_modelo_de_datos.md`. **La precedencia no tiene respaldo en la KB** (surgió de la revisión de escenarios, RN-HO-04).
+**Alternativas consideradas**: que `completed` o `no_show` ocupen; que `BUSY` prevalezca sobre `OUTSIDE_HOURS`.
+**Justificación**: el estado responde "¿se puede agendar acá?" y coincide con lo que la base permite agendar.
+**Trade-offs aceptados**: un turno cargado antes de una licencia no se ve como ocupado en las franjas.
+
+### DD-17 — `compute_slots` no aplica la anticipación mínima
+**Decisión**: la función no recibe la hora actual ni `min_notice_hours`; la anticipación (RN-TU-12, DD-14) la sigue aplicando `validate_appointment`.
+**Contexto**: complementa DD-14. Respaldo en RN-TU-12 y en el alcance de C-05 de `CHANGES.md`.
+**Alternativas consideradas**: pasar la hora actual y marcar las franjas con poca anticipación como no libres; un cuarto estado.
+**Justificación**: mezclar una regla de creación con la de ocupación haría que la vista cambie con el reloj.
+**Trade-offs aceptados**: la pantalla puede mostrar `FREE` una franja que la creación rechaza con `INSUFFICIENT_NOTICE`; C-10 debe mostrar ese mensaje.
+
+### DD-18 — Las entradas inválidas lanzan `ValueError`
+**Decisión**: `slot_minutes <= 0`, un `day` que no es fecha y un `datetime` pasado como `day` lanzan `ValueError`.
+**Contexto**: misma convención que C-05a (datetime sin zona lanza `ValueError`). **Sin respaldo en la KB**: la KB no trata los errores de programación.
+**Alternativas consideradas**: devolver una lista vacía.
+**Justificación**: son errores del llamador, no motivos de negocio; una lista vacía los escondería. Un `datetime` se rechaza porque ignorar su hora en silencio mostraría el día equivocado.
+**Trade-offs aceptados**: el llamador debe validar su entrada o capturar la excepción.
+
+### DD-19 — Un turno que cruza la medianoche cuenta por solapamiento de instantes
+**Decisión**: un turno existente se compara como rango de instantes UTC con cada franja, sin recortarlo al día pedido; si toca una franja, la marca `BUSY`.
+**Contexto**: es la misma regla de solapamiento de RN-TU-01 y la que aplica el constraint de exclusión. **Sin respaldo en la KB** sobre la medianoche.
+**Alternativas consideradas**: ignorar la parte del turno fuera del día pedido.
+**Justificación**: sin casos especiales y coherente con la base de datos.
+**Trade-offs aceptados**: ninguno relevante.
+
+### DD-20 — Refactor de `validation.py` con helpers compartidos y zona horaria en `app/core/timezone.py`
+**Decisión**: los helpers de grilla, licencia y solapamiento pasan a un módulo común del dominio y la conversión de hora a `app/core/timezone.py`; `validate_appointment` no cambia de comportamiento y sus 33 tests son la red de seguridad.
+**Contexto**: **sin respaldo en la KB** (decisión de diseño). Respaldo en la regla dura 2 y en los patrones de `08_arquitectura_propuesta.md`.
+**Alternativas consideradas**: duplicar la lógica y confiar en un test de coherencia.
+**Justificación**: con dos copias de la misma regla, `compute_slots` podría marcar `FREE` algo que `validate_appointment` rechaza.
+**Trade-offs aceptados**: se toca código ya archivado (en la implementación posterior), mitigado con los 33 tests en verde antes y después de cada paso.
+
 ## Supuestos inferidos
 
 ### SU-01 — Zona horaria única
@@ -92,6 +136,7 @@
 **Origen**: contexto de la cursada y mención de normativa de datos personales; no fue confirmado.
 **Riesgo si es falso**: horarios y recordatorios corridos.
 **Cómo validar**: confirmar la zona con el usuario.
+**Ampliación (C-05b)**: se asume además que la zona del consultorio no tiene horario de verano; por eso `compute_slots` no se prueba con días de 23 o 25 horas ni con horas repetidas o inexistentes. El código calcula el inicio y el fin del día con la zona y no depende de que el día dure 24 horas. Si la zona cambia, hay que agregar esos escenarios.
 
 ### SU-02 — Proveedor SMTP gratuito para producción o demo
 **Supuesto**: existe un servidor SMTP gratuito (por ejemplo una cuenta de correo con contraseña de aplicación, o el plan gratuito de un servicio de email) con cupo suficiente para un consultorio.
