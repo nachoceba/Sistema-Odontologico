@@ -1,9 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { AuthProvider } from './auth/AuthProvider'
 import RequireAuth from './auth/RequireAuth'
+import RequireRole from './auth/RequireRole'
 import { useAuth } from './auth/useAuth'
 import AgendaPlaceholderPage from './pages/AgendaPlaceholderPage'
 import LoginPage from './pages/LoginPage'
+import UsersPage from './pages/UsersPage'
 
 function AppRoutes() {
   const { status } = useAuth()
@@ -20,6 +22,9 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route path="/agenda" element={<AgendaPlaceholderPage />} />
+        <Route element={<RequireRole roles={['admin']} />}>
+          <Route path="/usuarios" element={<UsersPage />} />
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to="/agenda" replace />} />
     </Routes>

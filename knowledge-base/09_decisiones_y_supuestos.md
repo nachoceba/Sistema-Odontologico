@@ -347,7 +347,34 @@
 **Decisión**: PyJWT y argon2-cffi viven en `app/core/security.py`; el token lleva solo `sub`, `role`, `iat` y `exp`; la lista blanca de algoritmos y los claims obligatorios los fija el decode, y el vencimiento se compara contra un reloj inyectable. `current_user` usa `HTTPBearer(auto_error=False)` para responder con el cuerpo uniforme. Un test de inventario de rutas exige que toda ruta fuera de login y health dependa de `current_user`.
 **Consultado con Context7**: `/jpadilla/pyjwt` (`algorithms` obligatorio, `require`), `/hynek/argon2-cffi` (`verify`, `check_needs_rehash`), `/websites/fastapi_tiangolo` (`HTTPBearer(auto_error=False)`).
 **Hallazgo**: FastAPI 0.162 ya no aplana `app.routes` (los routers incluidos aparecen como `_IncludedRouter`); el inventario recorre las rutas con `fastapi.routing.iter_route_contexts`. Un inventario que solo mirara `app.routes` pasaría en vacío.
-**Pendiente para C-04**: rehash con `check_needs_rehash` al iniciar sesión (necesita escritura de usuarios).
+**Resuelto en C-04 (DD-61)**: rehash con `check_needs_rehash` al iniciar sesión (necesita escritura de usuarios).
+
+### DD-56 — La administración define la contraseña inicial y puede asignar una nueva (P-1 y P-2 de C-04)
+**Decisión**: al crear una cuenta, el administrador escribe la contraseña inicial (8 a 128 caracteres) y se la entrega a la persona; el sistema solo guarda su hash y nunca la devuelve. El administrador también puede asignar una contraseña nueva a cualquier cuenta (`PUT /users/{id}/password`).
+**Alternativas consideradas**: contraseña generada y mostrada una vez; enlace por email para elegirla; no asignar contraseñas en C-04.
+**Justificación**: ninguna respuesta debe contener una contraseña; el email depende de SU-02 y sumaría tokens de un solo uso; sin "olvidé mi contraseña" habría que tocar la base a mano.
+**Trade-offs aceptados**: contraseñas iniciales posiblemente débiles; el cambio de la propia contraseña queda fuera.
+
+### DD-57 — Email editable y reglas de cambio de rol (P-3 y P-4 de C-04)
+**Decisión**: el email se puede editar con la validación del alta y sin repetir el de otra cuenta; la sesión abierta sigue. Cambio de rol: entre `admin` y `receptionist`, libre; de ellos a `dentist`, permitido y crea la ficha; de `dentist` a otro rol, no (`ROLE_CHANGE_NOT_ALLOWED`).
+**Alternativas consideradas**: email fijo; rol solo entre admin y recepción; todo permitido con la ficha desactivada.
+**Justificación**: corrige errores de carga sin dejar fichas huérfanas (DD-38) ni romper la historia de turnos (DD-39).
+
+### DD-58 — El administrador no puede desactivarse ni cambiar su propio rol (P-5 de C-04)
+**Decisión**: el administrador no puede desactivar su propia cuenta ni cambiar su propio rol (`SELF_MODIFICATION_NOT_ALLOWED`); sí puede desactivar a otro administrador. Garantiza que siempre quede un administrador activo.
+**Alternativas consideradas**: permitirlo con advertencia; permitirlo verificando que quede otro administrador activo.
+**Trade-offs aceptados**: dos administradores desactivándose mutuamente a la vez podrían dejar el sistema sin ninguno (se recupera con el seed o a mano).
+
+### DD-59 — Desactivar y reactivar: ficha en conjunto, turnos intactos, sin borrado (P-6, P-7 y P-8 de C-04)
+**Decisión**: desactivar un odontólogo no toca sus turnos (la pantalla avisa que recepción debe reprogramarlos o cancelarlos); la ficha se desactiva y reactiva junto con la cuenta; se puede desactivar y reactivar las veces que haga falta y no existe borrado definitivo.
+**Alternativas consideradas**: bloquear la baja con turnos futuros; cancelar los turnos automáticamente; ficha independiente; borrado para cuentas sin historia.
+**Justificación**: coherente con DD-25 y DD-39; la lógica de turnos y emails es de C-08 y C-11.
+
+### DD-60 — Listado sin páginas, datos de la ficha en el alta y aviso de falta de permiso (P-9, P-10 y P-11 de C-04)
+**Decisión**: `GET /users` devuelve todas las cuentas ordenadas por nombre, sin páginas ni filtros. El alta de odontólogo pide "Nombre a mostrar" (vacío: nombre completo) y "Matrícula" opcional; editarlos queda para C-07. Un no administrador en `/usuarios` ve "No tenés permiso para esta acción" con enlace a la agenda, sin cerrar sesión; el enlace "Usuarios" solo lo ve el administrador.
+
+### DD-61 — Rehash al iniciar sesión, repositorio de profesionales y un solo change (P-12, P-13 y P-14 de C-04)
+**Decisión**: tras un login correcto con hash de parámetros viejos se guarda un hash nuevo (si falla, el login igual funciona); C-04 define el repositorio de lectura de profesionales (listar y buscar por id) con batería de contrato, sin endpoints; C-04 se ejecuta como un solo change por grupos. Cierra el pendiente de DD-55.
 
 ## Supuestos inferidos
 

@@ -80,3 +80,11 @@ def test_password_longer_than_128_is_422(auth_client: TestClient) -> None:
     assert auth_client.post(LOGIN, json={"email": "a@b.com", "password": long}).status_code == 422
     ok = "x" * 128
     assert auth_client.post(LOGIN, json={"email": "a@b.com", "password": ok}).status_code == 401
+
+
+def test_422_on_a_too_long_password_does_not_echo_it(auth_client: TestClient) -> None:
+    long = "x" * 129
+    response = auth_client.post(LOGIN, json={"email": "a@b.com", "password": long})
+
+    assert response.status_code == 422
+    assert long not in response.text

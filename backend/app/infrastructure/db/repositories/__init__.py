@@ -2,6 +2,7 @@
 
 from app.infrastructure.db.repositories.appointments import SqlAlchemyAppointmentRepository
 from app.infrastructure.db.repositories.patients import SqlAlchemyPatientRepository
+from app.infrastructure.db.repositories.professionals import SqlAlchemyProfessionalRepository
 from app.infrastructure.db.repositories.schedules import (
     SqlAlchemyTimeOffRepository,
     SqlAlchemyWorkingHoursRepository,
@@ -13,6 +14,7 @@ __all__ = [
     "SqlAlchemyAppointmentRepository",
     "SqlAlchemyClinicSettingsRepository",
     "SqlAlchemyPatientRepository",
+    "SqlAlchemyProfessionalRepository",
     "SqlAlchemyTimeOffRepository",
     "SqlAlchemyUserAccountRepository",
     "SqlAlchemyWorkingHoursRepository",

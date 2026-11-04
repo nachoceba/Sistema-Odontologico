@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from functools import lru_cache
@@ -11,6 +12,7 @@ from app.core.security import (
     create_access_token,
     decode_access_token,
     hash_password,
+    needs_rehash,
     verify_password,
 )
 from app.domain.auth import (
@@ -20,6 +22,9 @@ from app.domain.auth import (
     UserAccount,
     UserAccountRepository,
 )
+from app.domain.users.types import AccountChanges
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -43,6 +48,19 @@ def _dummy_hash() -> str:
     return hash_password("contrasena-ficticia-para-igualar-tiempos")
 
 
+def _upgrade_hash_if_needed(
+    account: UserAccount, password: str, repo: UserAccountRepository
+) -> None:
+    """Guarda un hash con los parametros vigentes; si falla, el login sigue (design D-7)."""
+    if not needs_rehash(account.password_hash):
+        return
+    try:
+        repo.update(account.id, AccountChanges(password_hash=hash_password(password)))
+    except Exception:
+        # Sin datos sensibles en el registro: solo el id de la cuenta.
+        logger.warning("No se pudo actualizar el hash de la cuenta %s", account.id, exc_info=False)
+
+
 def authenticate(
     email: str,
     password: str,
@@ -56,6 +74,7 @@ def authenticate(
     password_ok = verify_password(hash_to_check, password)
     if account is None or not password_ok or not account.active:
         raise InvalidCredentialsError
+    _upgrade_hash_if_needed(account, password, repo)
     token = create_access_token(
         user_id=account.id,
         role=account.role,

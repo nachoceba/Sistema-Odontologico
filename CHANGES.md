@@ -25,7 +25,7 @@ Stack: FastAPI + SQLAlchemy + PostgreSQL + Redis (Celery) + Docker Compose; Reac
 C-01 foundation-setup     [x] archivado (2026-11-03)
  ├── C-02 db-schema-and-seed        [x] archivado (2026-11-03)
  │    └── C-03 auth-login-rbac            [x] archivado (2026-11-03)
- │         ├── C-04 user-management
+ │         ├── C-04 user-management           [x] archivado (2026-11-03)
  │         ├── C-06 patients-crud
  │         ├── C-07 professional-schedules      (+ C-05)
  │         │    └── C-09 agenda-views           (+ C-05)
@@ -142,7 +142,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 ### [C-03] `auth-login-rbac`
 - **Estado**: `[x]` implementado, verificado y archivado el 2026-11-03 (`openspec/changes/archive/2026-11-03-auth-login-rbac/`): 48/48 tasks; 424 tests por defecto, 161 de integración contra PostgreSQL en el contenedor y 40 de frontend; `mypy --strict`, `ruff`, `tsc` y `eslint` limpios; probado a mano con los cuatro usuarios del seed, contraseña incorrecta y cuenta desactivada. Specs principales nuevas: `user-authentication`, `access-control`, `user-account-repository` y `frontend-auth`; modificadas: `error-model` y `frontend-shell`. Decisiones DD-45 a DD-55; SU-06 y SU-07 resueltos. Sin variables de entorno nuevas; dependencias nuevas: `PyJWT` y `react-router`.
 - **Nota para C-08**: test de punta a punta obligatorio "un odontólogo no ve ni modifica turnos ajenos" (403) contra el endpoint real, usando `require_professional_access` o `can_access_professional` (DD-53); hoy solo está probado con una ruta que existe únicamente en los tests.
-- **Nota para C-04**: rehash con `check_needs_rehash` al iniciar sesión (el repositorio de cuentas de C-03 es solo lectura); toda ruta nueva debe depender de `current_user` o `require_role(...)` (el test de inventario `tests/unit/api/test_route_inventory.py` falla si no).
+- **Nota para C-04 (hecha en C-04)**: rehash con `check_needs_rehash` al iniciar sesión (el repositorio de cuentas de C-03 es solo lectura); toda ruta nueva debe depender de `current_user` o `require_role(...)` (el test de inventario `tests/unit/api/test_route_inventory.py` falla si no).
 - **Scope**:
   - `POST /api/v1/auth/login` (email + contraseña): verifica el hash, rechaza `users.active = false` y devuelve un JWT de acceso con el rol (US-001, RN-AU-03); error genérico en credenciales inválidas
   - `GET /api/v1/auth/me`; seguridad en `app/core/security.py` (hash argon2 o bcrypt, firma y verificación de JWT, expiración corta)
@@ -160,14 +160,15 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `knowledge-base/08_arquitectura_propuesta.md` §Seguridad
   - `knowledge-base/10_preguntas_abiertas.md` (quién edita horarios, SU-06; refresh token, SU-07)
 ### [C-04] `user-management`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` implementado, verificado y archivado el 2026-11-03 (`openspec/changes/archive/2026-11-03-user-management/`): 45/45 tasks; 605 tests por defecto, 193 de integración contra PostgreSQL en el contenedor y 85 de frontend; `mypy --strict`, `ruff`, `tsc` y `eslint` limpios; probado contra el API real (alta de odontóloga, login, desactivar, reactivar, 422 sin eco de la contraseña). Specs principales nuevas: `user-management`, `professional-repository` y `frontend-user-management`; modificadas: `user-account-repository`, `error-model` y `user-authentication`. Decisiones DD-56 a DD-61 (P-1 a P-14 confirmadas con la opción recomendada). Sin migraciones, variables de entorno ni dependencias nuevas.
+- **Nota para C-07 y C-08**: el repositorio de profesionales (`ProfessionalRepository`: `list(only_active=...)` y `get_by_id`) ya existe, en memoria y PostgreSQL, sin endpoints; C-08 debe listar solo fichas activas. Desactivar un odontólogo desactiva su ficha pero NO toca sus turnos (DD-59): C-08/C-10 deben contemplar turnos futuros de fichas inactivas. Editar la ficha (nombre a mostrar, matrícula) queda para C-07.
 - **Scope**:
   - US-002: endpoints `/api/v1/users` (solo admin) y pantalla `/usuarios`: crear, editar rol, desactivar usuarios
   - Validación con Pydantic; contraseña inicial con hash, nunca expuesta en respuestas (RN-PR-03)
   - Al crear un usuario `dentist` se crea su fila `professionals` asociada en la misma operación
   - Caso de uso `gestionar_usuarios` con chequeo `require_role('admin')`
   - Tests: solo admin accede; alta de dentist crea professional; desactivar bloquea login
-  - Fuera de C-05d: repositorio de usuarios (listado, alta, desactivación); el repositorio de profesionales (listado, activo) se define en C-04 o en C-07
+  - Fuera de C-05d: repositorio de usuarios (listado, alta, desactivación) y repositorio de profesionales (listado, activo), ambos definidos en C-04
 - **Dependencias**: `C-03`
 - **Governance**: ALTO
 - **Leer antes**:
@@ -489,7 +490,7 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-01 | foundation-setup (archivado `[x]`) | 0 | — | BAJO |
 | C-02 | db-schema-and-seed (archivado `[x]`) | 1 | C-01 | CRITICO |
 | C-03 | auth-login-rbac (archivado `[x]`) | 1 | C-02 | CRITICO |
-| C-04 | user-management | 1 | C-03 | ALTO |
+| C-04 | user-management (archivado `[x]`) | 1 | C-03 | ALTO |
 | C-05 | domain-scheduling-core | 2 | C-01 | MEDIO |
 | C-05a | crear-turno-sin-solapamientos (recorte de C-05, archivado `[x]`) | 2 | — | MEDIO |
 | C-05b | calcular-slots-disponibles (recorte de C-05, archivado `[x]`) | 2 | C-05a | MEDIO |
@@ -504,4 +505,4 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-12 | reminders-cron | 4 | C-11 | ALTO |
 | C-13 | deploy-and-hardening | 5 | C-04, C-10, C-12 | MEDIO |
 
-**Siguientes changes habilitados**: C-01, C-02 y C-03 ya están archivados. Quedan habilitados `C-04` (user-management, ALTO), `C-06` (patients-crud, BAJO), `C-07` (professional-schedules, MEDIO) y `C-08` (appointment-use-cases, MEDIO; C-05 ya completo). Para arrancar: `/opsx:propose C-04-user-management` (o el que corresponda). Gobernanza CRÍTICA de C-03 ya aprobada y ejecutada.
+**Siguientes changes habilitados**: C-01, C-02, C-03 y C-04 ya están archivados. Quedan habilitados `C-06` (patients-crud, BAJO), `C-07` (professional-schedules, MEDIO) y `C-08` (appointment-use-cases, MEDIO; C-05 ya completo). Para arrancar: `/opsx:propose C-06-patients-crud`, `C-07-professional-schedules` o `C-08-appointment-use-cases` (el que corresponda). Gobernanza CRÍTICA de C-03 ya aprobada y ejecutada.

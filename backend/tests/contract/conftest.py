@@ -20,6 +20,7 @@ from app.domain.appointments.ports import AppointmentRepository
 from app.domain.auth import Role, UserAccount, UserAccountRepository
 from app.domain.patients.ports import PatientRepository
 from app.domain.patients.types import Patient
+from app.domain.professionals import Professional, ProfessionalRepository
 from app.domain.schedules.ports import TimeOffRepository, WorkingHoursRepository
 from app.domain.settings.ports import ClinicSettingsRepository
 from app.domain.settings.types import ClinicSettings
@@ -34,6 +35,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyAppointmentRepository,
     SqlAlchemyClinicSettingsRepository,
     SqlAlchemyPatientRepository,
+    SqlAlchemyProfessionalRepository,
     SqlAlchemyTimeOffRepository,
     SqlAlchemyUserAccountRepository,
     SqlAlchemyWorkingHoursRepository,
@@ -42,6 +44,7 @@ from app.infrastructure.in_memory import (
     InMemoryAppointmentRepository,
     InMemoryClinicSettingsRepository,
     InMemoryPatientRepository,
+    InMemoryProfessionalRepository,
     InMemoryTimeOffRepository,
     InMemoryUserAccountRepository,
     InMemoryWorkingHoursRepository,
@@ -86,6 +89,8 @@ class RepositoryFactory(Protocol):
         ...
 
     def user_accounts(self) -> UserAccountRepository: ...
+
+    def professionals(self) -> ProfessionalRepository: ...
 
 
 class InMemoryFactory:
@@ -137,10 +142,21 @@ class InMemoryFactory:
             professional_id=str(uuid.uuid4()) if with_professional else None,
         )
         self._accounts.add(account)
+        if account.professional_id is not None:
+            self._accounts.professionals[account.professional_id] = Professional(
+                id=account.professional_id,
+                user_id=account.id,
+                display_name=f"Profesional {name}",
+                license_number=None,
+                active=active,
+            )
         return account
 
     def user_accounts(self) -> UserAccountRepository:
         return self._accounts
+
+    def professionals(self) -> ProfessionalRepository:
+        return InMemoryProfessionalRepository(self._accounts)
 
 
 class PostgresFactory:
@@ -270,6 +286,9 @@ class PostgresFactory:
 
     def user_accounts(self) -> UserAccountRepository:
         return SqlAlchemyUserAccountRepository(self._sessions)
+
+    def professionals(self) -> ProfessionalRepository:
+        return SqlAlchemyProfessionalRepository(self._sessions)
 
 
 FACTORIES = [

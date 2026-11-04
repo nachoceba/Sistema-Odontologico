@@ -8,19 +8,16 @@ from fastapi import APIRouter
 from pydantic import BaseModel, BeforeValidator, Field
 
 from app.api.dependencies import CurrentUser, TokenSettings, UserRepository
+from app.api.validators import strip_text
 from app.application.auth import authenticate
 from app.domain.auth import NotAuthenticatedError, UserAccount
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _strip(value: object) -> object:
-    return value.strip() if isinstance(value, str) else value
-
-
 class LoginRequest(BaseModel):
     # El email se recorta (P-6); la contrasena NO se recorta.
-    email: Annotated[str, BeforeValidator(_strip), Field(min_length=1, max_length=254)]
+    email: Annotated[str, BeforeValidator(strip_text), Field(min_length=1, max_length=254)]
     password: Annotated[str, Field(min_length=1, max_length=128)]
 
 

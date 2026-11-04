@@ -23,7 +23,7 @@ Todo error de dominio SHALL pertenecer a una familia común y MUST exponer un c�
 
 ### Requirement: Respuesta HTTP uniforme para errores de dominio
 
-La API SHALL convertir cualquier error de dominio no capturado en una respuesta JSON con la forma `{"error": {"code": "<CODIGO>", "message": "<texto>"}}`. El estado HTTP SHALL salir de una tabla de códigos a estados; un código que no figura en la tabla MUST responder 400. `APPOINTMENT_NOT_FOUND` MUST responder 404, `SLOT_TAKEN` MUST responder 409, `INVALID_CREDENTIALS` y `NOT_AUTHENTICATED` MUST responder 401 y `FORBIDDEN` MUST responder 403. Toda respuesta 401 MUST incluir el encabezado `WWW-Authenticate: Bearer`. Los rechazos de autenticación y autorización MUST usar este mismo cuerpo uniforme y no el formato propio del framework. La respuesta MUST NOT incluir trazas de pila.
+La API SHALL convertir cualquier error de dominio no capturado en una respuesta JSON con la forma `{"error": {"code": "<CODIGO>", "message": "<texto>"}}`. El estado HTTP SHALL salir de una tabla de códigos a estados; un código que no figura en la tabla MUST responder 400. `APPOINTMENT_NOT_FOUND` y `USER_NOT_FOUND` MUST responder 404, `SLOT_TAKEN`, `EMAIL_TAKEN`, `ROLE_CHANGE_NOT_ALLOWED` y `SELF_MODIFICATION_NOT_ALLOWED` MUST responder 409, `INVALID_CREDENTIALS` y `NOT_AUTHENTICATED` MUST responder 401 y `FORBIDDEN` MUST responder 403. Toda respuesta 401 MUST incluir el encabezado `WWW-Authenticate: Bearer`. Los rechazos de autenticación y autorización MUST usar este mismo cuerpo uniforme y no el formato propio del framework. La respuesta MUST NOT incluir trazas de pila.
 
 #### Scenario: Código conocido
 - **WHEN** un endpoint deja escapar un error `APPOINTMENT_NOT_FOUND`
@@ -45,6 +45,14 @@ La API SHALL convertir cualquier error de dominio no capturado en una respuesta 
 - **WHEN** un endpoint deja escapar un error `FORBIDDEN`
 - **THEN** la respuesta es 403 con `error.code = "FORBIDDEN"` y sin encabezado `WWW-Authenticate`
 
+#### Scenario: Usuario inexistente
+- **WHEN** un endpoint deja escapar un error `USER_NOT_FOUND`
+- **THEN** la respuesta es 404 con `error.code = "USER_NOT_FOUND"`
+
+#### Scenario: Conflictos de la gestión de usuarios
+- **WHEN** un endpoint deja escapar un error `EMAIL_TAKEN`, `ROLE_CHANGE_NOT_ALLOWED` o `SELF_MODIFICATION_NOT_ALLOWED`
+- **THEN** la respuesta es 409 con ese código en `error.code`, un `error.message` no vacío y sin encabezado `WWW-Authenticate`
+
 #### Scenario: Código sin estado asignado (borde)
 - **WHEN** un endpoint deja escapar un error de dominio con un código que no figura en la tabla
 - **THEN** la respuesta es 400 con ese código en `error.code`
@@ -52,3 +60,15 @@ La API SHALL convertir cualquier error de dominio no capturado en una respuesta 
 #### Scenario: Error inesperado (error)
 - **WHEN** un endpoint lanza un error que no es de dominio
 - **THEN** la respuesta es 500 y su cuerpo no contiene la traza ni el mensaje interno del error
+
+### Requirement: Los errores de validación no repiten lo enviado (RN-PR-03)
+
+Una respuesta 422 por datos de entrada inválidos SHALL conservar la lista de errores por campo del framework (ubicación, tipo y mensaje de cada error), pero MUST NOT incluir los valores que envió el cliente, para que nunca se devuelva una contraseña.
+
+#### Scenario: Alta con email mal formado (esperado)
+- **WHEN** se envía un alta de usuario con email inválido y una contraseña válida
+- **THEN** la respuesta es 422, indica el campo `email` como inválido y no contiene el texto de la contraseña ni del email enviados
+
+#### Scenario: Login con contraseña desmedida (borde)
+- **WHEN** se envía al login una contraseña de 129 caracteres
+- **THEN** la respuesta es 422 y no contiene la contraseña enviada

@@ -12,6 +12,7 @@ from app.core.security import (
     create_access_token,
     decode_access_token,
     hash_password,
+    needs_rehash,
     verify_password,
 )
 from app.domain.auth import NotAuthenticatedError, Role
@@ -154,3 +155,16 @@ def test_token_with_unknown_role_is_rejected() -> None:
     token = jwt.encode(claims, SECRET, algorithm="HS256")
     with pytest.raises(NotAuthenticatedError):
         decode_access_token(token, secret=SECRET, now=NOW)
+
+
+def test_a_fresh_hash_does_not_need_rehash() -> None:
+    assert needs_rehash(hash_password(PLAIN)) is False
+
+
+def test_a_hash_with_weaker_parameters_needs_rehash() -> None:
+    weak = PasswordHasher(time_cost=1, memory_cost=8, parallelism=1).hash(PLAIN)
+    assert needs_rehash(weak) is True
+
+
+def test_a_corrupt_hash_does_not_raise_in_needs_rehash() -> None:
+    assert needs_rehash("esto-no-es-un-hash") is False

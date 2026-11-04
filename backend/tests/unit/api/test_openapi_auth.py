@@ -19,3 +19,20 @@ def test_login_and_health_declare_no_security(client: TestClient) -> None:
 
     assert "security" not in schema["paths"]["/api/v1/auth/login"]["post"]
     assert "security" not in schema["paths"]["/api/v1/health"]["get"]
+
+
+def test_openapi_lists_the_six_user_operations_with_bearer_scheme(client: TestClient) -> None:
+    paths = client.get("/openapi.json").json()["paths"]
+
+    operations = {
+        ("get", "/api/v1/users"),
+        ("post", "/api/v1/users"),
+        ("patch", "/api/v1/users/{user_id}"),
+        ("post", "/api/v1/users/{user_id}/deactivate"),
+        ("post", "/api/v1/users/{user_id}/reactivate"),
+        ("put", "/api/v1/users/{user_id}/password"),
+    }
+    for method, path in operations:
+        assert paths[path][method]["security"] == [{"HTTPBearer": []}], (method, path)
+    user_paths = {path for path in paths if path.startswith("/api/v1/users")}
+    assert user_paths == {path for _, path in operations}

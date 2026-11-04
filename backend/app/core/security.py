@@ -40,6 +40,17 @@ def verify_password(password_hash: str, plain: str) -> bool:
         return False
 
 
+def needs_rehash(password_hash: str) -> bool:
+    """True si el hash se hizo con parametros distintos de los vigentes (DD-55, P-12).
+
+    Un hash corrupto devuelve False: no hay nada que actualizar sin la contrasena original.
+    """
+    try:
+        return _hasher.check_needs_rehash(password_hash)
+    except InvalidHashError:
+        return False
+
+
 @dataclass(frozen=True)
 class TokenClaims:
     user_id: str

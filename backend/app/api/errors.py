@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.core.errors import DomainError
@@ -15,7 +16,11 @@ DEFAULT_DOMAIN_STATUS = 400
 HTTP_401 = 401
 STATUS_BY_CODE: dict[str, int] = {
     "APPOINTMENT_NOT_FOUND": 404,
+    "USER_NOT_FOUND": 404,
     "SLOT_TAKEN": 409,
+    "EMAIL_TAKEN": 409,
+    "ROLE_CHANGE_NOT_ALLOWED": 409,
+    "SELF_MODIFICATION_NOT_ALLOWED": 409,
     "INVALID_CREDENTIALS": 401,
     "NOT_AUTHENTICATED": 401,
     "FORBIDDEN": 403,
@@ -33,6 +38,19 @@ async def handle_domain_error(_request: Request, error: Exception) -> JSONRespon
     return JSONResponse(status_code=status, content=_body(error.code, str(error)), headers=headers)
 
 
+async def handle_validation_error(_request: Request, error: Exception) -> JSONResponse:
+    """422 con la lista de errores por campo pero sin ``input`` ni ``ctx`` (design D-6).
+
+    Pydantic v2 repite en ``input`` el valor enviado: en un alta o un login seria la contrasena.
+    """
+    assert isinstance(error, RequestValidationError)
+    detail = [
+        {"loc": list(item["loc"]), "msg": item["msg"], "type": item["type"]}
+        for item in error.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": detail})
+
+
 async def handle_unexpected_error(_request: Request, error: Exception) -> JSONResponse:
     logger.error("Error inesperado", exc_info=error)
     return JSONResponse(status_code=500, content=_body("INTERNAL_ERROR", "Error interno"))
@@ -40,4 +58,5 @@ async def handle_unexpected_error(_request: Request, error: Exception) -> JSONRe
 
 def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(DomainError, handle_domain_error)
+    app.add_exception_handler(RequestValidationError, handle_validation_error)
     app.add_exception_handler(Exception, handle_unexpected_error)

@@ -5,6 +5,7 @@ Dobles de prueba: ningun modulo de produccion los conecta (design D-6).
 
 from app.infrastructure.in_memory.appointments import InMemoryAppointmentRepository
 from app.infrastructure.in_memory.patients import InMemoryPatientRepository
+from app.infrastructure.in_memory.professionals import InMemoryProfessionalRepository
 from app.infrastructure.in_memory.schedules import (
     InMemoryTimeOffRepository,
     InMemoryWorkingHoursRepository,
@@ -16,6 +17,7 @@ __all__ = [
     "InMemoryAppointmentRepository",
     "InMemoryClinicSettingsRepository",
     "InMemoryPatientRepository",
+    "InMemoryProfessionalRepository",
     "InMemoryTimeOffRepository",
     "InMemoryUserAccountRepository",
     "InMemoryWorkingHoursRepository",
