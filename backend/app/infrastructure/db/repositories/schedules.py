@@ -91,6 +91,19 @@ class SqlAlchemyTimeOffRepository:
         with self._session_factory() as session:
             return [_to_entry(r) for r in session.scalars(query)]
 
+    def delete(self, professional_id: str, time_off_id: str) -> bool:
+        professional_key = parse_uuid(professional_id)
+        entry_key = parse_uuid(time_off_id)
+        if professional_key is None or entry_key is None:
+            return False
+        statement = (
+            delete(TimeOffModel)
+            .where(TimeOffModel.id == entry_key, TimeOffModel.professional_id == professional_key)
+            .returning(TimeOffModel.id)
+        )
+        with self._session_factory.begin() as session:
+            return session.scalars(statement).first() is not None
+
 
 def _to_entry(row: TimeOffModel) -> TimeOffEntry:
     return TimeOffEntry(

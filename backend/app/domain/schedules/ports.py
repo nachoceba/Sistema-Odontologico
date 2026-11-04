@@ -39,3 +39,7 @@ class TimeOffRepository(Protocol):
     def list_for_professional(self, professional_id: str) -> list[TimeOffEntry]:
         """Todas las licencias del profesional, ordenadas por fecha de inicio."""
         ...
+
+    def delete(self, professional_id: str, time_off_id: str) -> bool:
+        """Borra la licencia de ese profesional; False si no existe, es de otro o el id es malo."""
+        ...

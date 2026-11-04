@@ -122,3 +122,37 @@ button.secondary {
 [role='status'] {
   margin: 0.25rem 0;
 }
+
+.week-day {
+  margin: 0 0 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d0d4da;
+  border-radius: 4px;
+}
+
+.block-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.time-off-list {
+  padding-left: 1.1rem;
+}
+
+.time-off-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.conflict-notice {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid #b45309;
+  background: #fff7ed;
+}

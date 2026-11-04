@@ -9,7 +9,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import datetime, time
 
-from app.domain.appointments.types import Appointment, AppointmentStatus, ExistingAppointment
+from app.core.timezone import to_local
+from app.domain.appointments.types import (
+    Appointment,
+    AppointmentStatus,
+    ExistingAppointment,
+    WorkingHours,
+)
 
 
 def minutes_of_day(moment: time) -> int:
@@ -65,4 +71,26 @@ def patient_has_overlap(
         and appointment.status == AppointmentStatus.SCHEDULED
         and ranges_overlap(starts_at, ends_at, appointment.starts_at, appointment.ends_at)
         for appointment in existing
+    )
+
+
+def fits_in_working_hours(
+    local_start: datetime,
+    ends_at: datetime,
+    working_hours: Sequence[WorkingHours],
+    timezone: str,
+) -> bool:
+    """RN-TU-03: inicio y fin dentro de un mismo tramo del dia de la semana local.
+
+    Fuente unica del criterio "entra en un tramo": la usan validate_appointment y la
+    deteccion de conflictos de horario (RN-HO-04) para que nunca diverjan.
+    """
+    local_end = to_local(ends_at, timezone)
+    if local_end.date() != local_start.date():
+        return False
+    return any(
+        block.weekday == local_start.weekday()
+        and block.start_time <= local_start.time()
+        and local_end.time() <= block.end_time
+        for block in working_hours
     )

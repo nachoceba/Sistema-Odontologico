@@ -165,3 +165,47 @@ def agenda(auth_app: tuple[FastAPI, TestClient]) -> AgendaScene:
     )
     auth_app[0].dependency_overrides[get_agenda_deps] = world.deps
     return scene
+
+
+# --- Profesionales, horarios y licencias: casos de uso en memoria (C-07) ---
+
+
+@dataclass
+class ScheduleScene:
+    """Mundo en memoria con una licencia por profesional y el estado completo comparable."""
+
+    world: World
+    time_off_a: str
+    time_off_b: str
+
+    def snapshot(self) -> tuple[object, ...]:
+        world = self.world
+        return (
+            dict(world.accounts.professionals),
+            world.working_hours.list_for_professional(PROF_A),
+            world.working_hours.list_for_professional(PROF_B),
+            world.time_off.list_for_professional(PROF_A),
+            world.time_off.list_for_professional(PROF_B),
+            world.everything(PROF_A),
+            world.everything(PROF_B),
+        )
+
+
+@pytest.fixture
+def schedule(auth_app: tuple[FastAPI, TestClient]) -> ScheduleScene:
+    """Dependencias de horarios en memoria; reloj fijo el sabado 3 de octubre de 2026."""
+    from datetime import date
+
+    from app.api.dependencies import get_agenda_deps, get_schedule_deps
+
+    world = World()
+    scene = ScheduleScene(
+        world=world,
+        time_off_a=world.time_off.add(
+            PROF_A, date(2026, 10, 12), date(2026, 10, 16), "Congreso"
+        ).id,
+        time_off_b=world.time_off.add(PROF_B, date(2026, 10, 19), date(2026, 10, 20)).id,
+    )
+    auth_app[0].dependency_overrides[get_schedule_deps] = world.schedule_deps
+    auth_app[0].dependency_overrides[get_agenda_deps] = world.deps
+    return scene

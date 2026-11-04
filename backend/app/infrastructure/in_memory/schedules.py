@@ -50,3 +50,10 @@ class InMemoryTimeOffRepository:
     def list_for_professional(self, professional_id: str) -> list[TimeOffEntry]:
         mine = [e for e in self._entries if e.professional_id == professional_id]
         return sorted(mine, key=lambda e: e.starts_on)
+
+    def delete(self, professional_id: str, time_off_id: str) -> bool:
+        for entry in self._entries:
+            if entry.id == time_off_id and entry.professional_id == professional_id:
+                self._entries.remove(entry)
+                return True
+        return False

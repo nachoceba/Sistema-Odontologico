@@ -407,6 +407,31 @@
 **Alternativas consideradas**: aceptar sin hacer nada; redondear el inicio; conservar la duración original.
 **Justificación**: evita avisos duplicados, mantiene la grilla exacta y la duración es siempre la de la configuración.
 
+### DD-68 — Conflictos calculados, solo aviso a recepción y qué turnos cuentan (P-1, P-2 y P-3 de C-07)
+**Decisión**: los turnos en conflicto por un cambio de horario o una licencia no se marcan en la base: se calculan en el momento y se muestran al guardar y en una consulta `GET /professionals/{id}/conflicts`. Solo se avisa a recepción, en pantalla; no se manda email al paciente (cierra la pregunta abierta de RN-HO-04). Cuentan únicamente los turnos `scheduled` que todavía no empezaron y que ya no entran completos en un tramo del horario o caen en un día de licencia; un turno fuera de la grilla nueva pero dentro del horario no cuenta.
+**Alternativas consideradas**: campo "en conflicto" en los turnos (migración); mostrarlos solo al guardar; email automático al paciente; contar los turnos fuera de grilla o ya iniciados.
+**Justificación**: la lista siempre está al día, no hay migración ni marca desactualizada; el paciente recibe un solo mensaje claro (nuevo horario o cancelación) cuando exista C-11; un turno ya iniciado no se puede reprogramar (DD-21, DD-24).
+
+### DD-69 — Guardar con conflictos y bordes de licencias (P-5 y P-10 de C-07)
+**Decisión**: un cambio de horario o una licencia que deja turnos en conflicto se guarda igual y se devuelve la lista de afectados. El motivo de una licencia es opcional, de hasta 500 caracteres (vacío = sin motivo); no hay tope de duración y se siguen aceptando licencias superpuestas o pasadas (DD-28).
+**Alternativas consideradas**: bloquear el guardado; guardar en dos pasos con confirmación; tope de duración o rechazo de licencias pasadas.
+**Justificación**: es lo que piden RN-HO-04, US-004 y el Flujo 5; una licencia por enfermedad debe poder cargarse ya.
+
+### DD-70 — Borrar licencias, solo el administrador (P-4 de C-07)
+**Decisión**: se pueden cargar y borrar licencias (solo administración); no se editan: para corregir se borra y se vuelve a cargar. Una licencia inexistente o de otro profesional responde `TIME_OFF_NOT_FOUND`.
+**Alternativas consideradas**: solo cargar; cargar, editar y borrar.
+**Justificación**: un error de carga no puede bloquear días de agenda para siempre; la licencia no tiene nada colgado en la base.
+
+### DD-71 — Profesional inactivo, listado y edición de la ficha (P-6, P-7 y P-8 de C-07)
+**Decisión**: el administrador puede editar horario, licencias y ficha de un profesional inactivo. El listado muestra activos e inactivos con su estado, ordenados por nombre; el odontólogo ve solo su ficha (lista vacía si no tiene). Solo el administrador edita "nombre a mostrar" (1 a 200 caracteres) y "matrícula" (opcional, 1 a 50, se puede borrar).
+**Alternativas consideradas**: bloquear la edición de inactivos; listar solo activos o dar 403 al odontólogo; que el odontólogo edite su ficha.
+**Justificación**: permite preparar el horario antes de reactivar (C-08 ya bloquea turnos nuevos, DD-64); mismos límites que el alta de C-04 (DD-60); matriz RBAC DD-48.
+
+### DD-72 — Pantalla en C-07 y un solo change (P-9 y P-11 de C-07)
+**Decisión**: la pantalla `/profesionales` (listado, ficha, editor semanal, licencias y aviso de conflictos) entra en C-07, con recepción y odontólogo en modo lectura. C-07 se ejecuta como un solo change por grupos, con punto de corte seguro al terminar el backend (grupo 6).
+**Alternativas consideradas**: solo backend y pantalla en C-09/C-10; partir en C-07a y C-07b.
+**Justificación**: sin pantalla el administrador no puede usar lo construido; el contrato de la API y la pantalla se validan juntos, como en C-04.
+
 ## Supuestos inferidos
 
 ### SU-01 — Zona horaria única

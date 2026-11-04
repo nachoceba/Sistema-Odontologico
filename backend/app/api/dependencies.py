@@ -11,6 +11,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.application.appointments import AgendaDeps
 from app.application.auth import TokenConfig, resolve_principal
+from app.application.professionals import ScheduleDeps
 from app.core.config import get_settings
 from app.domain.auth import (
     ForbiddenError,
@@ -64,9 +65,25 @@ def get_agenda_deps(clock: Annotated[Callable[[], datetime], Depends(get_clock)]
     )
 
 
+def get_schedule_deps(
+    clock: Annotated[Callable[[], datetime], Depends(get_clock)],
+) -> ScheduleDeps:
+    """Casos de uso de profesionales y horarios sobre PostgreSQL; sobreescribible en tests."""
+    sessions = get_session_factory()
+    return ScheduleDeps(
+        professionals=SqlAlchemyProfessionalRepository(sessions),
+        working_hours=SqlAlchemyWorkingHoursRepository(sessions),
+        time_off=SqlAlchemyTimeOffRepository(sessions),
+        appointments=SqlAlchemyAppointmentRepository(sessions),
+        settings=SqlAlchemyClinicSettingsRepository(sessions),
+        clock=clock,
+    )
+
+
 UserRepository = Annotated[UserAccountRepository, Depends(get_user_repository)]
 TokenSettings = Annotated[TokenConfig, Depends(get_token_config)]
 Agenda = Annotated[AgendaDeps, Depends(get_agenda_deps)]
+Schedule = Annotated[ScheduleDeps, Depends(get_schedule_deps)]
 
 
 # auto_error=False: sin encabezado la dependencia devuelve None y respondemos con el cuerpo

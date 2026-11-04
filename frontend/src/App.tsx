@@ -5,6 +5,7 @@ import RequireRole from './auth/RequireRole'
 import { useAuth } from './auth/useAuth'
 import AgendaPlaceholderPage from './pages/AgendaPlaceholderPage'
 import LoginPage from './pages/LoginPage'
+import ProfessionalsPage from './pages/ProfessionalsPage'
 import UsersPage from './pages/UsersPage'
 
 function AppRoutes() {
@@ -22,6 +23,7 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route path="/agenda" element={<AgendaPlaceholderPage />} />
+        <Route path="/profesionales" element={<ProfessionalsPage />} />
         <Route element={<RequireRole roles={['admin']} />}>
           <Route path="/usuarios" element={<UsersPage />} />
         </Route>

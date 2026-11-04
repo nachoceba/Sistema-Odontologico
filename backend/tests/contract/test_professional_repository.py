@@ -7,9 +7,11 @@ import uuid
 import pytest
 from sqlalchemy.exc import DBAPIError
 
+from app.domain.appointments.errors import ProfessionalNotFoundError
 from app.domain.auth import Role, UserAccount
+from app.domain.professionals import UNSET
 from app.domain.users.types import AccountChanges, NewAccount, NewProfessional
-from tests.contract.conftest import RepositoryFactory
+from tests.contract.conftest import InMemoryFactory, RepositoryFactory
 
 STORAGE_FAILURES = (ValueError, DBAPIError)
 
@@ -145,3 +147,85 @@ def test_failed_creation_leaves_no_professional(factory: RepositoryFactory) -> N
     with pytest.raises(STORAGE_FAILURES):
         factory.user_accounts().create(broken)
     assert factory.professionals().list() == []
+
+
+# --- Editar nombre a mostrar y matricula (spec professional-repository, C-07) -------------------
+
+
+def test_update_display_name_keeps_the_rest_and_reorders_the_list(
+    factory: RepositoryFactory,
+) -> None:
+    dra = _dentist(factory, "z")
+    other = _dentist(factory, "m")
+    assert dra.professional_id is not None
+    professionals = factory.professionals()
+    professionals.update(dra.professional_id, license_number="MN-1")
+    updated = professionals.update(dra.professional_id, display_name="Dra. Ana Pérez")
+    found = professionals.get_by_id(dra.professional_id)
+    assert found == updated
+    assert found is not None
+    assert (found.display_name, found.license_number, found.user_id, found.active) == (
+        "Dra. Ana Pérez",
+        "MN-1",
+        dra.id,
+        True,
+    )
+    assert [p.id for p in professionals.list()] == [dra.professional_id, other.professional_id]
+
+
+def test_update_can_clear_the_license_without_touching_the_name(
+    factory: RepositoryFactory,
+) -> None:
+    dr = _dentist(factory, "b")
+    assert dr.professional_id is not None
+    professionals = factory.professionals()
+    professionals.update(dr.professional_id, license_number="MN-9")
+    cleared = professionals.update(dr.professional_id, license_number=None)
+    assert (cleared.license_number, cleared.display_name) == (None, "Profesional b")
+    kept = professionals.update(dr.professional_id, display_name="Dr. B")
+    assert kept.license_number is None
+    assert professionals.update(dr.professional_id, license_number="MN-2").license_number == "MN-2"
+
+
+def test_update_without_fields_returns_the_unchanged_record(factory: RepositoryFactory) -> None:
+    dr = _dentist(factory, "b")
+    assert dr.professional_id is not None
+    professionals = factory.professionals()
+    before = professionals.get_by_id(dr.professional_id)
+    assert professionals.update(dr.professional_id, license_number=UNSET) == before
+
+
+def test_update_of_an_inactive_professional_keeps_it_inactive(factory: RepositoryFactory) -> None:
+    dra = _dentist(factory, "a")
+    factory.user_accounts().update(dra.id, AccountChanges(active=False))
+    assert dra.professional_id is not None
+    updated = factory.professionals().update(dra.professional_id, license_number="MN-7")
+    assert (updated.license_number, updated.active) == ("MN-7", False)
+    found = factory.professionals().get_by_id(dra.professional_id)
+    assert found is not None
+    assert found.active is False
+
+
+@pytest.mark.parametrize("professional_id", [str(uuid.uuid4()), "no-es-un-uuid"])
+def test_update_of_unknown_or_malformed_id_is_rejected_and_changes_nothing(
+    factory: RepositoryFactory, professional_id: str
+) -> None:
+    dra = _dentist(factory, "a")
+    assert dra.professional_id is not None
+    professionals = factory.professionals()
+    before = professionals.list()
+    with pytest.raises(ProfessionalNotFoundError):
+        professionals.update(professional_id, display_name="Otro", license_number="X")
+    assert professionals.list() == before
+
+
+def test_in_memory_account_repository_shares_the_edited_record(
+    factory: RepositoryFactory,
+) -> None:
+    if not isinstance(factory, InMemoryFactory):
+        pytest.skip("solo aplica al almacen compartido en memoria")
+    dra = _dentist(factory, "a")
+    assert dra.professional_id is not None
+    factory.professionals().update(dra.professional_id, display_name="Dra. Editada")
+    shared = factory.user_accounts().professionals  # type: ignore[attr-defined]
+    assert shared[dra.professional_id].display_name == "Dra. Editada"

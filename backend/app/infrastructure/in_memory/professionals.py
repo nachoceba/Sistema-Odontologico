@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from app.domain.professionals import Professional
+from dataclasses import replace
+
+from app.domain.appointments.errors import ProfessionalNotFoundError
+from app.domain.professionals import UNSET, Professional, Unset
 from app.infrastructure.in_memory.users import InMemoryUserAccountRepository
 
 
@@ -19,3 +22,21 @@ class InMemoryProfessionalRepository:
 
     def get_by_id(self, professional_id: str) -> Professional | None:
         return self._accounts.professionals.get(professional_id)
+
+    def update(
+        self,
+        professional_id: str,
+        *,
+        display_name: str | None = None,
+        license_number: str | None | Unset = UNSET,
+    ) -> Professional:
+        current = self._accounts.professionals.get(professional_id)
+        if current is None:
+            raise ProfessionalNotFoundError
+        changes: Professional = current
+        if display_name is not None:
+            changes = replace(changes, display_name=display_name)
+        if not isinstance(license_number, Unset):
+            changes = replace(changes, license_number=license_number)
+        self._accounts.professionals[professional_id] = changes
+        return changes

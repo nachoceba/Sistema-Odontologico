@@ -287,14 +287,14 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `knowledge-base/03_actores_y_roles.md` §RBAC
 
 ### [C-07] `professional-schedules`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[~]` implementado, falta la prueba manual con navegador (task 8.1) antes de marcarlo pendiente de archivar (2026-11-04): 41/42 tasks; 1101 tests por defecto, 237 de integración contra PostgreSQL y 117 de frontend; `mypy --strict`, `ruff`, `tsc` y `eslint` limpios; `openspec validate --strict` válido. Dominio `app/domain/schedules/conflicts.py` y `errors.py`, casos de uso en `app/application/professionals.py`, API en `app/api/professionals.py` (nueve endpoints), pantalla `/profesionales`. Decisiones DD-68 a DD-72. Sin migraciones ni variables de entorno nuevas. **Nota para C-09 y C-10**: `GET /api/v1/professionals/{id}/conflicts` devuelve los turnos `scheduled` futuros fuera del horario o en licencia (calculados en el momento, DD-68); C-10 lo usa para su indicador de conflictos.
 - **Scope**:
   - US-004 y US-005: `/profesionales` con listado, edición de `working_hours` (varios tramos por día) y carga de `time_off`
   - Repositorios `WorkingHoursRepository`, `TimeOffRepository`; validación con `domain/schedules` (C-05)
   - Detección de conflictos (RN-HO-04): al cambiar horarios o cargar licencia, listar turnos `scheduled` afectados sin cancelarlos
   - Permisos según matriz: solo admin edita (decisión abierta SU-06: dejar la política en un único punto para cambiarla fácil); recepción y dentist (propio) solo leen
   - Tests: tramos superpuestos rechazados, conflictos listados, licencia bloquea disponibilidad
-  - Fuera de C-05d: borrar o editar licencias (sin respaldo en la KB; US-005 solo pide cargarlas). Los puertos de `schedule-repository` ya cubren leer y reemplazar tramos, y listar y agregar licencias; C-07 agrega el adaptador SQLAlchemy
+  - Fuera de C-05d: borrar o editar licencias (sin respaldo en la KB; US-005 solo pide cargarlas). Los puertos de `schedule-repository` ya cubren leer y reemplazar tramos, y listar y agregar licencias, y sus adaptadores SQLAlchemy ya existen desde C-02; C-07 solo agrega borrar licencia y editar la ficha del profesional
 - **Dependencias**: `C-03`, `C-05`
 - **Governance**: MEDIO
 - **Leer antes**:
@@ -351,7 +351,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 - **Scope**:
   - UI para agendar desde un slot libre (buscar/crear paciente inline con C-06), cancelar con motivo, reprogramar y marcar atendido/ausente, conectada a los casos de uso de C-08
   - Mensajes de error claros (slot ocupado, fuera de horario, pasado, paciente inactivo)
-  - Indicador de conflictos por cambio de horario/licencia (RN-HO-04) con acceso directo a reprogramar/cancelar
+  - Indicador de conflictos por cambio de horario/licencia (RN-HO-04) con acceso directo a reprogramar/cancelar (consume `GET /api/v1/professionals/{id}/conflicts` de C-07)
   - Tests de UI/flujo: agendar, choque de slot, cancelar libera slot, reprogramar
 - **Dependencias**: `C-06`, `C-08`, `C-09`
 - **Governance**: MEDIO

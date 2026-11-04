@@ -31,6 +31,12 @@ from app.domain.appointments.errors import (
     SlotTakenError,
 )
 from app.domain.auth import ForbiddenError, InvalidCredentialsError, NotAuthenticatedError
+from app.domain.schedules.errors import (
+    InvalidTimeOffError,
+    InvalidWorkingHoursError,
+    TimeOffNotFoundError,
+)
+from app.domain.schedules.validation import ScheduleProblem, ScheduleProblemCode
 from app.domain.users.errors import (
     EmailTakenError,
     RoleChangeNotAllowedError,
@@ -299,3 +305,61 @@ def test_slot_taken_message_is_a_friendly_spanish_text_without_internal_ids(
 ) -> None:
     message = raising_client.get("/__test__/slot-taken").json()["error"]["message"]
     assert message == "Ese horario acaba de ocuparse. Elegí otro."
+
+
+# --- Errores de horarios y licencias (C-07) ---------------------------------------------------
+
+
+def _raise_invalid_working_hours() -> None:
+    raise InvalidWorkingHoursError(
+        [ScheduleProblem(ScheduleProblemCode.OVERLAPPING_BLOCKS, (0, 1))]
+    )
+
+
+def _raise_invalid_time_off() -> None:
+    raise InvalidTimeOffError
+
+
+def _raise_time_off_not_found() -> None:
+    raise TimeOffNotFoundError
+
+
+@pytest.mark.parametrize(
+    ("path", "handler", "code", "status"),
+    [
+        ("working-hours", _raise_invalid_working_hours, "INVALID_WORKING_HOURS", 400),
+        ("time-off-range", _raise_invalid_time_off, "INVALID_TIME_OFF", 400),
+        ("time-off-missing", _raise_time_off_not_found, "TIME_OFF_NOT_FOUND", 404),
+    ],
+)
+def test_schedule_errors_map_to_their_status_with_a_message(
+    make_client: Callable[[], tuple[FastAPI, TestClient]],
+    path: str,
+    handler: Callable[[], None],
+    code: str,
+    status: int,
+) -> None:
+    app, test_client = make_client()
+    app.add_api_route(f"/__test__/{path}", handler)
+    response = test_client.get(f"/__test__/{path}")
+    assert response.status_code == status
+    assert response.json()["error"]["code"] == code
+    assert response.json()["error"]["message"]
+    assert "www-authenticate" not in response.headers
+
+
+def test_overlap_message_names_the_blocks_in_the_response(
+    make_client: Callable[[], tuple[FastAPI, TestClient]],
+) -> None:
+    app, test_client = make_client()
+    app.add_api_route("/__test__/overlap", _raise_invalid_working_hours)
+    message = test_client.get("/__test__/overlap").json()["error"]["message"]
+    assert "Los tramos 1 y 2 se superponen" in message
+
+
+def test_schedule_codes_are_explicit_in_the_status_table() -> None:
+    from app.api.errors import STATUS_BY_CODE
+
+    assert STATUS_BY_CODE["INVALID_WORKING_HOURS"] == 400
+    assert STATUS_BY_CODE["INVALID_TIME_OFF"] == 400
+    assert STATUS_BY_CODE["TIME_OFF_NOT_FOUND"] == 404

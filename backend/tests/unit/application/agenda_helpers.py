@@ -7,6 +7,7 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 
 from app.application.appointments import AgendaDeps
+from app.application.professionals import ScheduleDeps
 from app.domain.appointments import Appointment, NewAppointment, Notification
 from app.domain.auth import Principal, Role, UserAccount
 from app.domain.patients.types import Patient
@@ -114,6 +115,21 @@ class World:
             ),
             unit_of_work=lambda: InMemoryAgendaUnitOfWork(self.appointments, self.notifications),
             dispatcher=self.dispatcher,
+            clock=lambda: self.now,
+        )
+
+    def schedule_deps(self) -> ScheduleDeps:
+        """Las mismas fuentes que ``deps()``, para los casos de uso de C-07."""
+        return ScheduleDeps(
+            professionals=InMemoryProfessionalRepository(self.accounts),
+            working_hours=self.working_hours,
+            time_off=self.time_off,
+            appointments=self.appointments,
+            settings=InMemoryClinicSettingsRepository(
+                ClinicSettings(
+                    slot_minutes=self.slot_minutes, min_notice_hours=self.min_notice_hours
+                )
+            ),
             clock=lambda: self.now,
         )
 

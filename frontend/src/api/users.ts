@@ -53,7 +53,7 @@ async function errorFrom(response: Response): Promise<ApiError> {
   return new ApiError(response.status, code, message)
 }
 
-async function request(path: string, method: string, body?: unknown): Promise<Response> {
+export async function request(path: string, method: string, body?: unknown): Promise<Response> {
   const init: RequestInit =
     body === undefined
       ? { method }

@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 from app.core.timezone import to_local
 from app.domain.appointments.rules import (
+    fits_in_working_hours,
     is_on_grid,
     minutes_of_day,
     overlaps_scheduled,
@@ -59,7 +60,7 @@ def validate_appointment(
     if _is_off_grid(local_start, working_hours, slot_minutes):
         return ValidationResult.reject(RejectionReason.OFF_GRID)
     ends_at = starts_at + timedelta(minutes=slot_minutes)
-    if not _fits_in_working_hours(local_start, ends_at, working_hours, timezone):
+    if not fits_in_working_hours(local_start, ends_at, working_hours, timezone):
         return ValidationResult.reject(RejectionReason.OUTSIDE_WORKING_HOURS)
     if is_date_in_time_off(local_start.date(), time_off):
         return ValidationResult.reject(RejectionReason.PROFESSIONAL_TIME_OFF)
@@ -97,21 +98,3 @@ def _is_off_grid(
         ):
             return True
     return False
-
-
-def _fits_in_working_hours(
-    local_start: datetime,
-    ends_at: datetime,
-    working_hours: Sequence[WorkingHours],
-    timezone: str,
-) -> bool:
-    """RN-TU-03: inicio y fin dentro de un mismo tramo del dia de la semana local."""
-    local_end = to_local(ends_at, timezone)
-    if local_end.date() != local_start.date():
-        return False
-    return any(
-        block.weekday == local_start.weekday()
-        and block.start_time <= local_start.time()
-        and local_end.time() <= block.end_time
-        for block in working_hours
-    )

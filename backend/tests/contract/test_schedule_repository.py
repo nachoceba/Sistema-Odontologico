@@ -128,3 +128,57 @@ def test_saved_time_off_blocks_availability(
     )
     assert slots
     assert count_by_status(slots) == {SlotStatus.OUTSIDE_HOURS.name: len(slots)}
+
+
+# --- Borrar licencias (C-07, P-4) ---------------------------------------------------
+
+
+def test_delete_own_time_off_removes_only_that_entry(
+    time_off_repo: TimeOffRepository,
+    ids: Refs,
+) -> None:
+    congress = time_off_repo.add(ids.dra_a, date(2026, 10, 12), date(2026, 10, 16), "Congreso")
+    single = time_off_repo.add(ids.dra_a, date(2026, 10, 5), date(2026, 10, 5))
+    assert time_off_repo.delete(ids.dra_a, congress.id) is True
+    assert [e.id for e in time_off_repo.list_for_professional(ids.dra_a)] == [single.id]
+    assert time_off_repo.delete(ids.dra_a, congress.id) is False
+
+
+def test_delete_with_another_professional_does_not_remove_the_entry(
+    time_off_repo: TimeOffRepository,
+    ids: Refs,
+) -> None:
+    entry = time_off_repo.add(ids.dr_b, date(2026, 10, 12), date(2026, 10, 16))
+    assert time_off_repo.delete(ids.dra_a, entry.id) is False
+    assert [e.id for e in time_off_repo.list_for_professional(ids.dr_b)] == [entry.id]
+
+
+@pytest.mark.parametrize("time_off_id", ["00000000-0000-4000-8000-000000000000", "no-es-un-uuid"])
+def test_delete_unknown_or_malformed_id_returns_false(
+    time_off_repo: TimeOffRepository,
+    ids: Refs,
+    time_off_id: str,
+) -> None:
+    keep = time_off_repo.add(ids.dra_a, date(2026, 10, 12), date(2026, 10, 16))
+    assert time_off_repo.delete(ids.dra_a, time_off_id) is False
+    assert [e.id for e in time_off_repo.list_for_professional(ids.dra_a)] == [keep.id]
+
+
+def test_delete_time_off_gives_availability_back(
+    working_hours_repo: WorkingHoursRepository,
+    ids: Refs,
+    time_off_repo: TimeOffRepository,
+) -> None:
+    working_hours_repo.replace_for_professional(ids.dra_a, [block(MON, 9, 13)])
+    entry = time_off_repo.add(ids.dra_a, date(2026, 10, 5), date(2026, 10, 5))
+    assert time_off_repo.delete(ids.dra_a, entry.id) is True
+    slots = compute_slots(
+        professional_id=ids.dra_a,
+        day=date(2026, 10, 5),
+        working_hours=working_hours_repo.list_for_professional(ids.dra_a),
+        time_off=[e.to_time_off() for e in time_off_repo.list_for_professional(ids.dra_a)],
+        existing_appointments=[],
+    )
+    free = [s for s in slots if s.status == SlotStatus.FREE]
+    assert len(free) == 8
+    assert working_hours_repo.list_for_professional(ids.dra_a) == [block(MON, 9, 13)]

@@ -55,3 +55,23 @@ def test_openapi_lists_the_seven_appointment_operations_with_bearer_scheme(
     for method, path in operations:
         assert paths[path][method]["security"] == [{"HTTPBearer": []}], (method, path)
     assert "delete" not in paths["/api/v1/appointments/{appointment_id}"]
+
+
+def test_openapi_lists_the_nine_professional_operations_with_bearer_scheme(
+    client: TestClient,
+) -> None:
+    paths = client.get("/openapi.json").json()["paths"]
+
+    operations = {
+        ("get", "/api/v1/professionals"),
+        ("get", "/api/v1/professionals/{professional_id}"),
+        ("patch", "/api/v1/professionals/{professional_id}"),
+        ("get", "/api/v1/professionals/{professional_id}/working-hours"),
+        ("put", "/api/v1/professionals/{professional_id}/working-hours"),
+        ("get", "/api/v1/professionals/{professional_id}/time-off"),
+        ("post", "/api/v1/professionals/{professional_id}/time-off"),
+        ("delete", "/api/v1/professionals/{professional_id}/time-off/{time_off_id}"),
+        ("get", "/api/v1/professionals/{professional_id}/conflicts"),
+    }
+    for method, path in operations:
+        assert paths[path][method]["security"] == [{"HTTPBearer": []}], (method, path)

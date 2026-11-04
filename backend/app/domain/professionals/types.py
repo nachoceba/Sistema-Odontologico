@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 
 
 @dataclass(frozen=True)
@@ -12,3 +13,12 @@ class Professional:
     display_name: str
     license_number: str | None
     active: bool
+
+
+class Unset(Enum):
+    """Centinela de "no cambiar" (distinto de ``None`` = "borrar") para ``update``."""
+
+    UNSET = "UNSET"
+
+
+UNSET = Unset.UNSET
