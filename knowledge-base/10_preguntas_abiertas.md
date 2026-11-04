@@ -20,7 +20,7 @@
 | Alta | ¿Qué proveedor SMTP gratuito se usa en producción o demo y qué cupo tiene? (SU-02) | Recordatorios | Equipo técnico |
 | Media | Si cambia un horario y hay turnos afectados, ¿se avisa al paciente o solo a recepción? (RN-HO-04) | US-004 | Product Owner |
 | Media | ¿Un paciente puede tener varios turnos el mismo día? (SU-05) | Validación de turnos | Product Owner |
-| Media | ¿Un paciente puede tener dos turnos a la misma hora con profesionales distintos? (SU-05; el repositorio de C-05d lo acepta igual que la base; la regla, si existe, es de C-08) | Validación de turnos (C-08) | Product Owner |
+| RESUELTA | ¿Un paciente puede tener dos turnos a la misma hora con profesionales distintos? (H-2, SU-05): no, se rechaza con `PATIENT_DOUBLE_BOOKED` (DD-63, confirmado en C-08 el 2026-11-03) | — | Product Owner |
 | Media | ¿Se permite saltar la anticipación mínima para un turno urgente del mismo día (emergencia) y quién puede hacerlo? (RN-TU-12, DD-14; fuera del change `crear-turno-sin-solapamientos`) | Validación de turnos | Dueño / Product Owner |
 | Media | ¿El recordatorio debe incluir dirección, teléfono u otra información del consultorio? | Plantilla de email | Dueño |
 | Media | ¿Cuál es la zona horaria del consultorio? (SU-01) | Fechas y cron | Dueño |

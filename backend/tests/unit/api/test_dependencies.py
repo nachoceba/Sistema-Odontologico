@@ -206,3 +206,33 @@ def test_reception_and_admin_access_any_professional(
 def test_professional_route_without_token_is_401(client: TestClient) -> None:
     response = client.get(f"/api/v1/_test/professionals/{PROFESSIONAL_A}")
     assert_not_authenticated(response.status_code, response.json())
+
+
+# --- Dependencias de agenda (C-08, design D-4 y D-7) ---
+
+
+def test_the_default_clock_is_the_current_utc_instant() -> None:
+    from app.api.dependencies import get_clock
+
+    before = datetime.now(UTC)
+    moment = get_clock()()
+    after = datetime.now(UTC)
+
+    assert moment.utcoffset() == timedelta(0)
+    assert before <= moment <= after
+
+
+def test_the_default_agenda_wiring_has_a_dispatcher_that_does_nothing() -> None:
+    from app.api.dependencies import get_agenda_deps
+    from app.domain.appointments import Notification, NotificationKind, NotificationStatus
+    from app.infrastructure.notifications import NoOpNotificationDispatcher
+
+    fixed = datetime(2026, 10, 5, 13, 0, tzinfo=UTC)
+    deps = get_agenda_deps(lambda: fixed)
+
+    assert isinstance(deps.dispatcher, NoOpNotificationDispatcher)
+    assert deps.clock() == fixed
+    notification = Notification(
+        "n-1", "t-1", NotificationKind.CONFIRMATION, NotificationStatus.PENDING, None, None, fixed
+    )
+    assert deps.dispatcher.dispatch([notification]) is None

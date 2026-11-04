@@ -376,6 +376,36 @@
 ### DD-61 — Rehash al iniciar sesión, repositorio de profesionales y un solo change (P-12, P-13 y P-14 de C-04)
 **Decisión**: tras un login correcto con hash de parámetros viejos se guarda un hash nuevo (si falla, el login igual funciona); C-04 define el repositorio de lectura de profesionales (listar y buscar por id) con batería de contrato, sin endpoints; C-04 se ejecuta como un solo change por grupos. Cierra el pendiente de DD-55.
 
+### DD-62 — Notificaciones registradas por la agenda (P-1 y P-2 de C-08)
+**Decisión**: al agendar o reprogramar, C-08 guarda en la misma transacción que el turno una fila `confirmation` `pending` en `email_notifications` y después avisa a un despachador que en C-08 no hace nada (C-11 lo reemplaza); al reprogramar o cancelar se borran las filas `pending` del horario anterior y se conservan las `sent` y `failed` como historial; si el turno vuelve a un horario que ya tiene confirmación no se duplica ni falla.
+**Alternativas consideradas**: no anotar nada y dejar todo a C-11; estado `discarded` con migración; dejar las `pending` viejas sin borrar.
+**Justificación**: cierra DD-36 con una prueba real contra PostgreSQL, no requiere migración y C-11 no filtra filas muertas. Consecuencia: quien vuelve a su horario original no recibe una segunda confirmación; antes de C-11 se acumulan filas `pending` que nadie envía (C-11 decide si las limpia).
+
+### DD-63 — Un paciente no tiene dos turnos superpuestos (P-3 de C-08; cierra H-2)
+**Decisión**: un paciente no puede tener dos turnos `scheduled` que se superpongan, aunque sean con profesionales distintos; se rechaza con `PATIENT_DOUBLE_BOOKED`. Varios turnos el mismo día en horarios distintos siguen permitidos (RN-TU-08).
+**Alternativas consideradas**: permitirlo.
+**Justificación**: una persona no está en dos sillones a la vez; casi siempre es un error de carga. Límite aceptado: la regla la garantiza la aplicación, no la base (dos pedidos simultáneos para el mismo paciente podrían colarse).
+
+### DD-64 — Quién marca atención, profesional inactivo y reprogramar (P-4, P-5 y P-6 de C-08)
+**Decisión**: marcar `completed` o `no_show` lo puede hacer el odontólogo (solo sus turnos) y recepción y administración (cualquier turno), siempre con el turno ya iniciado; a un profesional con ficha inactiva no se le agendan ni reprograman turnos nuevos, pero sus turnos se pueden ver, cancelar y marcar; reprogramar solo cambia día y hora, no el profesional (para eso se cancela y se agenda de nuevo).
+**Alternativas consideradas**: solo el odontólogo; odontólogo y administración; permitir turnos a fichas inactivas; cambiar de profesional al reprogramar.
+**Justificación**: sigue la matriz DD-48, DD-59 y el Flujo 3; evita cambiar el repositorio y sumar casos.
+
+### DD-65 — Motivo obligatorio y sin excepción de urgencias (P-7 y P-8 de C-08)
+**Decisión**: el motivo de cancelación es obligatorio (texto libre de 1 a 500 caracteres tras recortar espacios); la anticipación mínima se aplica a todos, sin excepción para urgencias (se puede bajar `min_notice_hours` en la configuración).
+**Alternativas consideradas**: motivo opcional; permiso especial del administrador para urgencias.
+**Justificación**: US-008 pide el motivo y no hay otra auditoría de cancelaciones; la excepción no fue pedida y queda como mejora posterior (RN-TU-12, DD-14).
+
+### DD-66 — Consultas y franjas en C-08, listado global en C-12 y un solo change (P-9, P-10 y P-11 de C-08)
+**Decisión**: C-08 incluye ver un turno, listar los de un profesional por rango y las franjas de un día; C-09 queda con las pantallas y pasa a depender de C-08; el listado de turnos de todos los profesionales por rango pasa a C-12, que es quien lo usa; C-08 se ejecuta como un solo change por grupos, con punto de corte seguro tras la concurrencia.
+**Alternativas consideradas**: franjas en C-09; listado global en C-08; partir C-08 en dos changes.
+**Justificación**: agendar y mostrar franjas libres usan los mismos datos y reglas; el listado global sin su usuario obliga a adivinar filtros.
+
+### DD-67 — Tres bordes de horario (P-12 de C-08)
+**Decisión**: reprogramar al mismo horario que ya tiene se rechaza con `RESCHEDULE_SAME_TIME`; un inicio con segundos o fracciones se rechaza como `OFF_GRID` (análogo a DD-29); al reprogramar un turno viejo se usa la duración `slot_minutes` vigente (RN-TU-02).
+**Alternativas consideradas**: aceptar sin hacer nada; redondear el inicio; conservar la duración original.
+**Justificación**: evita avisos duplicados, mantiene la grilla exacta y la duración es siempre la de la configuración.
+
 ## Supuestos inferidos
 
 ### SU-01 — Zona horaria única
@@ -404,6 +434,7 @@
 
 ### SU-05 — Varios turnos por paciente el mismo día
 **Supuesto**: se permiten (RN-TU-08).
+**Ampliación (C-08, DD-63)**: confirmado para horarios distintos; a la misma hora con profesionales distintos se rechaza (`PATIENT_DOUBLE_BOOKED`).
 **Riesgo si es falso**: agregar una regla y una validación más.
 **Cómo validar**: preguntar al usuario.
 

@@ -37,7 +37,7 @@ def test_slot_taken_belongs_to_family_and_keeps_data() -> None:
     assert error.code == "SLOT_TAKEN"
     assert error.professional_id == "dra-a"
     assert error.starts_at == starts_at
-    assert str(error) == f"SLOT_TAKEN: dra-a a las {starts_at.isoformat()}"
+    assert str(error) == "Ese horario acaba de ocuparse. Elegí otro."
 
 
 def test_appointment_not_found_belongs_to_family_and_keeps_data() -> None:

@@ -9,14 +9,20 @@ usuarios: en memoria son el mismo texto, en PostgreSQL el UUID de una fila cread
 from __future__ import annotations
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.domain.appointments.ports import AppointmentRepository
+from app.domain.appointments.ports import (
+    AgendaUnitOfWork,
+    AppointmentRepository,
+    NotificationRepository,
+)
+from app.domain.appointments.types import Notification, NotificationKind, NotificationStatus
 from app.domain.auth import Role, UserAccount, UserAccountRepository
 from app.domain.patients.ports import PatientRepository
 from app.domain.patients.types import Patient
@@ -24,16 +30,20 @@ from app.domain.professionals import Professional, ProfessionalRepository
 from app.domain.schedules.ports import TimeOffRepository, WorkingHoursRepository
 from app.domain.settings.ports import ClinicSettingsRepository
 from app.domain.settings.types import ClinicSettings
+from app.infrastructure.db import enums
 from app.infrastructure.db.enums import UserRole
 from app.infrastructure.db.models import (
     ClinicSettingsModel,
+    EmailNotificationModel,
     PatientModel,
     ProfessionalModel,
     UserModel,
 )
 from app.infrastructure.db.repositories import (
+    SqlAlchemyAgendaUnitOfWork,
     SqlAlchemyAppointmentRepository,
     SqlAlchemyClinicSettingsRepository,
+    SqlAlchemyNotificationRepository,
     SqlAlchemyPatientRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyTimeOffRepository,
@@ -41,8 +51,10 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyWorkingHoursRepository,
 )
 from app.infrastructure.in_memory import (
+    InMemoryAgendaUnitOfWork,
     InMemoryAppointmentRepository,
     InMemoryClinicSettingsRepository,
+    InMemoryNotificationRepository,
     InMemoryPatientRepository,
     InMemoryProfessionalRepository,
     InMemoryTimeOffRepository,
@@ -67,6 +79,22 @@ class RepositoryFactory(Protocol):
         ...
 
     def appointments(self) -> AppointmentRepository: ...
+
+    def unit_of_work(self) -> Callable[[], AgendaUnitOfWork]:
+        """Fabrica de unidades de trabajo sobre los mismos repositorios de la fabrica."""
+        ...
+
+    def notifications(self) -> NotificationRepository: ...
+
+    def seed_notification(
+        self,
+        appointment_id: str,
+        kind: NotificationKind,
+        status: NotificationStatus,
+        starts_at: datetime,
+    ) -> Notification:
+        """Carga una fila con cualquier estado (el envio y el estado son de C-11)."""
+        ...
 
     def working_hours(self) -> WorkingHoursRepository: ...
 
@@ -98,6 +126,8 @@ class InMemoryFactory:
 
     def __init__(self) -> None:
         self._accounts = InMemoryUserAccountRepository()
+        self._notifications = InMemoryNotificationRepository()
+        self._appointments = InMemoryAppointmentRepository()
 
     def professional(self, name: str) -> str:
         return name
@@ -109,7 +139,22 @@ class InMemoryFactory:
         return name
 
     def appointments(self) -> AppointmentRepository:
-        return InMemoryAppointmentRepository()
+        return self._appointments
+
+    def unit_of_work(self) -> Callable[[], AgendaUnitOfWork]:
+        return lambda: InMemoryAgendaUnitOfWork(self._appointments, self._notifications)
+
+    def notifications(self) -> NotificationRepository:
+        return self._notifications
+
+    def seed_notification(
+        self,
+        appointment_id: str,
+        kind: NotificationKind,
+        status: NotificationStatus,
+        starts_at: datetime,
+    ) -> Notification:
+        return self._notifications.seed(appointment_id, kind, status, starts_at)
 
     def working_hours(self) -> WorkingHoursRepository:
         return InMemoryWorkingHoursRepository()
@@ -224,6 +269,39 @@ class PostgresFactory:
 
     def appointments(self) -> AppointmentRepository:
         return SqlAlchemyAppointmentRepository(self._sessions)
+
+    def unit_of_work(self) -> Callable[[], AgendaUnitOfWork]:
+        return lambda: SqlAlchemyAgendaUnitOfWork(self._sessions)
+
+    def notifications(self) -> NotificationRepository:
+        return SqlAlchemyNotificationRepository(self._sessions)
+
+    def seed_notification(
+        self,
+        appointment_id: str,
+        kind: NotificationKind,
+        status: NotificationStatus,
+        starts_at: datetime,
+    ) -> Notification:
+        row = EmailNotificationModel(
+            appointment_id=uuid.UUID(appointment_id),
+            kind=enums.NotificationKind(kind.value),
+            status=enums.NotificationStatus(status.value),
+            sent_at=starts_at if status is NotificationStatus.SENT else None,
+            error="fallo simulado" if status is NotificationStatus.FAILED else None,
+            appointment_starts_at=starts_at,
+        )
+        with self._sessions.begin() as session:
+            session.add(row)
+        return Notification(
+            id=str(row.id),
+            appointment_id=appointment_id,
+            kind=kind,
+            status=status,
+            sent_at=row.sent_at,
+            error=row.error,
+            appointment_starts_at=starts_at,
+        )
 
     def working_hours(self) -> WorkingHoursRepository:
         return SqlAlchemyWorkingHoursRepository(self._sessions)

@@ -28,7 +28,7 @@ C-01 foundation-setup     [x] archivado (2026-11-03)
  │         ├── C-04 user-management           [x] archivado (2026-11-03)
  │         ├── C-06 patients-crud
  │         ├── C-07 professional-schedules      (+ C-05)
- │         │    └── C-09 agenda-views           (+ C-05)
+ │         │    └── C-09 agenda-views           (+ C-05, C-08)
  │         └── C-08 appointment-use-cases       (+ C-05)
  │              ├── C-11 email-confirmation-infra
  │              │    └── C-12 reminders-cron
@@ -60,7 +60,7 @@ GATE 2: C-03 ✓ y C-05 ✓                         ← FORK
 
 GATE 3: C-07 ✓ (y C-08 ✓ en curso)              ← FORK
   → C-11 email-confirmation-infra          [Agente A — si C-08 ✓]
-  → C-09 agenda-views                      [Agente B — si C-07 ✓]
+  → C-09 agenda-views                      [Agente B — si C-07 ✓ y C-08 ✓ (consume sus lecturas)]
   → C-04 user-management                   [Agente C — si C-03 ✓]
 
 GATE 4: C-11 ✓, C-09 ✓, C-06 ✓
@@ -308,7 +308,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 ## FASE 3 — Agenda de turnos (MVP)
 
 ### [C-08] `appointment-use-cases`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` implementado el 2026-11-03 (46/46 tasks; 876 tests por defecto y 221 de integración; mypy --strict y ruff en verde), pendiente de archivar. Casos de uso en `app/application/appointments.py`, API en `app/api/appointments.py` (siete endpoints), unidad de trabajo y registro de notificaciones en memoria y PostgreSQL, decisiones DD-62 a DD-67. Sin migraciones ni variables de entorno nuevas.
 - **Scope**:
   - `AppointmentRepository` (SQLAlchemy) que traduce el error del constraint de exclusión a "el slot acaba de ocuparse"
   - Casos de uso en `app/application`: `agendar_turno`, `cancelar_turno` (con `cancel_reason`), `reprogramar_turno` (atómico: si falla no cambia el original, RN-TU-06), `marcar_atencion` (`completed`/`no_show`, solo propio, `scheduled` e iniciado)
@@ -317,7 +317,8 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - Endpoints `/api/v1/appointments` con esquemas Pydantic y chequeo de rol
   - Tests: happy path, slot ocupado, fuera de horario, pasado, concurrencia (dos inserciones simultáneas, una falla), reprogramación fallida no muta, permisos
   - Heredado de C-02: el repositorio de turnos con SQLAlchemy ya existe (`app/infrastructure/db/repositories/`, con la traducción de `23P01` a `SlotTakenError`). Queda para este change: test de concurrencia real con dos sesiones simultáneas contra PostgreSQL (una inserción falla) y unidad de trabajo que agrupe turno y notificación en una misma transacción (DD-36)
-  - Listado de turnos de todos los profesionales por rango para `NotificationPort` (no existe en C-05d; ver C-11 y C-12)
+  - Listado de turnos de todos los profesionales por rango: pasa a C-12, que es quien lo usa (P-10 de C-08, DD-66)
+  - Decisiones confirmadas el 2026-11-03 (DD-62 a DD-67): fila `confirmation` `pending` junto con el turno y despachador vacío (C-11 lo reemplaza y decide qué hacer con las `pending` viejas); consultas (ver, listar por profesional y rango) y franjas de un día incluidas en C-08, y C-09 las consume; un paciente no tiene dos turnos superpuestos (cierra H-2)
   - Pregunta abierta H-2 (paciente con dos turnos a la misma hora con profesionales distintos, SU-05 y `10_preguntas_abiertas.md`): la regla, si existe, se decide en este change
 - **Dependencias**: `C-03`, `C-05`
 - **Governance**: MEDIO
@@ -332,12 +333,12 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 - **Scope**:
   - US-006: `/agenda` con vista diaria y semanal por profesional
   - Slots libres, ocupados y fuera de horario diferenciados (usa `compute_slots` de C-05 y horarios/licencias de C-07)
-  - Consulta de solo lectura de los turnos del rango visible (query propia, sin depender de los casos de uso de C-08)
+  - Consume los endpoints de lectura de C-08 (turnos de un profesional por rango y franjas de un día; P-9 de C-08, DD-66); no define consultas propias. **Nota (C-08 hecho)**: `GET /api/v1/appointments?professional_id&from&to` (rango `[from, to)` con zona, hasta 31 días) y `GET /api/v1/professionals/{id}/slots?date=AAAA-MM-DD`; las franjas no aplican la anticipación mínima y un profesional inactivo devuelve las suyas igual
   - Selector de profesional para admin/recepción; odontólogo ve solo la propia (RN-AU-04)
   - Pantalla de inicio por rol tras el login
   - Componentes React reutilizables (grilla de slots, navegación de fechas); datos con un cliente de API; fechas mostradas en zona del consultorio
   - Tests con Vitest: componente de grilla, filtro por rol, cambio de semana
-- **Dependencias**: `C-05`, `C-07`
+- **Dependencias**: `C-05`, `C-07`, `C-08`
 - **Governance**: BAJO
 - **Leer antes**:
   - `knowledge-base/06_funcionalidades.md` §US-006
@@ -376,6 +377,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - Fallos de envío y Redis caído nunca rompen la operación de turno (RN-NO-04)
   - Tests con `EmailSender` falso y Celery en modo inmediato: éxito, fallo registrado, idempotencia por UNIQUE
   - Fuera de C-05d: datos del consultorio para los emails (nombre, dirección, teléfono y hora del recordatorio) en `ClinicSettings`; el puerto de C-05d solo expone duración, zona y anticipación mínima
+  - **Nota (C-08 hecho, DD-62)**: C-08 ya guarda la fila `confirmation` `pending` junto con el turno (agendar y reprogramar; reprogramar y cancelar borran las `pending` del horario anterior) y llama a `AgendaDeps.dispatcher` (`NotificationDispatcher.dispatch`) después del commit; hoy es `NoOpNotificationDispatcher` (`app/infrastructure/notifications.py`). C-11 reemplaza ese despachador por el encolado, reusa `NotificationRepository` (ya existe, en memoria y PostgreSQL) y decide qué hacer con las filas `pending` acumuladas desde C-08 antes de activar `reencolar_pendientes`. Un despachador que falla no rompe la operación (se registra solo el id del turno)
 - **Dependencias**: `C-08`
 - **Governance**: ALTO
 - **Leer antes**:
@@ -390,7 +392,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - Caso de uso `enviar_recordatorios`: turnos `scheduled` del día siguiente (zona del consultorio) sin `reminder`; un fallo se registra y el lote continúa (US-011); registra `{ processed, sent, failed }` en el log
   - Reintento opcional de `failed` del mismo día (decisión a confirmar)
   - Tests: doble ejecución no reenvía, cancelado excluido, fallo parcial no corta el lote, borde de zona horaria, la tarea solo actúa a la hora configurada
-  - Fuera de C-05d: listado de turnos de todos los profesionales por rango para `enviar_recordatorios` (el repositorio de C-05d lista por profesional o por paciente); datos del consultorio para los recordatorios (ver C-11)
+  - Listado de turnos de todos los profesionales por rango para `enviar_recordatorios` (**no está en C-08**: P-10, DD-66; el repositorio lista por profesional o por paciente y C-12 define su filtro); datos del consultorio para los recordatorios (ver C-11)
 - **Dependencias**: `C-11`
 - **Governance**: ALTO
 - **Leer antes**:
@@ -499,7 +501,7 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-06 | patients-crud | 2 | C-03 | BAJO |
 | C-07 | professional-schedules | 2 | C-03, C-05 | MEDIO |
 | C-08 | appointment-use-cases | 3 | C-03, C-05 | MEDIO |
-| C-09 | agenda-views | 3 | C-05, C-07 | BAJO |
+| C-09 | agenda-views | 3 | C-05, C-07, C-08 | BAJO |
 | C-10 | appointment-management-ui | 3 | C-06, C-08, C-09 | MEDIO |
 | C-11 | email-confirmation-infra | 4 | C-08 | ALTO |
 | C-12 | reminders-cron | 4 | C-11 | ALTO |

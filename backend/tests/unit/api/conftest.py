@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
+from dataclasses import dataclass
 
 import pytest
 from fastapi import FastAPI
@@ -11,8 +12,11 @@ from fastapi.testclient import TestClient
 from app.api.dependencies import get_user_repository
 from app.core.config import get_settings
 from app.core.security import hash_password
+from app.domain.appointments import Appointment
 from app.domain.auth import Role, UserAccount
 from app.infrastructure.in_memory import InMemoryUserAccountRepository
+from tests.unit.application.agenda_helpers import PROF_A, PROF_B, World
+from tests.unit.domain.appointments.helpers import monday
 
 API_ENV: dict[str, str] = {
     "DATABASE_URL": "postgresql+psycopg://odonto:odonto_dev@db-inexistente.invalid:5432/odonto",
@@ -127,3 +131,37 @@ def login_token(test_client: TestClient, email: str) -> str:
 
 def bearer(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+
+# --- Agenda: casos de uso sobre repositorios en memoria (C-08, design D-10) ---
+
+
+@dataclass
+class AgendaScene:
+    """Mundo en memoria con cuatro turnos conocidos: dos de la Dra. A y dos del Dr. B."""
+
+    world: World
+    started_a: str
+    future_a: str
+    started_b: str
+    future_b: str
+
+    def snapshot(self) -> list[Appointment]:
+        return self.world.everything(PROF_A) + self.world.everything(PROF_B)
+
+
+@pytest.fixture
+def agenda(auth_app: tuple[FastAPI, TestClient]) -> AgendaScene:
+    """Dependencias de agenda en memoria; reloj en lunes 10:10 y sin anticipacion minima."""
+    from app.api.dependencies import get_agenda_deps
+
+    world = World(now=monday(10, 10), min_notice_hours=0)
+    scene = AgendaScene(
+        world=world,
+        started_a=world.seed(monday(10), patient_id="pac-1", professional_id=PROF_A).id,
+        future_a=world.seed(monday(15), patient_id="pac-2", professional_id=PROF_A).id,
+        started_b=world.seed(monday(10), patient_id="pac-2", professional_id=PROF_B).id,
+        future_b=world.seed(monday(12), patient_id="pac-1", professional_id=PROF_B).id,
+    )
+    auth_app[0].dependency_overrides[get_agenda_deps] = world.deps
+    return scene

@@ -111,3 +111,31 @@ class Slot:
     starts_at: datetime  # UTC
     ends_at: datetime  # UTC
     status: SlotStatus
+
+
+class NotificationKind(Enum):
+    """Mismos valores que el enumerado ``notification_kind`` de la base."""
+
+    CONFIRMATION = "confirmation"
+    REMINDER = "reminder"
+
+
+class NotificationStatus(Enum):
+    """Mismos valores que ``notification_status``; no hay estado "descartada" (DD-62)."""
+
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True)
+class Notification:
+    """Registro de un email de un turno (tabla ``email_notifications``)."""
+
+    id: str
+    appointment_id: str
+    kind: NotificationKind
+    status: NotificationStatus
+    sent_at: datetime | None
+    error: str | None
+    appointment_starts_at: datetime  # UTC: el horario del turno al que corresponde

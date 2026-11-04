@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.application.appointments import AgendaDeps
 from app.application.auth import TokenConfig, resolve_principal
 from app.core.config import get_settings
 from app.domain.auth import (
@@ -18,8 +20,18 @@ from app.domain.auth import (
     UserAccountRepository,
     can_access_professional,
 )
-from app.infrastructure.db.repositories import SqlAlchemyUserAccountRepository
+from app.infrastructure.db.repositories import (
+    SqlAlchemyAgendaUnitOfWork,
+    SqlAlchemyAppointmentRepository,
+    SqlAlchemyClinicSettingsRepository,
+    SqlAlchemyPatientRepository,
+    SqlAlchemyProfessionalRepository,
+    SqlAlchemyTimeOffRepository,
+    SqlAlchemyUserAccountRepository,
+    SqlAlchemyWorkingHoursRepository,
+)
 from app.infrastructure.db.session import get_session_factory
+from app.infrastructure.notifications import NoOpNotificationDispatcher
 
 
 def get_user_repository() -> UserAccountRepository:
@@ -31,8 +43,30 @@ def get_token_config() -> TokenConfig:
     return TokenConfig.from_settings(get_settings())
 
 
+def get_clock() -> Callable[[], datetime]:
+    """Reloj del sistema; los tests lo sobreescriben con uno fijo (design D-4)."""
+    return lambda: datetime.now(UTC)
+
+
+def get_agenda_deps(clock: Annotated[Callable[[], datetime], Depends(get_clock)]) -> AgendaDeps:
+    """Casos de uso de agenda sobre PostgreSQL; sobreescribible en los tests (design D-10)."""
+    sessions = get_session_factory()
+    return AgendaDeps(
+        appointments=SqlAlchemyAppointmentRepository(sessions),
+        patients=SqlAlchemyPatientRepository(sessions),
+        professionals=SqlAlchemyProfessionalRepository(sessions),
+        working_hours=SqlAlchemyWorkingHoursRepository(sessions),
+        time_off=SqlAlchemyTimeOffRepository(sessions),
+        settings=SqlAlchemyClinicSettingsRepository(sessions),
+        unit_of_work=lambda: SqlAlchemyAgendaUnitOfWork(sessions),
+        dispatcher=NoOpNotificationDispatcher(),
+        clock=clock,
+    )
+
+
 UserRepository = Annotated[UserAccountRepository, Depends(get_user_repository)]
 TokenSettings = Annotated[TokenConfig, Depends(get_token_config)]
+Agenda = Annotated[AgendaDeps, Depends(get_agenda_deps)]
 
 
 # auto_error=False: sin encabezado la dependencia devuelve None y respondemos con el cuerpo

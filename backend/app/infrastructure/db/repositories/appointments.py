@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 
 from psycopg import errors as pg_errors
 from sqlalchemy import ColumnElement, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute, Session, sessionmaker
 
 from app.domain.appointments.errors import AppointmentNotFoundError, SlotTakenError
@@ -22,6 +22,7 @@ from app.domain.appointments.ranges import require_query_range, require_range
 from app.domain.appointments.types import Appointment, AppointmentStatus, NewAppointment
 from app.infrastructure.db.models import AppointmentModel
 from app.infrastructure.db.repositories._ids import parse_uuid
+from app.infrastructure.db.scope import SessionScope
 
 
 def _to_domain(row: AppointmentModel) -> Appointment:
@@ -46,10 +47,14 @@ def _required_uuid(value: str, what: str) -> uuid.UUID:
 
 
 def _flush_or_slot_taken(session: Session, row: AppointmentModel) -> None:
-    """Escribe y traduce el rechazo del constraint de exclusion (SQLSTATE 23P01).
+    """Escribe y traduce el rechazo del constraint de exclusion a ``SlotTakenError``.
 
-    Cualquier otra ``IntegrityError`` se propaga: es un error de programacion o de datos. Al
-    salir de ``begin()`` con una excepcion se hace rollback (todo o nada).
+    Dos escrituras simultaneas del mismo horario pueden terminar de dos maneras: una falla con
+    SQLSTATE 23P01 (violacion de exclusion) o, si cada una espera a la otra mientras verifica el
+    constraint, PostgreSQL aborta una por deadlock (SQLSTATE 40P01). En los dos casos otra
+    escritura se quedo con el horario, asi que ambos son ``SlotTakenError``. Cualquier otro error
+    se propaga: es un error de programacion o de datos. Al salir de ``begin()`` con una excepcion
+    se hace rollback (todo o nada).
     """
     # Se leen antes del flush: si falla, la sesion expira los objetos y ya no se pueden leer.
     professional_id = str(row.professional_id)
@@ -60,11 +65,22 @@ def _flush_or_slot_taken(session: Session, row: AppointmentModel) -> None:
         if isinstance(error.orig, pg_errors.ExclusionViolation):
             raise SlotTakenError(professional_id, starts_at) from error
         raise
+    except DBAPIError as error:
+        if isinstance(error.orig, pg_errors.DeadlockDetected):
+            raise SlotTakenError(professional_id, starts_at) from error
+        raise
 
 
 class SqlAlchemyAppointmentRepository:
-    def __init__(self, session_factory: sessionmaker[Session]) -> None:
-        self._session_factory = session_factory
+    def __init__(
+        self,
+        session_factory: sessionmaker[Session] | None = None,
+        *,
+        scope: SessionScope | None = None,
+    ) -> None:
+        # Sin alcance propio, cada operacion abre su transaccion (DD-36); dentro de una unidad
+        # de trabajo la sesion es compartida y la confirma la unidad (D-2).
+        self._scope = scope if scope is not None else SessionScope(session_factory)
 
     def add(self, new: NewAppointment) -> Appointment:
         require_range(new.starts_at, new.ends_at)
@@ -76,7 +92,7 @@ class SqlAlchemyAppointmentRepository:
             status=AppointmentStatus.SCHEDULED,
             created_by=_required_uuid(new.created_by, "usuario"),
         )
-        with self._session_factory.begin() as session:
+        with self._scope.write() as session:
             session.add(row)
             _flush_or_slot_taken(session, row)
             return _to_domain(row)
@@ -85,7 +101,7 @@ class SqlAlchemyAppointmentRepository:
         key = parse_uuid(appointment_id)
         if key is None:
             return None
-        with self._session_factory() as session:
+        with self._scope.read() as session:
             row = session.get(AppointmentModel, key)
             return None if row is None else _to_domain(row)
 
@@ -95,7 +111,7 @@ class SqlAlchemyAppointmentRepository:
         status: AppointmentStatus,
         cancel_reason: str | None = None,
     ) -> Appointment:
-        with self._session_factory.begin() as session:
+        with self._scope.write() as session:
             row = self._locked(session, appointment_id)
             row.status = status
             row.cancel_reason = cancel_reason
@@ -105,7 +121,7 @@ class SqlAlchemyAppointmentRepository:
     def reschedule(
         self, appointment_id: str, starts_at: datetime, ends_at: datetime
     ) -> Appointment:
-        with self._session_factory.begin() as session:
+        with self._scope.write() as session:
             row = self._locked(session, appointment_id)
             require_range(starts_at, ends_at)
             row.starts_at = starts_at
@@ -149,5 +165,5 @@ class SqlAlchemyAppointmentRepository:
         if end is not None:
             conditions.append(AppointmentModel.starts_at < end)
         query = select(AppointmentModel).where(*conditions).order_by(AppointmentModel.starts_at)
-        with self._session_factory() as session:
+        with self._scope.read() as session:
             return [_to_domain(row) for row in session.scalars(query)]

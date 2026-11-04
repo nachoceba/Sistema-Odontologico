@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import datetime, time
 
-from app.domain.appointments.types import AppointmentStatus, ExistingAppointment
+from app.domain.appointments.types import Appointment, AppointmentStatus, ExistingAppointment
 
 
 def minutes_of_day(moment: time) -> int:
@@ -39,4 +39,30 @@ def overlaps_scheduled(
         and existing.status == AppointmentStatus.SCHEDULED
         and ranges_overlap(starts_at, ends_at, existing.starts_at, existing.ends_at)
         for existing in existing_appointments
+    )
+
+
+def has_sub_minute_precision(instant: datetime) -> bool:
+    """P-12b: un inicio con segundos o fracciones se rechaza (la grilla solo mira minutos)."""
+    return instant.second != 0 or instant.microsecond != 0
+
+
+def patient_has_overlap(
+    patient_id: str,
+    starts_at: datetime,
+    ends_at: datetime,
+    existing: Sequence[Appointment],
+    *,
+    exclude_id: str | None = None,
+) -> bool:
+    """P-3 (DD-63): el paciente ya tiene un scheduled superpuesto (de cualquier profesional).
+
+    ``exclude_id`` deja afuera el propio turno al reprogramar.
+    """
+    return any(
+        appointment.patient_id == patient_id
+        and appointment.id != exclude_id
+        and appointment.status == AppointmentStatus.SCHEDULED
+        and ranges_overlap(starts_at, ends_at, appointment.starts_at, appointment.ends_at)
+        for appointment in existing
     )

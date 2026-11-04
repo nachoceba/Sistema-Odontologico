@@ -1,5 +1,10 @@
 from app.domain.appointments.errors import AppointmentNotFoundError, SlotTakenError
-from app.domain.appointments.ports import AppointmentRepository
+from app.domain.appointments.ports import (
+    AgendaUnitOfWork,
+    AppointmentRepository,
+    NotificationDispatcher,
+    NotificationRepository,
+)
 from app.domain.appointments.slots import compute_slots
 from app.domain.appointments.transitions import (
     TransitionRejection,
@@ -12,6 +17,9 @@ from app.domain.appointments.types import (
     AppointmentStatus,
     ExistingAppointment,
     NewAppointment,
+    Notification,
+    NotificationKind,
+    NotificationStatus,
     RejectionReason,
     Slot,
     SlotStatus,
@@ -22,12 +30,18 @@ from app.domain.appointments.types import (
 from app.domain.appointments.validation import validate_appointment
 
 __all__ = [
+    "AgendaUnitOfWork",
     "Appointment",
     "AppointmentNotFoundError",
     "AppointmentRepository",
     "AppointmentStatus",
     "ExistingAppointment",
     "NewAppointment",
+    "Notification",
+    "NotificationDispatcher",
+    "NotificationKind",
+    "NotificationRepository",
+    "NotificationStatus",
     "RejectionReason",
     "Slot",
     "SlotStatus",

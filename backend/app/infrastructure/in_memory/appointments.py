@@ -30,6 +30,13 @@ class InMemoryAppointmentRepository:
     def __init__(self) -> None:
         self._appointments: dict[str, Appointment] = {}
 
+    def snapshot(self) -> dict[str, Appointment]:
+        """Copia del estado, para que la unidad de trabajo pueda revertir."""
+        return dict(self._appointments)
+
+    def restore(self, state: dict[str, Appointment]) -> None:
+        self._appointments = dict(state)
+
     def add(self, new: NewAppointment) -> Appointment:
         require_range(new.starts_at, new.ends_at)
         saved = Appointment(

@@ -12,7 +12,24 @@ from fastapi.testclient import TestClient
 from pydantic import BaseModel, Field
 
 from app.core.errors import DomainError
-from app.domain.appointments.errors import AppointmentNotFoundError, SlotTakenError
+from app.domain.appointments.errors import (
+    AlreadyStartedError,
+    AppointmentNotFoundError,
+    AttendanceAlreadyRecordedError,
+    CancelledIsFinalError,
+    InsufficientNoticeError,
+    NotStartedYetError,
+    OffGridError,
+    OutsideWorkingHoursError,
+    PatientDoubleBookedError,
+    PatientInactiveError,
+    PatientNotFoundError,
+    ProfessionalInactiveError,
+    ProfessionalNotFoundError,
+    ProfessionalTimeOffError,
+    RescheduleSameTimeError,
+    SlotTakenError,
+)
 from app.domain.auth import ForbiddenError, InvalidCredentialsError, NotAuthenticatedError
 from app.domain.users.errors import (
     EmailTakenError,
@@ -230,3 +247,55 @@ def test_validation_error_on_the_password_itself_does_not_echo_it(
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"] == ["body", "password"]
     assert too_long not in response.text
+
+
+# --- Errores de la agenda (C-08, spec error-model, design D-8) ---
+
+AGENDA_ERRORS: list[tuple[type[DomainError], int]] = [
+    (PatientNotFoundError, 404),
+    (ProfessionalNotFoundError, 404),
+    (PatientDoubleBookedError, 409),
+    (PatientInactiveError, 409),
+    (ProfessionalInactiveError, 409),
+    (CancelledIsFinalError, 409),
+    (AttendanceAlreadyRecordedError, 409),
+    (AlreadyStartedError, 409),
+    (NotStartedYetError, 409),
+    (InsufficientNoticeError, 400),
+    (OffGridError, 400),
+    (OutsideWorkingHoursError, 400),
+    (ProfessionalTimeOffError, 400),
+    (RescheduleSameTimeError, 400),
+]
+
+
+@pytest.fixture
+def agenda_client(make_client: Callable[[], tuple[FastAPI, TestClient]]) -> TestClient:
+    app, test_client = make_client()
+    for error_class, _ in AGENDA_ERRORS:
+
+        def boom(error_class: type[DomainError] = error_class) -> None:
+            raise error_class
+
+        app.add_api_route(f"/__test__/{error_class.code}", boom)
+    return test_client
+
+
+@pytest.mark.parametrize(("error_class", "status"), AGENDA_ERRORS, ids=lambda v: str(v))
+def test_agenda_errors_map_to_their_status_with_a_message(
+    agenda_client: TestClient, error_class: type[DomainError], status: int
+) -> None:
+    response = agenda_client.get(f"/__test__/{error_class.code}")
+
+    assert response.status_code == status
+    body = response.json()["error"]
+    assert body["code"] == error_class.code
+    assert body["message"]
+    assert "www-authenticate" not in response.headers
+
+
+def test_slot_taken_message_is_a_friendly_spanish_text_without_internal_ids(
+    raising_client: TestClient,
+) -> None:
+    message = raising_client.get("/__test__/slot-taken").json()["error"]["message"]
+    assert message == "Ese horario acaba de ocuparse. Elegí otro."
