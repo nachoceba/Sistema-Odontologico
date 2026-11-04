@@ -240,6 +240,7 @@
 **Alternativas consideradas**: Definir un unit-of-work ahora.
 **Justificación**: Diseñarlo sin base de datos sería adivinar.
 **Trade-offs aceptados**: C-08 puede necesitar extender los puertos.
+**Estado**: cerrado en C-08 (DD-62): la unidad de trabajo agrupa turno y notificación en una transacción, y los puertos se extendieron sin cambios de contrato para C-05d.
 
 ### DD-37 — Identificadores UUID generados por la base (P-1 de C-02)
 **Decisión**: todas las tablas usan `uuid` como clave primaria con `DEFAULT gen_random_uuid()`; el dominio sigue tratando los ids como texto.
@@ -284,7 +285,7 @@
 **Trade-offs aceptados**: un caller que escriba tramos sin validar puede dejar tramos superpuestos en la base.
 
 ### DD-43 — Un solo change C-02 ejecutado por grupos (P-7 de C-02)
-**Decisión**: tablas, migración, tests de la base, seed, hash, repositorios PostgreSQL y la fábrica `postgres` de la batería de contrato van en un solo change. El test con dos conexiones simultáneas y la unidad de trabajo quedan para C-08.
+**Decisión**: tablas, migración, tests de la base, seed, hash, repositorios PostgreSQL y la fábrica `postgres` de la batería de contrato van en un solo change. El test con dos conexiones simultáneas y la unidad de trabajo quedaron para C-08 y se cerraron allí (DD-36, DD-62).
 **Contexto**: la batería de contrato contra PostgreSQL es la mejor prueba de que el esquema sirve al dominio.
 **Alternativas consideradas**: partirlo en C-02a/C-02b; dejar los repositorios para C-08.
 **Justificación**: una sola revisión del esquema con su verificación principal.

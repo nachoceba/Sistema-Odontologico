@@ -23,7 +23,7 @@ Todo error de dominio SHALL pertenecer a una familia común y MUST exponer un c�
 
 ### Requirement: Respuesta HTTP uniforme para errores de dominio
 
-La API SHALL convertir cualquier error de dominio no capturado en una respuesta JSON con la forma `{"error": {"code": "<CODIGO>", "message": "<texto>"}}`. El estado HTTP SHALL salir de una tabla de códigos a estados; un código que no figura en la tabla MUST responder 400. `APPOINTMENT_NOT_FOUND` y `USER_NOT_FOUND` MUST responder 404, `SLOT_TAKEN`, `EMAIL_TAKEN`, `ROLE_CHANGE_NOT_ALLOWED` y `SELF_MODIFICATION_NOT_ALLOWED` MUST responder 409, `INVALID_CREDENTIALS` y `NOT_AUTHENTICATED` MUST responder 401 y `FORBIDDEN` MUST responder 403. Toda respuesta 401 MUST incluir el encabezado `WWW-Authenticate: Bearer`. Los rechazos de autenticación y autorización MUST usar este mismo cuerpo uniforme y no el formato propio del framework. La respuesta MUST NOT incluir trazas de pila.
+La API SHALL convertir cualquier error de dominio no capturado en una respuesta JSON con la forma `{"error": {"code": "<CODIGO>", "message": "<texto>"}}`. El estado HTTP SHALL salir de una tabla de códigos a estados; un código que no figura en la tabla MUST responder 400. `APPOINTMENT_NOT_FOUND`, `USER_NOT_FOUND`, `PATIENT_NOT_FOUND` y `PROFESSIONAL_NOT_FOUND` MUST responder 404; `SLOT_TAKEN`, `EMAIL_TAKEN`, `ROLE_CHANGE_NOT_ALLOWED`, `SELF_MODIFICATION_NOT_ALLOWED`, `PATIENT_DOUBLE_BOOKED`, `PATIENT_INACTIVE`, `PROFESSIONAL_INACTIVE`, `CANCELLED_IS_FINAL`, `ATTENDANCE_ALREADY_RECORDED`, `ALREADY_STARTED` y `NOT_STARTED_YET` MUST responder 409; `INVALID_CREDENTIALS` y `NOT_AUTHENTICATED` MUST responder 401 y `FORBIDDEN` MUST responder 403. Los rechazos de reglas de agenda `INSUFFICIENT_NOTICE`, `OFF_GRID`, `OUTSIDE_WORKING_HOURS`, `PROFESSIONAL_TIME_OFF` y `RESCHEDULE_SAME_TIME` MUST responder 400. Toda respuesta 401 MUST incluir el encabezado `WWW-Authenticate: Bearer`. Los rechazos de autenticación y autorización MUST usar este mismo cuerpo uniforme y no el formato propio del framework. La respuesta MUST NOT incluir trazas de pila.
 
 #### Scenario: Código conocido
 - **WHEN** un endpoint deja escapar un error `APPOINTMENT_NOT_FOUND`
@@ -52,6 +52,18 @@ La API SHALL convertir cualquier error de dominio no capturado en una respuesta 
 #### Scenario: Conflictos de la gestión de usuarios
 - **WHEN** un endpoint deja escapar un error `EMAIL_TAKEN`, `ROLE_CHANGE_NOT_ALLOWED` o `SELF_MODIFICATION_NOT_ALLOWED`
 - **THEN** la respuesta es 409 con ese código en `error.code`, un `error.message` no vacío y sin encabezado `WWW-Authenticate`
+
+#### Scenario: Paciente o profesional inexistente
+- **WHEN** un endpoint deja escapar un error `PATIENT_NOT_FOUND` o `PROFESSIONAL_NOT_FOUND`
+- **THEN** la respuesta es 404 con ese código en `error.code`
+
+#### Scenario: Conflictos de estado de la agenda
+- **WHEN** un endpoint deja escapar `PATIENT_DOUBLE_BOOKED`, `PATIENT_INACTIVE`, `PROFESSIONAL_INACTIVE`, `CANCELLED_IS_FINAL`, `ATTENDANCE_ALREADY_RECORDED`, `ALREADY_STARTED` o `NOT_STARTED_YET`
+- **THEN** la respuesta es 409 con ese código en `error.code` y un `error.message` no vacío
+
+#### Scenario: Reglas de agenda incumplidas
+- **WHEN** un endpoint deja escapar `INSUFFICIENT_NOTICE`, `OFF_GRID`, `OUTSIDE_WORKING_HOURS`, `PROFESSIONAL_TIME_OFF` o `RESCHEDULE_SAME_TIME`
+- **THEN** la respuesta es 400 con ese código en `error.code`
 
 #### Scenario: Código sin estado asignado (borde)
 - **WHEN** un endpoint deja escapar un error de dominio con un código que no figura en la tabla

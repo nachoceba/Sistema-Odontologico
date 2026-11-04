@@ -29,7 +29,7 @@ C-01 foundation-setup     [x] archivado (2026-11-03)
  │         ├── C-06 patients-crud
  │         ├── C-07 professional-schedules      (+ C-05)
  │         │    └── C-09 agenda-views           (+ C-05, C-08)
- │         └── C-08 appointment-use-cases       (+ C-05)
+ │         └── C-08 appointment-use-cases       [x] archivado (2026-11-03)  (+ C-05)
  │              ├── C-11 email-confirmation-infra
  │              │    └── C-12 reminders-cron
  │              └── C-10 appointment-management-ui   (+ C-06, C-09)
@@ -58,7 +58,7 @@ GATE 2: C-03 ✓ y C-05 ✓                         ← FORK
   → C-07 professional-schedules            [Agente B]
   → C-06 patients-crud                     [Agente C]
 
-GATE 3: C-07 ✓ (y C-08 ✓ en curso)              ← FORK
+GATE 3: C-07 ✓ (C-08 ✓ archivado)              ← FORK
   → C-11 email-confirmation-infra          [Agente A — si C-08 ✓]
   → C-09 agenda-views                      [Agente B — si C-07 ✓ y C-08 ✓ (consume sus lecturas)]
   → C-04 user-management                   [Agente C — si C-03 ✓]
@@ -122,7 +122,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 
 ### [C-02] `db-schema-and-seed`
 - **Estado**: `[x]` implementado, verificado y archivado el 2026-11-03 (`openspec/changes/archive/2026-11-03-db-schema-and-seed/`): 39/39 tasks; 315 tests por defecto y 151 de integración contra PostgreSQL en el contenedor; `alembic upgrade head` y el seed verificados en la base de desarrollo, seed idempotente. Specs principales nuevas: `database-schema` y `seed-data`; modificadas: `appointment-repository`, `schedule-repository`, `patient-repository` y `clinic-settings-repository`. 8 tablas, 4 enumerados y el constraint de exclusión en `alembic/versions/0001_initial_schema.py`; seed `backend/scripts/seed.py`; hash argon2 en `app/core/security.py`; repositorios PostgreSQL en `app/infrastructure/db/repositories/` y fábrica `postgres` en la batería de contrato (corre con `pytest -m integration`). Decisiones DD-37 a DD-44.
-- **Queda para C-08**: test de concurrencia con dos sesiones simultáneas y unidad de trabajo que agrupe turno y notificación (DD-36). Repositorio de usuarios (C-04) y de notificaciones (C-11) tampoco están.
+- **Cerrado en C-08**: test de concurrencia con dos sesiones simultáneas contra PostgreSQL y unidad de trabajo que agrupa turno y notificación (DD-36, cerrado con DD-62).
 - **Scope**:
   - Modelos SQLAlchemy 2.0 y migraciones Alembic: extensión `btree_gist`; enums `user_role`, `appointment_status`, `notification_kind`, `notification_status`
   - Migración inicial escrita a mano: `CREATE EXTENSION IF NOT EXISTS btree_gist` antes de crear `appointments`; `downgrade` elimina constraint, tablas y tipos enum; revisar siempre el autogenerate (no genera bien `ExcludeConstraint` con `tstzrange` y `WHERE`)
@@ -141,7 +141,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `.claude/skills/supabase-postgres-best-practices/` (solo lo de PostgreSQL general; ignorar lo específico de Supabase y de RLS)
 ### [C-03] `auth-login-rbac`
 - **Estado**: `[x]` implementado, verificado y archivado el 2026-11-03 (`openspec/changes/archive/2026-11-03-auth-login-rbac/`): 48/48 tasks; 424 tests por defecto, 161 de integración contra PostgreSQL en el contenedor y 40 de frontend; `mypy --strict`, `ruff`, `tsc` y `eslint` limpios; probado a mano con los cuatro usuarios del seed, contraseña incorrecta y cuenta desactivada. Specs principales nuevas: `user-authentication`, `access-control`, `user-account-repository` y `frontend-auth`; modificadas: `error-model` y `frontend-shell`. Decisiones DD-45 a DD-55; SU-06 y SU-07 resueltos. Sin variables de entorno nuevas; dependencias nuevas: `PyJWT` y `react-router`.
-- **Nota para C-08**: test de punta a punta obligatorio "un odontólogo no ve ni modifica turnos ajenos" (403) contra el endpoint real, usando `require_professional_access` o `can_access_professional` (DD-53); hoy solo está probado con una ruta que existe únicamente en los tests.
+- **Nota para C-08 (cumplida en C-08)**: test de punta a punta obligatorio "un odontólogo no ve ni modifica turnos ajenos" (403) contra el endpoint real, usando `require_professional_access` o `can_access_professional` (DD-53); hoy solo está probado con una ruta que existe únicamente en los tests.
 - **Nota para C-04 (hecha en C-04)**: rehash con `check_needs_rehash` al iniciar sesión (el repositorio de cuentas de C-03 es solo lectura); toda ruta nueva debe depender de `current_user` o `require_role(...)` (el test de inventario `tests/unit/api/test_route_inventory.py` falla si no).
 - **Scope**:
   - `POST /api/v1/auth/login` (email + contraseña): verifica el hash, rechaza `users.active = false` y devuelve un JWT de acceso con el rol (US-001, RN-AU-03); error genérico en credenciales inválidas
@@ -308,7 +308,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 ## FASE 3 — Agenda de turnos (MVP)
 
 ### [C-08] `appointment-use-cases`
-- **Estado**: `[x]` implementado el 2026-11-03 (46/46 tasks; 876 tests por defecto y 221 de integración; mypy --strict y ruff en verde), pendiente de archivar. Casos de uso en `app/application/appointments.py`, API en `app/api/appointments.py` (siete endpoints), unidad de trabajo y registro de notificaciones en memoria y PostgreSQL, decisiones DD-62 a DD-67. Sin migraciones ni variables de entorno nuevas.
+- **Estado**: `[x]` implementado, verificado y archivado el 2026-11-03 (`openspec/changes/archive/2026-11-03-appointment-use-cases/`): 46/46 tasks; 876 tests por defecto y 221 de integración contra PostgreSQL en el contenedor; `mypy --strict` y `ruff` limpios; `openspec validate --strict` válido. Casos de uso en `app/application/appointments.py`, API en `app/api/appointments.py` (siete endpoints), unidad de trabajo y registro de notificaciones en memoria y PostgreSQL. Specs principales nuevas: `appointment-use-cases`, `appointment-api`, `appointment-unit-of-work` y `notification-registration`; modificadas: `error-model` y `access-control`. Decisiones DD-62 a DD-67. Sin migraciones ni variables de entorno nuevas.
 - **Scope**:
   - `AppointmentRepository` (SQLAlchemy) que traduce el error del constraint de exclusión a "el slot acaba de ocuparse"
   - Casos de uso en `app/application`: `agendar_turno`, `cancelar_turno` (con `cancel_reason`), `reprogramar_turno` (atómico: si falla no cambia el original, RN-TU-06), `marcar_atencion` (`completed`/`no_show`, solo propio, `scheduled` e iniciado)
@@ -316,7 +316,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - Puerto `NotificationPort` (no-op por defecto) invocado tras agendar/reprogramar/cancelar; C-11 lo implementa (RN-NO-04: nunca bloquea)
   - Endpoints `/api/v1/appointments` con esquemas Pydantic y chequeo de rol
   - Tests: happy path, slot ocupado, fuera de horario, pasado, concurrencia (dos inserciones simultáneas, una falla), reprogramación fallida no muta, permisos
-  - Heredado de C-02: el repositorio de turnos con SQLAlchemy ya existe (`app/infrastructure/db/repositories/`, con la traducción de `23P01` a `SlotTakenError`). Queda para este change: test de concurrencia real con dos sesiones simultáneas contra PostgreSQL (una inserción falla) y unidad de trabajo que agrupe turno y notificación en una misma transacción (DD-36)
+  - Heredado de C-02: el repositorio de turnos con SQLAlchemy ya existe (`app/infrastructure/db/repositories/`, con la traducción de `23P01` a `SlotTakenError`). Hecho en C-08: test de concurrencia real con dos sesiones simultáneas contra PostgreSQL (una inserción falla) y unidad de trabajo que agrupe turno y notificación en una misma transacción (DD-36)
   - Listado de turnos de todos los profesionales por rango: pasa a C-12, que es quien lo usa (P-10 de C-08, DD-66)
   - Decisiones confirmadas el 2026-11-03 (DD-62 a DD-67): fila `confirmation` `pending` junto con el turno y despachador vacío (C-11 lo reemplaza y decide qué hacer con las `pending` viejas); consultas (ver, listar por profesional y rango) y franjas de un día incluidas en C-08, y C-09 las consume; un paciente no tiene dos turnos superpuestos (cierra H-2)
   - Pregunta abierta H-2 (paciente con dos turnos a la misma hora con profesionales distintos, SU-05 y `10_preguntas_abiertas.md`): la regla, si existe, se decide en este change
@@ -500,11 +500,11 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-05d | puertos-repositorios-dominio (recorte de C-05, archivado `[x]`) | 2 | C-05c | MEDIO |
 | C-06 | patients-crud | 2 | C-03 | BAJO |
 | C-07 | professional-schedules | 2 | C-03, C-05 | MEDIO |
-| C-08 | appointment-use-cases | 3 | C-03, C-05 | MEDIO |
+| C-08 | appointment-use-cases (archivado `[x]`) | 3 | C-03, C-05 | MEDIO |
 | C-09 | agenda-views | 3 | C-05, C-07, C-08 | BAJO |
 | C-10 | appointment-management-ui | 3 | C-06, C-08, C-09 | MEDIO |
 | C-11 | email-confirmation-infra | 4 | C-08 | ALTO |
 | C-12 | reminders-cron | 4 | C-11 | ALTO |
 | C-13 | deploy-and-hardening | 5 | C-04, C-10, C-12 | MEDIO |
 
-**Siguientes changes habilitados**: C-01, C-02, C-03 y C-04 ya están archivados. Quedan habilitados `C-06` (patients-crud, BAJO), `C-07` (professional-schedules, MEDIO) y `C-08` (appointment-use-cases, MEDIO; C-05 ya completo). Para arrancar: `/opsx:propose C-06-patients-crud`, `C-07-professional-schedules` o `C-08-appointment-use-cases` (el que corresponda). Gobernanza CRÍTICA de C-03 ya aprobada y ejecutada.
+**Siguientes changes habilitados**: C-01, C-02, C-03, C-04 y C-08 ya están archivados. Quedan habilitados `C-06` (patients-crud, BAJO), `C-07` (professional-schedules, MEDIO) y `C-11` (email-confirmation-infra, ALTO; depende solo de C-08). Para arrancar: `/opsx:propose C-06-patients-crud`, `C-07-professional-schedules` o `C-11-email-confirmation-infra`. `C-09` (agenda-views) sigue esperando a C-07. Gobernanza CRÍTICA de C-03 ya aprobada y ejecutada.
