@@ -27,7 +27,7 @@ C-01 foundation-setup     [x] archivado (2026-11-03)
  │    └── C-03 auth-login-rbac            [x] archivado (2026-11-03)
  │         ├── C-04 user-management           [x] archivado (2026-11-03)
  │         ├── C-06 patients-crud
- │         ├── C-07 professional-schedules      (+ C-05)
+ │         ├── C-07 professional-schedules      [x] archivado (2026-11-04)  (+ C-05)
  │         │    └── C-09 agenda-views           (+ C-05, C-08)
  │         └── C-08 appointment-use-cases       [x] archivado (2026-11-03)  (+ C-05)
  │              ├── C-11 email-confirmation-infra
@@ -161,7 +161,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `knowledge-base/10_preguntas_abiertas.md` (quién edita horarios, SU-06; refresh token, SU-07)
 ### [C-04] `user-management`
 - **Estado**: `[x]` implementado, verificado y archivado el 2026-11-03 (`openspec/changes/archive/2026-11-03-user-management/`): 45/45 tasks; 605 tests por defecto, 193 de integración contra PostgreSQL en el contenedor y 85 de frontend; `mypy --strict`, `ruff`, `tsc` y `eslint` limpios; probado contra el API real (alta de odontóloga, login, desactivar, reactivar, 422 sin eco de la contraseña). Specs principales nuevas: `user-management`, `professional-repository` y `frontend-user-management`; modificadas: `user-account-repository`, `error-model` y `user-authentication`. Decisiones DD-56 a DD-61 (P-1 a P-14 confirmadas con la opción recomendada). Sin migraciones, variables de entorno ni dependencias nuevas.
-- **Nota para C-07 y C-08**: el repositorio de profesionales (`ProfessionalRepository`: `list(only_active=...)` y `get_by_id`) ya existe, en memoria y PostgreSQL, sin endpoints; C-08 debe listar solo fichas activas. Desactivar un odontólogo desactiva su ficha pero NO toca sus turnos (DD-59): C-08/C-10 deben contemplar turnos futuros de fichas inactivas. Editar la ficha (nombre a mostrar, matrícula) queda para C-07.
+- **Nota para C-07 y C-08** (C-07 hecho): el repositorio de profesionales (`ProfessionalRepository`: `list(only_active=...)` y `get_by_id`) ya existe, en memoria y PostgreSQL, sin endpoints; C-08 debe listar solo fichas activas. Desactivar un odontólogo desactiva su ficha pero NO toca sus turnos (DD-59): C-08/C-10 deben contemplar turnos futuros de fichas inactivas. Editar la ficha (nombre a mostrar, matrícula) quedó en C-07 (hecho).
 - **Scope**:
   - US-002: endpoints `/api/v1/users` (solo admin) y pantalla `/usuarios`: crear, editar rol, desactivar usuarios
   - Validación con Pydantic; contraseña inicial con hash, nunca expuesta en respuestas (RN-PR-03)
@@ -286,7 +286,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `knowledge-base/05_reglas_de_negocio.md` §RN-PA
   - `knowledge-base/03_actores_y_roles.md` §RBAC
 
-### [C-07] `professional-schedules`
+- **Estado**: `[x]` implementado, verificado y archivado el 2026-11-04 (`openspec/changes/archive/2026-11-04-professional-schedules/`): 42/42 tasks; 1101 tests por defecto, 237 de integración contra PostgreSQL y 117 de frontend; `mypy --strict`, `ruff`, `tsc` y `eslint` limpios; `openspec validate --strict` válido; prueba manual con navegador (task 8.1) confirmada por la usuaria (aviso de conflicto al sacar el viernes a la Dra. A con un turno agendado, edición de fichas, permisos de recepción y de la Dra. A). Dominio `app/domain/schedules/conflicts.py` y `errors.py`, casos de uso en `app/application/professionals.py`, API en `app/api/professionals.py` (nueve endpoints), pantalla `/profesionales`. Specs principales nuevas: `schedule-conflicts`, `professional-schedule-use-cases`, `professional-schedule-api` y `frontend-professional-schedules`; modificadas: `professional-repository`, `schedule-repository` y `error-model`. Decisiones DD-68 a DD-72. Sin migraciones ni variables de entorno nuevas. **Nota para C-09 y C-10**: `GET /api/v1/professionals/{id}/conflicts` devuelve los turnos `scheduled` futuros fuera del horario o en licencia (calculados en el momento, DD-68); C-10 lo usa para su indicador de conflictos.
 - **Estado**: `[~]` implementado, falta la prueba manual con navegador (task 8.1) antes de marcarlo pendiente de archivar (2026-11-04): 41/42 tasks; 1101 tests por defecto, 237 de integración contra PostgreSQL y 117 de frontend; `mypy --strict`, `ruff`, `tsc` y `eslint` limpios; `openspec validate --strict` válido. Dominio `app/domain/schedules/conflicts.py` y `errors.py`, casos de uso en `app/application/professionals.py`, API en `app/api/professionals.py` (nueve endpoints), pantalla `/profesionales`. Decisiones DD-68 a DD-72. Sin migraciones ni variables de entorno nuevas. **Nota para C-09 y C-10**: `GET /api/v1/professionals/{id}/conflicts` devuelve los turnos `scheduled` futuros fuera del horario o en licencia (calculados en el momento, DD-68); C-10 lo usa para su indicador de conflictos.
 - **Scope**:
   - US-004 y US-005: `/profesionales` con listado, edición de `working_hours` (varios tramos por día) y carga de `time_off`
@@ -499,7 +499,7 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-05c | completar-dominio-agenda (recorte de C-05, archivado `[x]`) | 2 | C-05b | MEDIO |
 | C-05d | puertos-repositorios-dominio (recorte de C-05, archivado `[x]`) | 2 | C-05c | MEDIO |
 | C-06 | patients-crud | 2 | C-03 | BAJO |
-| C-07 | professional-schedules | 2 | C-03, C-05 | MEDIO |
+| C-07 | professional-schedules (archivado `[x]`) | 2 | C-03, C-05 | MEDIO |
 | C-08 | appointment-use-cases (archivado `[x]`) | 3 | C-03, C-05 | MEDIO |
 | C-09 | agenda-views | 3 | C-05, C-07, C-08 | BAJO |
 | C-10 | appointment-management-ui | 3 | C-06, C-08, C-09 | MEDIO |
@@ -507,4 +507,4 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-12 | reminders-cron | 4 | C-11 | ALTO |
 | C-13 | deploy-and-hardening | 5 | C-04, C-10, C-12 | MEDIO |
 
-**Siguientes changes habilitados**: C-01, C-02, C-03, C-04 y C-08 ya están archivados. Quedan habilitados `C-06` (patients-crud, BAJO), `C-07` (professional-schedules, MEDIO) y `C-11` (email-confirmation-infra, ALTO; depende solo de C-08). Para arrancar: `/opsx:propose C-06-patients-crud`, `C-07-professional-schedules` o `C-11-email-confirmation-infra`. `C-09` (agenda-views) sigue esperando a C-07. Gobernanza CRÍTICA de C-03 ya aprobada y ejecutada.
+**Siguientes changes habilitados**: C-01, C-02, C-03, C-04, C-07 y C-08 ya están archivados. Quedan habilitados `C-06` (patients-crud, BAJO), `C-09` (agenda-views, BAJO; depende de C-07 y C-08, ambos archivados) y `C-11` (email-confirmation-infra, ALTO; depende solo de C-08). Para arrancar: `/opsx:propose C-06-patients-crud`, `C-09-agenda-views` o `C-11-email-confirmation-infra`. Gobernanza CRÍTICA de C-03 ya aprobada y ejecutada.

@@ -372,7 +372,7 @@
 **Justificación**: coherente con DD-25 y DD-39; la lógica de turnos y emails es de C-08 y C-11.
 
 ### DD-60 — Listado sin páginas, datos de la ficha en el alta y aviso de falta de permiso (P-9, P-10 y P-11 de C-04)
-**Decisión**: `GET /users` devuelve todas las cuentas ordenadas por nombre, sin páginas ni filtros. El alta de odontólogo pide "Nombre a mostrar" (vacío: nombre completo) y "Matrícula" opcional; editarlos queda para C-07. Un no administrador en `/usuarios` ve "No tenés permiso para esta acción" con enlace a la agenda, sin cerrar sesión; el enlace "Usuarios" solo lo ve el administrador.
+**Decisión**: `GET /users` devuelve todas las cuentas ordenadas por nombre, sin páginas ni filtros. El alta de odontólogo pide "Nombre a mostrar" (vacío: nombre completo) y "Matrícula" opcional; editarlos se implementó en C-07. Un no administrador en `/usuarios` ve "No tenés permiso para esta acción" con enlace a la agenda, sin cerrar sesión; el enlace "Usuarios" solo lo ve el administrador.
 
 ### DD-61 — Rehash al iniciar sesión, repositorio de profesionales y un solo change (P-12, P-13 y P-14 de C-04)
 **Decisión**: tras un login correcto con hash de parámetros viejos se guarda un hash nuevo (si falla, el login igual funciona); C-04 define el repositorio de lectura de profesionales (listar y buscar por id) con batería de contrato, sin endpoints; C-04 se ejecuta como un solo change por grupos. Cierra el pendiente de DD-55.

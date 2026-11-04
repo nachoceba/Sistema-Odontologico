@@ -67,6 +67,6 @@
 
 ## 8. Cierre
 
-- [ ] 8.1 Prueba manual con Docker: seed, entrar como administrador, cambiar el horario de la Dra. A dejando un turno afuera y ver el aviso; cargar y borrar una licencia; entrar como recepción y ver la pantalla en lectura y la consulta de conflictos; entrar como la Dra. A y comprobar que solo ve lo suyo
+- [x] 8.1 Prueba manual con Docker: seed, entrar como administrador, cambiar el horario de la Dra. A dejando un turno afuera y ver el aviso; cargar y borrar una licencia; entrar como recepción y ver la pantalla en lectura y la consulta de conflictos; entrar como la Dra. A y comprobar que solo ve lo suyo
 - [x] 8.2 Suite completa en verde (backend por defecto e integración, mypy, ruff, frontend `npm test`, `tsc`, `eslint`); anotar números finales
 - [x] 8.3 Actualizar `CHANGES.md` (estado de C-07; corregir "C-07 agrega el adaptador SQLAlchemy", ya existía desde C-02; nota para C-09 y C-10 sobre `GET /professionals/{id}/conflicts`) y la KB con las DD confirmadas; verificar `openspec validate professional-schedules --strict`
