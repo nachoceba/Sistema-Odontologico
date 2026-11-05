@@ -132,6 +132,19 @@ Está en `.claude/skills/revisor-escenarios-turnos/` y viene con el repositorio:
 - **Problemas de instalación**: en esta instalación no apareció ninguno. Una advertencia de uso: `query-docs` exige antes un identificador obtenido con `resolve-library-id`.
 - **Evidencia de uso real**: `docs/skills-mcp/evidencias/mcp-context7-uso.md`.
 
+### MCP: Postgres MCP Pro (`postgres-odonto`, base de desarrollo en solo lectura)
+
+- **Para qué**: inspeccionar la base de desarrollo (esquema, constraints, índices, planes de ejecución, salud) sin salir de la sesión del agente. Elegido contra DBHub en `docs/skills-mcp/investigacion.md`.
+- **Herramientas**: `list_schemas`, `list_objects`, `get_object_details`, `execute_sql`, `explain_query`, `get_top_queries`, `analyze_workload_indexes`, `analyze_query_indexes` y `analyze_db_health`.
+- **Requisitos**: Claude Code, Docker Desktop y el stack levantado (`docker compose up`), porque el servidor corre en un contenedor que se une a la red de compose (la base no publica puertos). El nombre de la red es `sistema-odontologico_default`; se confirma con `docker network ls`.
+- **Variables de entorno**: `DATABASE_URI`, con la forma `postgresql://<usuario>:<contraseña>@db:5432/<base>` (usuario, contraseña y base de tu `.env`). Va en la configuración local de Claude Code, a nivel usuario (`~/.claude.json`), nunca en el repositorio ni en archivos versionados.
+- **Configuración**: `claude mcp add postgres-odonto -s user -e DATABASE_URI=<uri> -- docker run -i --rm --network sistema-odontologico_default -e DATABASE_URI crystaldba/postgres-mcp --access-mode=restricted`. Ejemplo sin secretos: `docs/skills-mcp/mcp-postgres-odonto.example.json`. Reiniciar la sesión después de agregarlo.
+- **Comprobar la conexión**: `claude mcp get postgres-odonto` debe mostrar `Status: ✔ Connected`.
+- **Comprobar que funciona**: pedirle al agente "listá las tablas de `public` con `postgres-odonto`" o "mostrá las constraints de `appointments`". Debe aparecer `ex_appointments_no_overlap`.
+- **Límites de uso**: apunta solo a la base de **desarrollo** con datos ficticios, nunca a producción. Corre con `--access-mode=restricted` (solo lectura, con validación de las consultas): se comprobó que rechaza un `DELETE`. Ese modo también rechaza la función `tstzrange`; para auditar superposiciones se usan comparaciones de `starts_at` y `ends_at`. No se usa para cambiar datos ni el esquema: eso pasa por Alembic. La contraseña no se incluye en consultas, docs ni capturas.
+- **Problemas de instalación**: si da `Failed to connect`, verificar que el stack esté levantado y que la red exista; si cambia el nombre de la carpeta del proyecto, cambia el nombre de la red.
+- **Evidencia de uso real**: `docs/skills-mcp/evidencias/mcp-postgres-odonto-uso.md`.
+
 ## Stack previsto
 
 Backend: Python, FastAPI, JWT, SQLAlchemy, PostgreSQL, Redis, Celery y Docker Compose. Frontend: React, TypeScript y Vite. Todo gratuito, con datos de pacientes ficticios. El detalle está en `knowledge-base/02_descripcion_general.md`.

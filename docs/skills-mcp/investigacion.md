@@ -39,25 +39,28 @@ Ubicación: `.claude/skills/revisor-escenarios-turnos/SKILL.md`, dentro del repo
 
 ## 4. Comparación de dos MCP y elección
 
-| | Context7 | Postgres MCP Pro |
+Context7 no entra en la comparación: ya venía instalado con el Active Stack y lo tienen todos los compañeros, así que no demuestra una elección propia. Se compara Postgres MCP Pro con DBHub, los dos servidores que sirven para el mismo trabajo (consultar y revisar la base PostgreSQL del proyecto). Datos tomados de los README de cada proyecto (ver fuentes).
+
+| | Postgres MCP Pro | DBHub (Bytebase) |
 |---|---|---|
-| Propósito | Documentación actualizada de librerías con ejemplos | Consultar y analizar una base PostgreSQL |
-| Herramientas | `resolve-library-id`, `query-docs` | `list_schemas`, `list_objects`, `get_object_details`, `execute_sql`, `explain_query`, `get_top_queries`, `analyze_workload_indexes`, `analyze_query_indexes`, `analyze_db_health` |
-| Instalación | Remoto (`https://mcp.context7.com/mcp`) o `npx ctx7 setup` (Node 22.13+) | Docker, `pipx` o `uv`, con `DATABASE_URI` |
-| Credenciales | API key opcional y gratuita | `DATABASE_URI` obligatoria |
-| Permisos | Solo lectura de documentación pública | Modo `unrestricted` (lee y escribe) o `restricted` (solo lectura) |
-| Costo | Gratuito con key opcional | Gratuito (MIT); el ajuste con IA, opcional, usa una key de OpenAI |
-| Versiones | n/a | Probado en PostgreSQL 15, 16 y 17 |
+| Propósito | Consultar y analizar una base PostgreSQL | Pasarela liviana para varias bases (PostgreSQL, MySQL, SQL Server, MariaDB, Oracle, SQLite) |
+| Herramientas | `list_schemas`, `list_objects`, `get_object_details`, `execute_sql`, `explain_query`, `get_top_queries`, `analyze_workload_indexes`, `analyze_query_indexes`, `analyze_db_health` | `execute_sql` y `search_objects`; opcionales `explain_sql` y `health_check`; herramientas propias en `dbhub.toml` |
+| Instalación | Docker, `pipx` o `uv`/`uvx` | `npx @bytebase/dbhub@latest`, Docker o plugin |
+| Credenciales | `DATABASE_URI` obligatoria | `--dsn` obligatorio |
+| Solo lectura | `--access-mode=restricted` (el valor por defecto en los ejemplos es `unrestricted`, que escribe) | El README declara un "modo solo lectura"; no pude confirmar el parámetro exacto en la página de línea de comandos |
+| Licencia | MIT | MIT |
+| Versiones de PostgreSQL | Probado en 15, 16 y 17 (el proyecto usa 16) | No declara versiones |
 
-**Elegido: Context7.** Aporta a C-05b porque ayuda a escribir bien la zona horaria y los tests, y no toca datos ni credenciales sensibles. Postgres MCP Pro necesita una base con datos y C-05b no la usa; encaja mejor en C-02. Descartado también Stitch (diseño de interfaces): sirve para changes de frontend, no para este.
+**Elegido: Postgres MCP Pro.** El riesgo central del sistema es la superposición de turnos, que la base bloquea con un constraint de exclusión (`btree_gist`). Postgres MCP Pro trae `explain_query` y el análisis de índices para revisar esa consulta, y un modo `restricted` verificado en su README. El proyecto usa solo PostgreSQL, así que la ventaja de DBHub (varios motores) no suma. DBHub sería mejor opción si hiciera falta una sola herramienta para varias bases o solo explorar el esquema de forma simple. Descartados: Stitch (diseño de interfaces, no aplica) y el servidor oficial de PostgreSQL (archivado el 2025-05-29).
 
-**Límites de uso:** solo se consulta documentación pública de librerías. No se envían datos de pacientes, ni reales ni ficticios, ni se accede a ninguna base.
+**Límites de uso:** se conecta en modo `restricted` (solo lectura) y únicamente a la base de desarrollo con datos ficticios. La contraseña va en la configuración local del usuario, nunca en el repositorio. No se consulta ninguna base real.
 
 ## 5. Pasos de instalación y configuración
 
 1. **Skill creadora:** ya instalada de forma global. Para reproducirla se documentará `npx skills add anthropics/skills@skill-creator -y -a claude-code` (el patrón que usa este proyecto) junto con una copia versionada de su fuente. *Pendiente de verificar el comando exacto.*
 2. **Skill propia:** generarla con `skill-creator`, adaptarla al dominio y guardarla en `.claude/skills/`. Comprobar en una sesión nueva que el agente la encuentra.
-3. **Context7:** conectar el servidor remoto o ejecutar `npx ctx7 setup` y verificar con `resolve-library-id` y `query-docs`. Configuración de ejemplo sin secretos en el README. *Pendiente de verificar el comando para Claude Code, que la documentación revisada no detalla.*
+3. **Postgres MCP Pro:** ejecutarlo en un contenedor Docker dentro de la red de `docker compose` (la base no publica puertos), con `--access-mode=restricted` y `DATABASE_URI` apuntando a la base de desarrollo. Verificar con `claude mcp list` y una consulta real. Configuración de ejemplo sin secretos en el README.
+4. **Context7:** ya estaba instalado con el Active Stack. Queda como herramienta complementaria, sin formar parte de la comparación.
 
 ## 6. Archivos de la fundación a actualizar
 
@@ -70,13 +73,14 @@ Ubicación: `.claude/skills/revisor-escenarios-turnos/SKILL.md`, dentro del repo
 
 ## 7. Pendientes no verificados
 
-- Límites de uso y manejo de datos de Context7: la documentación revisada no los detalla.
-- Soporte de Postgres MCP Pro con PostgreSQL 18 (el entorno local usa la 18).
-- Comando exacto de instalación de `skill-creator` con `npx skills` y de Context7 para Claude Code.
+- Parámetro exacto del modo solo lectura de DBHub: no figura en su página de línea de comandos (se configuraría en el archivo TOML).
+- Comando exacto de instalación de `skill-creator` con `npx skills`.
+- Resuelto: el entorno local usa PostgreSQL 16 (`postgres:16-alpine` en `docker-compose.yml`), dentro del rango probado por Postgres MCP Pro. La nota anterior que decía 18 era incorrecta.
 
 ## 8. Fuentes (consultadas el 2026-11-02)
 
 - skill-creator: https://github.com/anthropics/skills/tree/main/skills/skill-creator
-- Context7: https://github.com/upstash/context7
+- DBHub: https://github.com/bytebase/dbhub (README y https://dbhub.ai/config/command-line)
+- Comparativas de terceros, con intereses propios: https://www.bytebase.com/blog/top-postgres-mcp-servers/ (la publica quien mantiene DBHub) y https://ai2sql.io/postgres-mcp-server-comparison
 - Postgres MCP Pro: https://github.com/crystaldba/postgres-mcp (README: https://raw.githubusercontent.com/crystaldba/postgres-mcp/main/README.md)
 - MCP oficial de PostgreSQL, archivado el 2025-05-29: https://github.com/modelcontextprotocol/servers-archived/tree/main/src/postgres

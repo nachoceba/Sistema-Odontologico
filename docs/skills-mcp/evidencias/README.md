@@ -19,6 +19,15 @@ Cada fila indica la solicitud realizada, el resultado y lo que aportó al change
 | Tests de bordes | `/pytest-dev/pytest`, `parametrize` con ids legibles | Diseño de los tests, uno por escenario con `pytest.param(..., id=...)` | `aplicacion/context7-c05b-pytest.md` |
 | Tipos de salida | `/python/cpython`, dataclasses `frozen` y comparación de datetimes con zona | Diseño de `Slot` y `SlotStatus`; test de `utcoffset() == 0` | `aplicacion/context7-c05b-propose.md` |
 
+## Uso del MCP Postgres MCP Pro (`postgres-odonto`)
+
+| Qué se hizo | Solicitud y resultado | Aporte | Archivo |
+|---|---|---|---|
+| Esquema y constraints | `list_objects`, `get_object_details` y `execute_sql` sobre `pg_constraint` | Confirma `ex_appointments_no_overlap` (EXCLUDE gist, solo `scheduled`) y `btree_gist` en la base real | `mcp-postgres-odonto-uso.md` |
+| Plan de la agenda de C-09 | `explain_query` de turnos por profesional y semana | Usa índices; con 2 filas no mide rendimiento | `mcp-postgres-odonto-uso.md` |
+| Salud | `analyze_db_health` | Sin problemas reales; el aviso de índices poco usados no aplica con base vacía | `mcp-postgres-odonto-uso.md` |
+| Límite de solo lectura | `DELETE` y consultas con `tstzrange` | Rechazadas por el validador; hallazgo: el modo restringido no admite `tstzrange` | `mcp-postgres-odonto-uso.md` |
+
 ## Revisión crítica: omisiones y errores detectados
 
 ### A. Defectos de la spec del change (detectados por la skill)

@@ -90,6 +90,16 @@ Es una integración con un servicio externo, no una skill (no figura en `.atl/sk
 - **Límites de acceso**: solo lectura de documentación pública. NUNCA incluir en las consultas datos de pacientes, claves, tokens ni código propio: el texto de la consulta viaja a un servicio externo. No usa base de datos ni credenciales.
 - **Cómo revisar el resultado**: contrastar lo que devuelve con la versión de la librería que usa el proyecto (por ejemplo Python 3.12 o superior) y registrar en la spec o el design qué se consultó cuando influya en una decisión.
 
+### Integración MCP: Postgres MCP Pro (`postgres-odonto`)
+
+Integración con un servidor local, no una skill. Configuración y comprobación en el [README](README.md#mcp-postgres-mcp-pro-postgres-odonto-base-de-desarrollo-en-solo-lectura).
+
+- **Propósito**: inspeccionar la base de desarrollo (esquema, constraints, índices, planes, salud) con datos reales en lugar de suponer a partir de las migraciones.
+- **Capacidades que se usan**: `list_objects`, `get_object_details`, `execute_sql` (solo `SELECT`), `explain_query` y `analyze_db_health`.
+- **Cuándo usarlo**: al verificar que la base cumple una regla (por ejemplo el constraint `ex_appointments_no_overlap`), al revisar el plan de una consulta nueva (por ejemplo las de agenda) o al diagnosticar datos de desarrollo. No hace falta para lógica de dominio.
+- **Límites de acceso**: solo la base de desarrollo con datos ficticios, nunca producción. Modo `--access-mode=restricted` (solo lectura). NUNCA escribir datos ni cambiar el esquema por el MCP: eso va por Alembic y por la API. NUNCA pegar la contraseña de `DATABASE_URI` en consultas, docs ni capturas. El modo restringido rechaza `tstzrange`: para superposiciones comparar `starts_at` y `ends_at`.
+- **Cómo revisar el resultado**: un resultado vacío no prueba una regla si la tabla no tiene datos (ver la evidencia sobre turnos); el aviso de "índices poco usados" no vale con una base casi vacía; contrastar con la migración y con la KB (`04_modelo_de_datos.md`). Evidencia en `docs/skills-mcp/evidencias/mcp-postgres-odonto-uso.md`.
+
 ---
 
 ## Roadmap de Changes
