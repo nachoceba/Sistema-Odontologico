@@ -2,19 +2,24 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 
 import pytest
 
 from app.application.appointments import (
+    AgendaDeps,
     book_appointment,
     day_slots,
     get_appointment,
+    get_appointment_view,
+    list_appointment_views,
     list_appointments,
 )
 from app.domain.appointments import AppointmentStatus, SlotStatus
 from app.domain.appointments.errors import AppointmentNotFoundError, ProfessionalNotFoundError
 from app.domain.auth import ForbiddenError
+from app.domain.patients.types import Patient, PatientChanges
 from tests.unit.application.agenda_helpers import (
     ADMIN,
     DENTIST_A,
@@ -219,3 +224,127 @@ def test_every_free_slot_far_enough_in_the_future_can_be_booked() -> None:
             starts_at=slot.starts_at,
         )
         assert saved.ends_at == slot.ends_at
+
+
+# --- Consultas con nombre del paciente (C-09, DD-79) -----------------------------------------
+
+
+class SpyPatients:
+    """Repositorio de pacientes de prueba: cuenta las lecturas por id."""
+
+    def __init__(self, inner: object) -> None:
+        self._inner = inner
+        self.reads: list[str] = []
+
+    def get(self, patient_id: str) -> Patient | None:
+        self.reads.append(patient_id)
+        return self._inner.get(patient_id)  # type: ignore[attr-defined, no-any-return]
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._inner, name)
+
+
+def _spied(world: World) -> tuple[AgendaDeps, SpyPatients]:
+    spy = SpyPatients(world.patients)
+    return replace(world.deps(), patients=spy), spy  # type: ignore[arg-type]
+
+
+WEEK = (local(2026, 10, 5, 0), local(2026, 10, 12, 0))
+
+
+def test_the_week_comes_with_each_patients_name() -> None:
+    world = World()
+    world.seed(monday(10), patient_id="pac-1")
+    world.seed(monday(11), patient_id="pac-2")
+
+    views = list_appointment_views(world.deps(), RECEPTION, PROF_A, *WEEK)
+
+    assert [(v.patient_first_name, v.patient_last_name) for v in views] == [
+        ("Juan", "Pérez"),
+        ("Ana", "Gómez"),
+    ]
+    assert [v.appointment.starts_at for v in views] == [monday(10), monday(11)]
+
+
+def test_an_inactive_patient_keeps_their_name_and_the_appointment_stays_scheduled() -> None:
+    world = World()
+    seeded = world.seed(monday(10), patient_id="pac-1")
+    world.set_patient_active("pac-1", False)
+
+    (view,) = list_appointment_views(world.deps(), RECEPTION, PROF_A, *WEEK)
+
+    assert view.patient_first_name == "Juan"
+    assert view.appointment.status is AppointmentStatus.SCHEDULED
+    assert view.appointment.id == seeded.id
+
+
+def test_the_name_shown_is_the_current_one_after_an_edit() -> None:
+    world = World()
+    seeded = world.seed(monday(10), patient_id="pac-2")
+    world.patients.update("pac-2", PatientChanges(first_name="Anita", last_name="Gómez Ruiz"))
+
+    view = get_appointment_view(world.deps(), RECEPTION, seeded.id)
+
+    assert (view.patient_first_name, view.patient_last_name) == ("Anita", "Gómez Ruiz")
+
+
+def test_a_view_exposes_only_first_and_last_name_of_the_patient() -> None:
+    world = World()
+    seeded = world.seed(monday(10))
+    view = get_appointment_view(world.deps(), ADMIN, seeded.id)
+    assert {f for f in vars(view) if f.startswith("patient")} == {
+        "patient_first_name",
+        "patient_last_name",
+    }
+
+
+def test_each_distinct_patient_is_read_once() -> None:
+    world = World()
+    for hour in (9, 10, 11):
+        world.seed(monday(hour), patient_id="pac-1")
+    world.seed(monday(12), patient_id="pac-2")
+    deps, spy = _spied(world)
+
+    views = list_appointment_views(deps, RECEPTION, PROF_A, *WEEK)
+
+    assert len(views) == 4
+    assert sorted(spy.reads) == ["pac-1", "pac-2"]
+
+
+def test_a_foreign_agenda_is_forbidden_without_reading_patients() -> None:
+    world = World()
+    foreign = world.seed(monday(10), patient_id="pac-2", professional_id=PROF_B)
+    deps, spy = _spied(world)
+
+    with pytest.raises(ForbiddenError):
+        list_appointment_views(deps, DENTIST_A, PROF_B, *WEEK)
+    with pytest.raises(ForbiddenError):
+        get_appointment_view(deps, DENTIST_A, foreign.id)
+    assert spy.reads == []
+
+
+def test_an_unknown_appointment_view_is_not_found() -> None:
+    world = World()
+    with pytest.raises(AppointmentNotFoundError):
+        get_appointment_view(world.deps(), RECEPTION, NIL_APPOINTMENT)
+
+
+def test_a_missing_patient_is_an_internal_error_not_an_empty_name() -> None:
+    world = World()
+    world.seed(monday(10), patient_id="pac-ghost")
+    with pytest.raises(LookupError):
+        list_appointment_views(world.deps(), RECEPTION, PROF_A, *WEEK)
+
+
+def test_querying_views_changes_nothing() -> None:
+    world = World()
+    seeded = world.seed(monday(10))
+    before = world.everything()
+    notifications_before = world.notifications.__dict__.copy()
+
+    list_appointment_views(world.deps(), RECEPTION, PROF_A, *WEEK)
+    get_appointment_view(world.deps(), RECEPTION, seeded.id)
+
+    assert world.everything() == before
+    assert world.notifications.__dict__ == notifications_before
+    assert world.dispatcher.calls == []

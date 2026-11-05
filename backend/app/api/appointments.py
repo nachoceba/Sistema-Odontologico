@@ -55,6 +55,22 @@ class AppointmentOut(BaseModel):
         )
 
 
+class AppointmentViewOut(AppointmentOut):
+    """Turno con apellido y nombre del paciente (DD-79); solo listado y detalle."""
+
+    patient_first_name: str
+    patient_last_name: str
+
+    @classmethod
+    def from_view(cls, view: use_cases.AppointmentView) -> AppointmentViewOut:
+        base = AppointmentOut.from_domain(view.appointment)
+        return cls(
+            **base.model_dump(),
+            patient_first_name=view.patient_first_name,
+            patient_last_name=view.patient_last_name,
+        )
+
+
 class SlotOut(BaseModel):
     starts_at: datetime
     ends_at: datetime
@@ -111,20 +127,22 @@ def list_by_professional(
     professional_id: Annotated[EntityId, Query()],
     start: Annotated[AwareDatetime, Query(alias="from")],
     end: Annotated[AwareDatetime, Query(alias="to")],
-) -> list[AppointmentOut]:
+) -> list[AppointmentViewOut]:
     if start >= end:
         raise _invalid_range("'from' debe ser anterior a 'to'")
     if end - start > timedelta(days=MAX_LIST_DAYS):
         raise _invalid_range(f"El rango no puede superar {MAX_LIST_DAYS} días")
-    rows = use_cases.list_appointments(
+    rows = use_cases.list_appointment_views(
         deps, principal, professional_id, start.astimezone(UTC), end.astimezone(UTC)
     )
-    return [AppointmentOut.from_domain(row) for row in rows]
+    return [AppointmentViewOut.from_view(row) for row in rows]
 
 
 @appointments_router.get("/{appointment_id}")
-def detail(appointment_id: str, deps: Agenda, principal: CurrentUser) -> AppointmentOut:
-    return AppointmentOut.from_domain(use_cases.get_appointment(deps, principal, appointment_id))
+def detail(appointment_id: str, deps: Agenda, principal: CurrentUser) -> AppointmentViewOut:
+    return AppointmentViewOut.from_view(
+        use_cases.get_appointment_view(deps, principal, appointment_id)
+    )
 
 
 @appointments_router.post("/{appointment_id}/cancel")

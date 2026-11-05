@@ -301,6 +301,59 @@ def test_the_dentist_lists_her_own_agenda_and_slots(scene: Scene) -> None:
     assert [s["starts_at"] for s in busy] == [at(10).isoformat().replace("+00:00", "Z")]
 
 
+def _week(scene: Scene, headers: dict[str, str], professional: str = "A") -> Response:
+    return scene.client.get(
+        BASE,
+        params={
+            "professional_id": scene.professional_ids[professional],
+            "from": at(0).isoformat(),
+            "to": at(0, day=16).isoformat(),
+        },
+        headers=headers,
+    )
+
+
+@pytest.mark.integration
+def test_the_week_lists_the_patient_name_even_after_the_patient_is_deactivated(
+    scene: Scene,
+) -> None:
+    """C-09, DD-79: nombre vigente contra PostgreSQL; desactivar al paciente no oculta el turno."""
+    reception = scene.headers("recepcion@example.com")
+    booked = _book(scene, reception, at(10)).json()
+
+    listed = _week(scene, reception).json()
+    assert [(r["patient_first_name"], r["patient_last_name"]) for r in listed] == [
+        ("Juan", "Perez")
+    ]
+    assert set(listed[0]) >= {"patient_first_name", "patient_last_name", "patient_id"}
+    assert "email" not in listed[0]
+
+    with scene.sessions() as session, session.begin():
+        patient = session.get(PatientModel, scene.patient_ids["Perez"])
+        assert patient is not None
+        patient.active = False
+
+    after = _week(scene, reception).json()
+    assert after[0]["id"] == booked["id"]
+    assert after[0]["status"] == "scheduled"
+    assert after[0]["patient_first_name"] == "Juan"
+    detail = scene.client.get(f"{BASE}/{booked['id']}", headers=reception).json()
+    assert detail["patient_last_name"] == "Perez"
+
+
+@pytest.mark.integration
+def test_the_dentist_gets_403_without_names_on_the_other_dentists_week(scene: Scene) -> None:
+    scene.seed_appointment("B", at(14))
+    before = scene.rows()
+
+    response = _week(scene, scene.headers("dra.a@example.com"), professional="B")
+
+    assert response.status_code == 403
+    assert "patient_first_name" not in response.text
+    assert "Juan" not in response.text
+    assert scene.rows() == before
+
+
 class NotificationWriteFailed(Exception):
     pass
 

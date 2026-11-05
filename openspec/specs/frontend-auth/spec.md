@@ -27,15 +27,15 @@ El frontend SHALL ofrecer en `/login` un formulario con email y contraseña que 
 
 ### Requirement: Rutas protegidas y redirección por rol (RN-AU-01)
 
-Toda ruta del frontend salvo `/login` SHALL exigir sesión: sin token guardado, el frontend MUST redirigir a `/login`. Después de iniciar sesión, cada rol MUST ir a `/agenda` (P-7, CONFIRMADA (2026-11-03)); hasta que exista la agenda (C-10), `/agenda` muestra una página provisoria con el nombre y el rol de la cuenta. Un usuario con sesión que entra a `/login` MUST ir a `/agenda`.
+Toda ruta del frontend salvo `/login` SHALL exigir sesión: sin token guardado, el frontend MUST redirigir a `/login`. Después de iniciar sesión, cada rol MUST ir a `/agenda` (P-7 de C-03, CONFIRMADA (2026-11-03); P-8 de C-09, CONFIRMADA (2026-11-04)), que muestra la agenda del día según la spec `frontend-agenda`; la página provisoria con el nombre y el rol deja de existir. Un usuario con sesión que entra a `/login` MUST ir a `/agenda`.
 
 #### Scenario: Sin sesión a una ruta protegida (error)
 - **WHEN** alguien sin token abre `/agenda`
 - **THEN** el frontend lo lleva a `/login`
 
 #### Scenario: Con sesión en la agenda (esperado)
-- **WHEN** un odontólogo con sesión abre `/agenda`
-- **THEN** ve la página provisoria con su nombre y el rol odontólogo
+- **WHEN** un odontólogo con sesión y ficha abre `/agenda`
+- **THEN** ve su propia agenda del día de hoy, con su nombre y el rol odontólogo en la barra de navegación
 
 #### Scenario: Con sesión abre el login (borde)
 - **WHEN** un usuario con sesión abre `/login`

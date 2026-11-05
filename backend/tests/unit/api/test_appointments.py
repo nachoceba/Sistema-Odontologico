@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from app.domain.patients.types import PatientChanges
 from tests.unit.api.conftest import AgendaScene, bearer, login_token
 from tests.unit.application.agenda_helpers import PROF_A
 from tests.unit.domain.appointments.helpers import monday
@@ -433,3 +434,88 @@ def test_a_failing_dispatcher_still_answers_201_and_keeps_appointment_and_notifi
     assert agenda.world.appointments.get(created) is not None
     rows = agenda.world.notifications.list_for_appointment(created)
     assert [(r.kind.value, r.status.value) for r in rows] == [("confirmation", "pending")]
+
+
+# --- Nombre del paciente en listado y detalle (C-09, DD-79) -------------------------------------
+
+NAME_KEYS = {
+    "id",
+    "patient_id",
+    "patient_first_name",
+    "patient_last_name",
+    "professional_id",
+    "starts_at",
+    "ends_at",
+    "status",
+    "cancel_reason",
+    "created_by",
+}
+DAY = {
+    "professional_id": PROF_A,
+    "from": monday(0).isoformat(),
+    "to": (monday(0) + timedelta(days=1)).isoformat(),
+}
+
+
+def test_listing_carries_first_and_last_name_and_no_other_patient_data(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    response = auth_client.get(BASE, params=DAY, headers=reception)
+
+    assert response.status_code == 200
+    rows = response.json()
+    assert [(r["patient_first_name"], r["patient_last_name"]) for r in rows] == [
+        ("Juan", "Pérez"),
+        ("Ana", "Gómez"),
+    ]
+    assert all(set(r) == NAME_KEYS for r in rows)
+    for leaked in ("juan@example.com", "ana@example.com", "phone", "document_number", "birth_date"):
+        assert leaked not in response.text
+
+
+def test_detail_carries_the_current_name_after_the_patient_is_edited(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    agenda.world.patients.update("pac-2", PatientChanges(first_name="Anita"))
+
+    response = auth_client.get(f"{BASE}/{agenda.future_a}", headers=reception)
+
+    body = response.json()
+    assert set(body) == NAME_KEYS
+    assert (body["patient_first_name"], body["patient_last_name"]) == ("Anita", "Gómez")
+    assert "email" not in body
+
+
+def test_booking_cancelling_and_rescheduling_keep_their_response_shape(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    booked = auth_client.post(BASE, json=_book_body(monday(16).isoformat()), headers=reception)
+    moved = auth_client.post(
+        f"{BASE}/{agenda.future_a}/reschedule",
+        json={"starts_at": monday(17).isoformat()},
+        headers=reception,
+    )
+    cancelled = auth_client.post(
+        f"{BASE}/{agenda.future_a}/cancel", json={"reason": "x"}, headers=reception
+    )
+    marked = auth_client.post(
+        f"{BASE}/{agenda.started_a}/attendance", json={"status": "completed"}, headers=reception
+    )
+
+    for response in (booked, moved, cancelled, marked):
+        assert response.status_code in (200, 201), response.text
+        assert "patient_first_name" not in response.json()
+        assert "patient_last_name" not in response.json()
+
+
+def test_consulting_the_agenda_changes_nothing(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    before = agenda.snapshot()
+    notifications = agenda.world.notifications.__dict__.copy()
+
+    auth_client.get(BASE, params=DAY, headers=reception)
+    auth_client.get(f"{BASE}/{agenda.future_a}", headers=reception)
+
+    assert agenda.snapshot() == before
+    assert agenda.world.notifications.__dict__ == notifications

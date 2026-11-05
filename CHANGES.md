@@ -28,7 +28,7 @@ C-01 foundation-setup     [x] archivado (2026-11-03)
  │         ├── C-04 user-management           [x] archivado (2026-11-03)
  │         ├── C-06 patients-crud               [x] archivado (2026-11-04)
  │         ├── C-07 professional-schedules      [x] archivado (2026-11-04)  (+ C-05)
- │         │    └── C-09 agenda-views           (+ C-05, C-08)
+ │         │    └── C-09 agenda-views           [x] archivado (2026-11-05)  (+ C-05, C-08)
  │         └── C-08 appointment-use-cases       [x] archivado (2026-11-03)  (+ C-05)
  │              ├── C-11 email-confirmation-infra
  │              │    └── C-12 reminders-cron
@@ -329,7 +329,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `knowledge-base/08_arquitectura_propuesta.md` §Patrones aplicados
 
 ### [C-09] `agenda-views`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` implementado, verificado y archivado el 2026-11-05 (`openspec/changes/archive/2026-11-05-agenda-views/`): 1349 tests por defecto, 279 de integración contra PostgreSQL (1 omitido) y 249 de frontend; `mypy --strict`, `ruff` y `eslint` limpios; `tsc` con 1 error previo en `src/patients/form.test.tsx` (no es de C-09); `openspec validate --strict` válido. Specs principales nuevas: `frontend-agenda`; modificadas: `appointment-api`, `appointment-use-cases` y `frontend-auth`. Backend: `GET /appointments` y `GET /appointments/{id}` devuelven además `patient_first_name` y `patient_last_name` (`AppointmentView` en `app/application/appointments.py`, `AppointmentViewOut` en `app/api/appointments.py`); las respuestas de agendar, cancelar, reprogramar y atención no cambian. Frontend: pantalla `/agenda` (`src/pages/AgendaPage.tsx`) con vistas Día y Semana, solo lectura; piezas reutilizables en `src/agenda/` (`grid.ts` puro, `dates.ts`, `DayColumn`, `WeekView`, `DateNavigator`, `ProfessionalPicker`, `AppNav`) y cliente `src/api/appointments.ts`. Decisiones DD-79 a DD-83 (P-1 a P-11 confirmadas, todas la opción A); DD-51 actualizada. Sin migraciones, dependencias ni variables de entorno nuevas. **Nota para C-10**: agregar las acciones sobre `DayColumn` (filas `free`, `busy` y `appointment` ya llevan el identificador del turno y de la franja), ampliar `api/appointments.ts` con las escrituras y mostrar `INSUFFICIENT_NOTICE`/`SLOT_TAKEN`.
 - **Scope**:
   - US-006: `/agenda` con vista diaria y semanal por profesional
   - Slots libres, ocupados y fuera de horario diferenciados (usa `compute_slots` de C-05 y horarios/licencias de C-07)
@@ -504,10 +504,10 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-06 | patients-crud (archivado `[x]`) | 2 | C-03 | BAJO |
 | C-07 | professional-schedules (archivado `[x]`) | 2 | C-03, C-05 | MEDIO |
 | C-08 | appointment-use-cases (archivado `[x]`) | 3 | C-03, C-05 | MEDIO |
-| C-09 | agenda-views | 3 | C-05, C-07, C-08 | BAJO |
+| C-09 | agenda-views (archivado `[x]`) | 3 | C-05, C-07, C-08 | BAJO |
 | C-10 | appointment-management-ui | 3 | C-06, C-08, C-09 | MEDIO |
 | C-11 | email-confirmation-infra | 4 | C-08 | ALTO |
 | C-12 | reminders-cron | 4 | C-11 | ALTO |
 | C-13 | deploy-and-hardening | 5 | C-04, C-10, C-12 | MEDIO |
 
-**Siguientes changes habilitados**: C-01, C-02, C-03, C-04, C-06, C-07 y C-08 ya están archivados. Quedan habilitados `C-09` (agenda-views, BAJO; depende de C-07 y C-08, ambos archivados) y `C-11` (email-confirmation-infra, ALTO; depende solo de C-08). `C-10` (appointment-management-ui) espera a C-09. Para arrancar: `/opsx:propose C-09-agenda-views` o `C-11-email-confirmation-infra`. Gobernanza CRÍTICA de C-03 ya aprobada y ejecutada.
+**Siguientes changes habilitados**: C-01, C-02, C-03, C-04, C-06, C-07, C-08 y C-09 ya están archivados. Quedan habilitados `C-10` (appointment-management-ui, MEDIO; depende de C-06, C-08 y C-09, todos archivados) y `C-11` (email-confirmation-infra, ALTO; depende solo de C-08). Para arrancar: `/opsx:propose C-10-appointment-management-ui` o `C-11-email-confirmation-infra`. Gobernanza CRÍTICA de C-03 ya aprobada y ejecutada.

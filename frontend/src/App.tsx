@@ -3,7 +3,7 @@ import { AuthProvider } from './auth/AuthProvider'
 import RequireAuth from './auth/RequireAuth'
 import RequireRole from './auth/RequireRole'
 import { useAuth } from './auth/useAuth'
-import AgendaPlaceholderPage from './pages/AgendaPlaceholderPage'
+import AgendaPage from './pages/AgendaPage'
 import LoginPage from './pages/LoginPage'
 import PatientsPage from './pages/PatientsPage'
 import ProfessionalsPage from './pages/ProfessionalsPage'
@@ -23,7 +23,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
-        <Route path="/agenda" element={<AgendaPlaceholderPage />} />
+        <Route path="/agenda" element={<AgendaPage />} />
         <Route path="/pacientes" element={<PatientsPage />} />
         <Route path="/profesionales" element={<ProfessionalsPage />} />
         <Route element={<RequireRole roles={['admin']} />}>

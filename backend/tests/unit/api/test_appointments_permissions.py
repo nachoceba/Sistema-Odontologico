@@ -197,3 +197,55 @@ def test_without_a_token_every_endpoint_answers_401_before_any_role_check(
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "NOT_AUTHENTICATED"
     assert agenda.snapshot() == before
+
+
+# --- Los dos endpoints con nombre del paciente, por rol (C-09, DD-79) -----------------------------
+
+NAMED = ["detail", "list"]
+
+
+@pytest.mark.parametrize("email", [ADMIN, RECEPTION, DENTIST_A])
+@pytest.mark.parametrize("endpoint", NAMED)
+def test_allowed_roles_see_the_patient_name_on_their_own_agenda(
+    auth_client: TestClient, agenda: AgendaScene, email: str, endpoint: str
+) -> None:
+    response = send(auth_client, OWN[endpoint](agenda), login_token(auth_client, email))
+
+    assert response.status_code == 200
+    body = response.json()
+    rows = body if isinstance(body, list) else [body]
+    assert rows
+    assert all(r["patient_first_name"] and r["patient_last_name"] for r in rows)
+
+
+@pytest.mark.parametrize("email", [ADMIN, RECEPTION])
+@pytest.mark.parametrize("endpoint", NAMED)
+def test_staff_sees_the_name_on_another_professionals_agenda(
+    auth_client: TestClient, agenda: AgendaScene, email: str, endpoint: str
+) -> None:
+    response = send(auth_client, FOREIGN[endpoint](agenda), login_token(auth_client, email))
+
+    assert response.status_code == 200
+    assert "patient_first_name" in response.text
+
+
+@pytest.mark.parametrize("email", [DENTIST_A, NO_FILE])
+@pytest.mark.parametrize("endpoint", NAMED)
+def test_a_forbidden_dentist_gets_no_names_in_the_body(
+    auth_client: TestClient, agenda: AgendaScene, email: str, endpoint: str
+) -> None:
+    response = send(auth_client, FOREIGN[endpoint](agenda), login_token(auth_client, email))
+
+    assert response.status_code == 403
+    for name in ("Juan", "Pérez", "Ana", "Gómez", "patient_first_name"):
+        assert name not in response.text
+
+
+@pytest.mark.parametrize("endpoint", NAMED)
+def test_without_a_token_the_named_endpoints_answer_401_with_no_names(
+    auth_client: TestClient, agenda: AgendaScene, endpoint: str
+) -> None:
+    response = send(auth_client, OWN[endpoint](agenda), None)
+
+    assert response.status_code == 401
+    assert "patient_first_name" not in response.text

@@ -1,6 +1,8 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, readToken, saveToken } from './auth/session'
+import { turno } from './agenda/fixtures'
+import { DRA, installAgendaApi } from './agenda/testApi'
 import { BASE, DENTIST, jsonResponse, mockApi, renderApp } from './test-utils'
 
 const HEALTH_URL = `${BASE}/health`
@@ -210,6 +212,28 @@ describe('rutas protegidas', () => {
     const meCall = fetchMock.mock.calls.find((call) => String(call[0]).endsWith('/auth/me'))
     const headers = new Headers((meCall?.[1] as RequestInit).headers)
     expect(headers.get('Authorization')).toBe('Bearer tok-1')
+  })
+
+  it('con sesión en la agenda, la odontóloga ve su agenda de hoy con nombre y rol en la barra', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-09T15:00:00Z'))
+    saveToken('tok-1')
+    const api = installAgendaApi({
+      me: DENTIST,
+      professionals: [DRA],
+      appointments: [turno(10, 0, 10, 30)],
+      timeOff: [],
+      conflicts: [],
+    })
+
+    renderApp('/agenda')
+
+    expect(await screen.findByText('10:00–10:30 Perez, Juan')).toBeInTheDocument()
+    expect(screen.getByText('Hola, Dra. Ana Pérez')).toBeInTheDocument()
+    expect(screen.getByText('Odontólogo')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Lun 09/11' })).toBeInTheDocument()
+    expect(api.calls).toContain('GET /professionals/p-1/slots?date=2026-11-09')
+    vi.useRealTimers()
   })
 
   it('muestra el rol de recepción con su nombre', async () => {

@@ -229,6 +229,53 @@ def list_appointments(
     return deps.appointments.list_for_professional(professional_id, start, end)
 
 
+@dataclass(frozen=True)
+class AppointmentView:
+    """Un turno con el nombre vigente del paciente (C-09, DD-79); forma de lectura."""
+
+    appointment: Appointment
+    patient_first_name: str
+    patient_last_name: str
+
+
+def _with_patient_names(
+    deps: AgendaDeps, appointments: Sequence[Appointment]
+) -> list[AppointmentView]:
+    """Completa nombres con una lectura por paciente distinto (design D-1)."""
+    names: dict[str, tuple[str, str]] = {}
+    views: list[AppointmentView] = []
+    for appointment in appointments:
+        if appointment.patient_id not in names:
+            patient = deps.patients.get(appointment.patient_id)
+            if patient is None:
+                raise LookupError("turno con paciente inexistente")
+            names[appointment.patient_id] = (patient.first_name, patient.last_name)
+        first_name, last_name = names[appointment.patient_id]
+        views.append(AppointmentView(appointment, first_name, last_name))
+    return views
+
+
+def get_appointment_view(
+    deps: AgendaDeps, principal: Principal, appointment_id: str
+) -> AppointmentView:
+    """``get_appointment`` con el nombre del paciente; el 403 sale antes de leer pacientes."""
+    appointment = get_appointment(deps, principal, appointment_id)
+    return _with_patient_names(deps, [appointment])[0]
+
+
+def list_appointment_views(
+    deps: AgendaDeps,
+    principal: Principal,
+    professional_id: str,
+    start: datetime,
+    end: datetime,
+) -> list[AppointmentView]:
+    """``list_appointments`` con el nombre del paciente de cada turno."""
+    return _with_patient_names(
+        deps, list_appointments(deps, principal, professional_id, start, end)
+    )
+
+
 def day_slots(
     deps: AgendaDeps, principal: Principal, professional_id: str, day: date
 ) -> list[Slot]:

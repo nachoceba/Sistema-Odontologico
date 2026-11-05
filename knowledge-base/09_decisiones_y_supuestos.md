@@ -331,7 +331,7 @@
 **Decisión**: el email se recorta y se compara sin distinguir mayúsculas (coherente con DD-38); la contraseña se compara exacta, sin recortar. Máximos: email 254, contraseña 128 caracteres.
 
 ### DD-51 — Redirección, cambio de rol y datos de `/auth/me` (P-7, P-8 y P-9 de C-03)
-**Decisión**: los tres roles van a `/agenda` (página provisoria con nombre y rol hasta C-10). Si cambia el rol de una cuenta o se la desactiva, la sesión abierta recibe 401 en la siguiente llamada. `GET /auth/me` devuelve id, email, nombre, rol y `professional_id` (nunca el hash ni el token).
+**Decisión**: los tres roles van a `/agenda` (la pantalla de inicio es la agenda real de C-09, DD-82; ya no es una página provisoria). Si cambia el rol de una cuenta o se la desactiva, la sesión abierta recibe 401 en la siguiente llamada. `GET /auth/me` devuelve id, email, nombre, rol y `professional_id` (nunca el hash ni el token).
 **Justificación**: nunca conviven dos roles en una misma sesión; el frontend necesita `professional_id` para filtrar la agenda del odontólogo.
 
 ### DD-52 — Sin variables de entorno nuevas en C-03 (P-10 de C-03)
@@ -461,6 +461,31 @@
 **Decisión**: la pantalla `/pacientes` (listado con búsqueda, alta, edición, desactivar/reactivar y borrar para administración; el odontólogo en lectura) entra en C-06, con el buscador y el formulario como piezas reutilizables para C-10. C-06 es un solo change por grupos, con punto de corte seguro al terminar el backend (grupo 6).
 **Alternativas consideradas**: solo backend y pantalla en C-10; partir en C-06a y C-06b.
 **Justificación**: sin pantalla recepción no puede usar lo construido y C-10 ya cuenta con "buscar o crear paciente"; el contrato de la API y la pantalla se validan juntos.
+
+### DD-79 — Nombre del paciente en el listado de turnos (P-1 y P-7 de C-09)
+**Decisión**: `GET /appointments` y `GET /appointments/{id}` devuelven además `patient_first_name` y `patient_last_name` (datos vigentes de la ficha, aunque el paciente esté inactivo); nunca email, teléfono ni documento. Las respuestas de agendar, cancelar, reprogramar y marcar atención no cambian de forma. La grilla muestra solo "Apellido, Nombre", también para el odontólogo.
+**Alternativas consideradas**: pedir cada paciente desde el frontend; un endpoint "agenda" nuevo; no mostrar el nombre; mostrar también el teléfono.
+**Justificación**: cambio chico en el servidor que reusa las consultas de C-08 (DD-66); el odontólogo ya ve pacientes (DD-75).
+
+### DD-80 — Vistas, horas y estados en la agenda (P-2, P-3 y P-4 de C-09)
+**Decisión**: vistas "Día" y "Semana" (lunes a domingo, con "Sin atención este día" en los días sin horario). Se muestra solo de la primera a la última franja de atención; los huecos intermedios son una banda "Fuera de horario" y el rango se estira si un turno cae afuera. Se muestran todos los turnos con su etiqueta; los cancelados se ven tachados y la franja sigue "Libre" (RN-TU-05). Las horas se muestran en la zona del consultorio.
+**Alternativas consideradas**: vista mensual, semana de lunes a sábado, 24 horas, horario fijo, ocultar cancelados o casilla para mostrarlos.
+**Justificación**: es lo que pide US-006 y evita esconder turnos.
+
+### DD-81 — Licencias, conflictos y un profesional por vez (P-5 y P-6 de C-09)
+**Decisión**: el día de licencia dice "Licencia" (con el motivo si existe); un turno agendado fuera de horario o en licencia se ve con "En conflicto", sin botones (resolverlo es de C-10). La agenda muestra un profesional por vez con un selector; la vista con varios profesionales queda para C-12 (DD-66).
+**Alternativas consideradas**: no distinguir la licencia ni mostrar conflictos; una columna por profesional.
+**Justificación**: usa datos que ya existen (C-07) y no necesita el listado global de turnos.
+
+### DD-82 — Inicio por rol y profesionales inactivos (P-8 de C-09)
+**Decisión**: los tres roles entran a `/agenda`, vista "Día" de hoy. Administración y recepción ven el primer profesional activo y pueden cambiarlo; los inactivos figuran como "(inactivo)" y al elegirlos se muestra el aviso "Profesional inactivo: no se le pueden dar turnos nuevos" con sus turnos existentes (DD-59, DD-64). El odontólogo ve siempre la suya (ignora otro profesional en la dirección); sin ficha, "No tenés una ficha de profesional asociada". La página provisoria desaparece (actualiza DD-51).
+**Alternativas consideradas**: el administrador entra a `/usuarios`; ocultar profesionales inactivos.
+**Justificación**: no cambia lo acordado en DD-51 y no deja turnos pendientes invisibles.
+
+### DD-83 — Solo lectura, actualización y tamaño (P-9, P-10 y P-11 de C-09)
+**Decisión**: en C-09 la agenda es de solo lectura (sin clics ni botones sobre turnos o franjas; las acciones son de C-10). Se actualiza al cambiar profesional, fecha o vista y con un botón "Actualizar", sin refresco automático (agendar un horario ocupado lo rechaza `SLOT_TAKEN`). C-09 es un solo change por grupos, con puntos de corte tras los grupos 3 y 6.
+**Alternativas consideradas**: panel de detalle en C-09; refresco cada minuto; partir en C-09a y C-09b.
+**Justificación**: mantiene C-09 chico, la agenda no puede tocar nada (regla dura 6) y el contrato y la pantalla se prueban juntos.
 
 ## Supuestos inferidos
 
