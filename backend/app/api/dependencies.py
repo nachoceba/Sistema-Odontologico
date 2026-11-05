@@ -11,6 +11,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.application.appointments import AgendaDeps
 from app.application.auth import TokenConfig, resolve_principal
+from app.application.patients import PatientDeps
 from app.application.professionals import ScheduleDeps
 from app.core.config import get_settings
 from app.domain.auth import (
@@ -80,10 +81,24 @@ def get_schedule_deps(
     )
 
 
+def get_patient_deps(
+    clock: Annotated[Callable[[], datetime], Depends(get_clock)],
+) -> PatientDeps:
+    """Casos de uso de pacientes sobre PostgreSQL; sobreescribible en los tests (design D-6)."""
+    sessions = get_session_factory()
+    return PatientDeps(
+        patients=SqlAlchemyPatientRepository(sessions),
+        appointments=SqlAlchemyAppointmentRepository(sessions),
+        settings=SqlAlchemyClinicSettingsRepository(sessions),
+        clock=clock,
+    )
+
+
 UserRepository = Annotated[UserAccountRepository, Depends(get_user_repository)]
 TokenSettings = Annotated[TokenConfig, Depends(get_token_config)]
 Agenda = Annotated[AgendaDeps, Depends(get_agenda_deps)]
 Schedule = Annotated[ScheduleDeps, Depends(get_schedule_deps)]
+Patients = Annotated[PatientDeps, Depends(get_patient_deps)]
 
 
 # auto_error=False: sin encabezado la dependencia devuelve None y respondemos con el cuerpo

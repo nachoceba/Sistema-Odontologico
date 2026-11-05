@@ -9,13 +9,12 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Response
-from pydantic import AfterValidator, BaseModel, BeforeValidator, Field
+from pydantic import BaseModel, BeforeValidator, Field
 
 from app.api.dependencies import UserRepository, require_role
-from app.api.validators import strip_text
+from app.api.validators import Email, strip_text
 from app.application import users as use_cases
 from app.domain.auth import Principal, Role, UserAccount
-from app.domain.users.rules import is_valid_email
 
 _admin_only = require_role(Role.ADMIN)
 AdminUser = Annotated[Principal, Depends(_admin_only)]
@@ -23,18 +22,6 @@ AdminUser = Annotated[Principal, Depends(_admin_only)]
 router = APIRouter(prefix="/users", tags=["users"], dependencies=[Depends(_admin_only)])
 
 
-def _check_email(value: str) -> str:
-    if not is_valid_email(value):
-        raise ValueError("El email no tiene un formato válido")
-    return value
-
-
-Email = Annotated[
-    str,
-    BeforeValidator(strip_text),
-    Field(min_length=3, max_length=254),
-    AfterValidator(_check_email),
-]
 FullName = Annotated[str, BeforeValidator(strip_text), Field(min_length=1, max_length=200)]
 DisplayName = Annotated[str, BeforeValidator(strip_text), Field(min_length=1, max_length=200)]
 LicenseNumber = Annotated[str, BeforeValidator(strip_text), Field(min_length=1, max_length=50)]

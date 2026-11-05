@@ -209,3 +209,43 @@ def schedule(auth_app: tuple[FastAPI, TestClient]) -> ScheduleScene:
     auth_app[0].dependency_overrides[get_schedule_deps] = world.schedule_deps
     auth_app[0].dependency_overrides[get_agenda_deps] = world.deps
     return scene
+
+
+# --- Pacientes: casos de uso en memoria (C-06) ---
+
+
+@dataclass
+class PatientScene:
+    """Mundo en memoria con Juan (turno agendado), Ana (inactiva) y Laura (sin turnos)."""
+
+    world: World
+    laura_id: str
+    appointment_id: str
+
+    def snapshot(self) -> tuple[object, ...]:
+        world = self.world
+        return (
+            world.patients.search(text="", include_inactive=True, limit=1000),
+            world.everything(PROF_A),
+            world.everything(PROF_B),
+            world.notifications.snapshot(),
+        )
+
+
+@pytest.fixture
+def patients_scene(auth_app: tuple[FastAPI, TestClient]) -> PatientScene:
+    """Dependencias de pacientes y agenda en memoria; reloj en el sabado 3 de octubre."""
+    from app.api.dependencies import get_agenda_deps, get_patient_deps
+    from app.domain.patients.types import NewPatient
+
+    world = World()
+    world.set_patient_active("pac-2", False)
+    laura = world.patients.add(NewPatient("Laura", "Ruiz", "40222333", "laura@example.com"))
+    scene = PatientScene(
+        world=world,
+        laura_id=laura.id,
+        appointment_id=world.seed(monday(10), patient_id="pac-1", professional_id=PROF_A).id,
+    )
+    auth_app[0].dependency_overrides[get_patient_deps] = world.patient_deps
+    auth_app[0].dependency_overrides[get_agenda_deps] = world.deps
+    return scene

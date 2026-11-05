@@ -432,6 +432,36 @@
 **Alternativas consideradas**: solo backend y pantalla en C-09/C-10; partir en C-07a y C-07b.
 **Justificación**: sin pantalla el administrador no puede usar lo construido; el contrato de la API y la pantalla se validan juntos, como en C-04.
 
+### DD-73 — Documento, datos obligatorios y qué se edita (P-1, P-2 y P-9 de C-06)
+**Decisión**: el documento acepta letras y números; se le quitan puntos, espacios y guiones y se pasa a mayúsculas antes de guardar y de comparar, y debe quedar entre 6 y 20 caracteres (`30.111.222` y `30111222` son el mismo documento). Nombre y apellido: 1 a 100 caracteres recortados. Email obligatorio, mismo control que el de las cuentas del personal, guardado en minúsculas y **sin exigir que sea único** (una familia puede compartirlo). Teléfono opcional (hasta 30 caracteres; dígitos, espacios, `+`, `-` y paréntesis; al menos 6 dígitos). Fecha de nacimiento opcional, no futura (día de hoy del consultorio) y no anterior a 1900-01-01. Se puede editar todo, incluido el documento y el email, aunque el paciente esté inactivo; cambiar el email no toca turnos ni notificaciones ya registradas.
+**Alternativas consideradas**: solo DNI numérico de 7 u 8 dígitos; guardar el documento tal cual se escribe; email único; documento fijo después del alta.
+**Justificación**: evita duplicados por cómo se tipeó sin dejar afuera a extranjeros con pasaporte; el email es el canal del recordatorio pero en un consultorio es común compartirlo; un documento mal escrito tiene que poder corregirse.
+
+### DD-74 — Búsqueda y lista de pacientes (P-3 y P-5 de C-06)
+**Decisión**: un solo cuadro de búsqueda: coincide quien tenga el texto en cualquier parte del apellido (sin distinguir mayúsculas, pero sí acentos: `per` no encuentra `Pérez`) o cuyo documento empiece con lo escrito (normalizado). Hasta 50 resultados ordenados por apellido, nombre e identificador, con la indicación de que hay más; por defecto solo activos, con opción de incluir inactivos. No hay migración.
+**Alternativas consideradas**: ignorar acentos con la extensión `unaccent` (migración); dos cuadros separados; sin límite; paginación.
+**Justificación**: un cuadro es lo más rápido para recepción; 50 alcanza para encontrar a alguien; mostrar primero activos evita elegir por error a alguien dado de baja. Si los acentos molestan en la práctica, la mejora es `unaccent`.
+
+### DD-75 — Permisos y borrado definitivo de pacientes (P-4 y P-6 de C-06)
+**Decisión**: administración hace todo; recepción da de alta, ve, edita, desactiva y reactiva (no borra); el odontólogo ve y busca a todos los pacientes y no escribe. Solo el administrador borra definitivamente, y solo si el paciente no tiene ningún turno en ningún estado (`PATIENT_HAS_APPOINTMENTS`, 409); con turnos se desactiva.
+**Alternativas consideradas**: odontólogo solo ve sus pacientes; no borrar nunca.
+**Justificación**: es lo que dicen la matriz RBAC y RN-PA-03; la base ya impide borrar con turnos (DD-39); un alta cargada por error no debe ocupar un documento para siempre. La privacidad extra de ver solo "los propios" se descarta con datos ficticios (RN-PR-01).
+
+### DD-76 — Desactivar con turnos futuros y recordatorios (P-7 y P-8 de C-06)
+**Decisión**: desactivar pide confirmación en pantalla, no cancela nada (DD-25) y devuelve la lista de los turnos `scheduled` que todavía no empezaron (inicio posterior a ahora) para que recepción los cancele; a un paciente inactivo se le puede cancelar pero no agendar ni reprogramar. Los turnos futuros de un paciente inactivo **siguen recibiendo recordatorio** mientras estén agendados; lo aplica C-12 (nota en `CHANGES.md`).
+**Alternativas consideradas**: impedir desactivar con turnos futuros; consulta permanente de turnos de inactivos; que C-12 saltee a los inactivos.
+**Justificación**: respeta DD-25 y es igual a lo hecho con los horarios (DD-68); el turno sigue vigente hasta que recepción lo cancele, y un recordatorio que no llega sería peor.
+
+### DD-77 — Privacidad de las búsquedas y registros (P-10 de C-06)
+**Decisión**: la búsqueda es un `GET` con `q` en la dirección; se acepta que quede en el registro de accesos del servidor web (datos ficticios), la aplicación nunca escribe datos de pacientes en sus mensajes de error ni en sus registros, y se anota para C-13 revisar el registro de accesos antes de usar datos reales.
+**Alternativas consideradas**: buscar con `POST` para que el texto no viaje en la dirección.
+**Justificación**: `GET` es lo convencional y rompe menos la API; el endurecimiento de registros corresponde a la salida a producción (C-13).
+
+### DD-78 — Pantalla en C-06 y un solo change (P-11 y P-12 de C-06)
+**Decisión**: la pantalla `/pacientes` (listado con búsqueda, alta, edición, desactivar/reactivar y borrar para administración; el odontólogo en lectura) entra en C-06, con el buscador y el formulario como piezas reutilizables para C-10. C-06 es un solo change por grupos, con punto de corte seguro al terminar el backend (grupo 6).
+**Alternativas consideradas**: solo backend y pantalla en C-10; partir en C-06a y C-06b.
+**Justificación**: sin pantalla recepción no puede usar lo construido y C-10 ya cuenta con "buscar o crear paciente"; el contrato de la API y la pantalla se validan juntos.
+
 ## Supuestos inferidos
 
 ### SU-01 — Zona horaria única

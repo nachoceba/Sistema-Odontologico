@@ -156,3 +156,40 @@ button.secondary {
   border-left: 4px solid #b45309;
   background: #fff7ed;
 }
+
+.search-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.notice {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid #b45309;
+  background: #fff7ed;
+}
+
+.field-error {
+  margin: 0.25rem 0 0;
+  color: #b91c1c;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 40%);
+}
+
+.dialog {
+  max-width: 28rem;
+  padding: 1.25rem;
+  border-radius: 0.5rem;
+  background: #fff;
+}

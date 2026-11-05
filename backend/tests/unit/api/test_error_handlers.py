@@ -31,6 +31,11 @@ from app.domain.appointments.errors import (
     SlotTakenError,
 )
 from app.domain.auth import ForbiddenError, InvalidCredentialsError, NotAuthenticatedError
+from app.domain.patients.errors import (
+    DocumentTakenError,
+    InvalidPatientDataError,
+    PatientHasAppointmentsError,
+)
 from app.domain.schedules.errors import (
     InvalidTimeOffError,
     InvalidWorkingHoursError,
@@ -363,3 +368,50 @@ def test_schedule_codes_are_explicit_in_the_status_table() -> None:
     assert STATUS_BY_CODE["INVALID_WORKING_HOURS"] == 400
     assert STATUS_BY_CODE["INVALID_TIME_OFF"] == 400
     assert STATUS_BY_CODE["TIME_OFF_NOT_FOUND"] == 404
+
+
+# --- Errores de la gestion de pacientes (C-06) ------------------------------------------------
+
+
+def _raise_document_taken() -> None:
+    raise DocumentTakenError
+
+
+def _raise_patient_has_appointments() -> None:
+    raise PatientHasAppointmentsError
+
+
+def _raise_invalid_patient_data() -> None:
+    raise InvalidPatientDataError
+
+
+@pytest.mark.parametrize(
+    ("path", "handler", "code", "status"),
+    [
+        ("document-taken", _raise_document_taken, "DOCUMENT_TAKEN", 409),
+        ("has-appointments", _raise_patient_has_appointments, "PATIENT_HAS_APPOINTMENTS", 409),
+        ("invalid-patient", _raise_invalid_patient_data, "INVALID_PATIENT_DATA", 400),
+    ],
+)
+def test_patient_errors_map_to_their_status_with_a_message_without_patient_data(
+    make_client: Callable[[], tuple[FastAPI, TestClient]],
+    path: str,
+    handler: Callable[[], None],
+    code: str,
+    status: int,
+) -> None:
+    app, test_client = make_client()
+    app.add_api_route(f"/__test__/{path}", handler)
+    response = test_client.get(f"/__test__/{path}")
+    assert response.status_code == status
+    assert response.json()["error"]["code"] == code
+    assert response.json()["error"]["message"]
+    assert "www-authenticate" not in response.headers
+
+
+def test_patient_codes_are_explicit_in_the_status_table() -> None:
+    from app.api.errors import STATUS_BY_CODE
+
+    assert STATUS_BY_CODE["DOCUMENT_TAKEN"] == 409
+    assert STATUS_BY_CODE["PATIENT_HAS_APPOINTMENTS"] == 409
+    assert STATUS_BY_CODE["INVALID_PATIENT_DATA"] == 400

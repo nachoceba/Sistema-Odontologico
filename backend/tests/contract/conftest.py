@@ -25,7 +25,7 @@ from app.domain.appointments.ports import (
 from app.domain.appointments.types import Notification, NotificationKind, NotificationStatus
 from app.domain.auth import Role, UserAccount, UserAccountRepository
 from app.domain.patients.ports import PatientRepository
-from app.domain.patients.types import Patient
+from app.domain.patients.types import Patient, PatientRecord
 from app.domain.professionals import Professional, ProfessionalRepository
 from app.domain.schedules.ports import TimeOffRepository, WorkingHoursRepository
 from app.domain.settings.ports import ClinicSettingsRepository
@@ -100,7 +100,7 @@ class RepositoryFactory(Protocol):
 
     def time_off(self) -> TimeOffRepository: ...
 
-    def patients(self, initial: Sequence[Patient] = ()) -> PatientRepository: ...
+    def patients(self, initial: Sequence[Patient | PatientRecord] = ()) -> PatientRepository: ...
 
     def settings(self, initial: ClinicSettings | None = None) -> ClinicSettingsRepository: ...
 
@@ -162,7 +162,7 @@ class InMemoryFactory:
     def time_off(self) -> TimeOffRepository:
         return InMemoryTimeOffRepository()
 
-    def patients(self, initial: Sequence[Patient] = ()) -> PatientRepository:
+    def patients(self, initial: Sequence[Patient | PatientRecord] = ()) -> PatientRepository:
         return InMemoryPatientRepository(initial)
 
     def settings(self, initial: ClinicSettings | None = None) -> ClinicSettingsRepository:
@@ -255,12 +255,20 @@ class PostgresFactory:
             )
         return self._patients[name]
 
-    def _add_patient(self, name: str, patient: Patient) -> None:
+    def _add_patient(self, name: str, patient: Patient | PatientRecord) -> None:
+        if isinstance(patient, PatientRecord):
+            document_number = patient.document_number
+            phone, birth_date = patient.phone, patient.birth_date
+        else:
+            document_number = f"DOC-{name}-{uuid.uuid4().hex[:8]}"
+            phone, birth_date = None, None
         row = PatientModel(
             first_name=patient.first_name,
             last_name=patient.last_name,
-            document_number=f"DOC-{name}-{uuid.uuid4().hex[:8]}",
+            document_number=document_number,
             email=patient.email,
+            phone=phone,
+            birth_date=birth_date,
             active=patient.active,
         )
         with self._sessions.begin() as session:
@@ -309,7 +317,7 @@ class PostgresFactory:
     def time_off(self) -> TimeOffRepository:
         return SqlAlchemyTimeOffRepository(self._sessions)
 
-    def patients(self, initial: Sequence[Patient] = ()) -> PatientRepository:
+    def patients(self, initial: Sequence[Patient | PatientRecord] = ()) -> PatientRepository:
         for patient in initial:
             self._add_patient(patient.id, patient)
         return SqlAlchemyPatientRepository(self._sessions)

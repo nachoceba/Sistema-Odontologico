@@ -75,3 +75,23 @@ def test_openapi_lists_the_nine_professional_operations_with_bearer_scheme(
     }
     for method, path in operations:
         assert paths[path][method]["security"] == [{"HTTPBearer": []}], (method, path)
+
+
+def test_openapi_lists_the_seven_patient_operations_with_bearer_scheme(
+    client: TestClient,
+) -> None:
+    paths = client.get("/openapi.json").json()["paths"]
+
+    operations = {
+        ("get", "/api/v1/patients"),
+        ("get", "/api/v1/patients/{patient_id}"),
+        ("post", "/api/v1/patients"),
+        ("patch", "/api/v1/patients/{patient_id}"),
+        ("post", "/api/v1/patients/{patient_id}/deactivate"),
+        ("post", "/api/v1/patients/{patient_id}/reactivate"),
+        ("delete", "/api/v1/patients/{patient_id}"),
+    }
+    for method, path in operations:
+        assert paths[path][method]["security"] == [{"HTTPBearer": []}], (method, path)
+    patient_paths = [p for p in paths if p.startswith("/api/v1/patients")]
+    assert sum(len(paths[p]) for p in patient_paths) == len(operations)

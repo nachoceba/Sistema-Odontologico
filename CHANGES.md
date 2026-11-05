@@ -26,7 +26,7 @@ C-01 foundation-setup     [x] archivado (2026-11-03)
  ├── C-02 db-schema-and-seed        [x] archivado (2026-11-03)
  │    └── C-03 auth-login-rbac            [x] archivado (2026-11-03)
  │         ├── C-04 user-management           [x] archivado (2026-11-03)
- │         ├── C-06 patients-crud
+ │         ├── C-06 patients-crud               [x] archivado (2026-11-04)
  │         ├── C-07 professional-schedules      [x] archivado (2026-11-04)  (+ C-05)
  │         │    └── C-09 agenda-views           (+ C-05, C-08)
  │         └── C-08 appointment-use-cases       [x] archivado (2026-11-03)  (+ C-05)
@@ -271,7 +271,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 - **Fuera de C-05d**: repartido en C-02, C-04, C-06, C-07, C-08, C-11 y C-12 (ver cada entrada).
 
 ### [C-06] `patients-crud`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` implementado, verificado y archivado el 2026-11-04 (`openspec/changes/archive/2026-11-04-patients-crud/`): 40/40 tasks; 1320 tests por defecto, 277 de integración contra PostgreSQL (1 omitido a propósito) y 160 de frontend; `mypy --strict app/`, `ruff`, `tsc` y `eslint` limpios; `openspec validate --strict` válido. Specs principales nuevas: `patient-data-rules`, `patient-management`, `patient-api` y `frontend-patient-management`; modificadas: `patient-repository` y `error-model`. Dominio `app/domain/patients/{errors,rules}.py`, casos de uso en `app/application/patients.py`, API en `app/api/patients.py` (siete endpoints), pantalla `/pacientes` y `PatientSearch`/`PatientForm` reutilizables. Decisiones DD-73 a DD-78. Sin migraciones, dependencias ni variables de entorno nuevas.
 - **Scope**:
   - US-003: pantalla `/pacientes` en React (listado, búsqueda por apellido y documento, alta, edición, desactivación)
   - API `/api/v1/patients`, `PatientRepository` (SQLAlchemy) y casos de uso con validación Pydantic: nombre, apellido, documento y email obligatorios; documento único (RN-PA-01/02); desactivar en lugar de borrar (RN-PA-03)
@@ -286,8 +286,8 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `knowledge-base/05_reglas_de_negocio.md` §RN-PA
   - `knowledge-base/03_actores_y_roles.md` §RBAC
 
+### [C-07] `professional-schedules`
 - **Estado**: `[x]` implementado, verificado y archivado el 2026-11-04 (`openspec/changes/archive/2026-11-04-professional-schedules/`): 42/42 tasks; 1101 tests por defecto, 237 de integración contra PostgreSQL y 117 de frontend; `mypy --strict`, `ruff`, `tsc` y `eslint` limpios; `openspec validate --strict` válido; prueba manual con navegador (task 8.1) confirmada por la usuaria (aviso de conflicto al sacar el viernes a la Dra. A con un turno agendado, edición de fichas, permisos de recepción y de la Dra. A). Dominio `app/domain/schedules/conflicts.py` y `errors.py`, casos de uso en `app/application/professionals.py`, API en `app/api/professionals.py` (nueve endpoints), pantalla `/profesionales`. Specs principales nuevas: `schedule-conflicts`, `professional-schedule-use-cases`, `professional-schedule-api` y `frontend-professional-schedules`; modificadas: `professional-repository`, `schedule-repository` y `error-model`. Decisiones DD-68 a DD-72. Sin migraciones ni variables de entorno nuevas. **Nota para C-09 y C-10**: `GET /api/v1/professionals/{id}/conflicts` devuelve los turnos `scheduled` futuros fuera del horario o en licencia (calculados en el momento, DD-68); C-10 lo usa para su indicador de conflictos.
-- **Estado**: `[~]` implementado, falta la prueba manual con navegador (task 8.1) antes de marcarlo pendiente de archivar (2026-11-04): 41/42 tasks; 1101 tests por defecto, 237 de integración contra PostgreSQL y 117 de frontend; `mypy --strict`, `ruff`, `tsc` y `eslint` limpios; `openspec validate --strict` válido. Dominio `app/domain/schedules/conflicts.py` y `errors.py`, casos de uso en `app/application/professionals.py`, API en `app/api/professionals.py` (nueve endpoints), pantalla `/profesionales`. Decisiones DD-68 a DD-72. Sin migraciones ni variables de entorno nuevas. **Nota para C-09 y C-10**: `GET /api/v1/professionals/{id}/conflicts` devuelve los turnos `scheduled` futuros fuera del horario o en licencia (calculados en el momento, DD-68); C-10 lo usa para su indicador de conflictos.
 - **Scope**:
   - US-004 y US-005: `/profesionales` con listado, edición de `working_hours` (varios tramos por día) y carga de `time_off`
   - Repositorios `WorkingHoursRepository`, `TimeOffRepository`; validación con `domain/schedules` (C-05)
@@ -348,6 +348,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 
 ### [C-10] `appointment-management-ui`
 - **Estado**: `[ ]` pendiente
+- **Nota de C-06 (DD-78)**: reutilizar `PatientSearch` (solo pacientes activos, `onSelect` con id y nombre) y `PatientForm` (alta y edición, `onSaved`) de `frontend/src/patients/` para "buscar o crear paciente" al agendar. Avisar que buscar sin tilde no encuentra con tilde (DD-74).
 - **Scope**:
   - UI para agendar desde un slot libre (buscar/crear paciente inline con C-06), cancelar con motivo, reprogramar y marcar atendido/ausente, conectada a los casos de uso de C-08
   - Mensajes de error claros (slot ocupado, fuera de horario, pasado, paciente inactivo)
@@ -387,6 +388,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `knowledge-base/10_preguntas_abiertas.md` (proveedor SMTP SU-02, Celery DD-10, contenido de la plantilla)
 ### [C-12] `reminders-cron` (Celery Beat)
 - **Estado**: `[ ]` pendiente
+- **Nota de C-06 (P-8, DD-76)**: los turnos `scheduled` futuros de un paciente **inactivo** SIGUEN recibiendo recordatorio mientras no se cancelen (desactivar no los toca, DD-25); C-12 no debe saltear a los pacientes inactivos. Si recepción no quiere que el paciente venga, cancela el turno y el recordatorio no sale (RN-NO-05).
 - **Scope**:
   - Tarea Celery `enviar_recordatorios` y servicio `beat` (Celery Beat) que la dispara cada hora; la tarea solo actúa cuando la hora local del consultorio es `clinic_settings.reminder_send_hour`; app Celery con `timezone` del consultorio y `enable_utc = True`; no hay endpoint HTTP
   - Caso de uso `enviar_recordatorios`: turnos `scheduled` del día siguiente (zona del consultorio) sin `reminder`; un fallo se registra y el lote continúa (US-011); registra `{ processed, sent, failed }` en el log
@@ -406,6 +408,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 
 ### [C-13] `deploy-and-hardening`
 - **Estado**: `[ ]` pendiente
+- **Nota de C-06 (P-10, DD-77)**: la búsqueda de pacientes viaja como `GET /api/v1/patients?q=...`, así que el apellido o documento buscado puede quedar en el registro de accesos del servidor web (nginx/uvicorn). Revisar ese registro (no guardar `q`, o rotarlo) antes de usar datos reales. La aplicación misma no escribe datos de pacientes en errores ni logs.
 - **Scope**:
   - Dockerfile del frontend multi-stage (build con `VITE_API_URL` como build-arg, servido con nginx); en desarrollo, servidor de Vite; Mailpit solo en desarrollo
   - Empaquetado final con Docker Compose: un comando levanta `db`, `redis`, `api`, `worker`, `beat`, `frontend` y `mailpit`; migraciones y seed ficticio aplicados al iniciar
@@ -498,7 +501,7 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-05b | calcular-slots-disponibles (recorte de C-05, archivado `[x]`) | 2 | C-05a | MEDIO |
 | C-05c | completar-dominio-agenda (recorte de C-05, archivado `[x]`) | 2 | C-05b | MEDIO |
 | C-05d | puertos-repositorios-dominio (recorte de C-05, archivado `[x]`) | 2 | C-05c | MEDIO |
-| C-06 | patients-crud | 2 | C-03 | BAJO |
+| C-06 | patients-crud (archivado `[x]`) | 2 | C-03 | BAJO |
 | C-07 | professional-schedules (archivado `[x]`) | 2 | C-03, C-05 | MEDIO |
 | C-08 | appointment-use-cases (archivado `[x]`) | 3 | C-03, C-05 | MEDIO |
 | C-09 | agenda-views | 3 | C-05, C-07, C-08 | BAJO |
@@ -507,4 +510,4 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-12 | reminders-cron | 4 | C-11 | ALTO |
 | C-13 | deploy-and-hardening | 5 | C-04, C-10, C-12 | MEDIO |
 
-**Siguientes changes habilitados**: C-01, C-02, C-03, C-04, C-07 y C-08 ya están archivados. Quedan habilitados `C-06` (patients-crud, BAJO), `C-09` (agenda-views, BAJO; depende de C-07 y C-08, ambos archivados) y `C-11` (email-confirmation-infra, ALTO; depende solo de C-08). Para arrancar: `/opsx:propose C-06-patients-crud`, `C-09-agenda-views` o `C-11-email-confirmation-infra`. Gobernanza CRÍTICA de C-03 ya aprobada y ejecutada.
+**Siguientes changes habilitados**: C-01, C-02, C-03, C-04, C-06, C-07 y C-08 ya están archivados. Quedan habilitados `C-09` (agenda-views, BAJO; depende de C-07 y C-08, ambos archivados) y `C-11` (email-confirmation-infra, ALTO; depende solo de C-08). `C-10` (appointment-management-ui) espera a C-09. Para arrancar: `/opsx:propose C-09-agenda-views` o `C-11-email-confirmation-infra`. Gobernanza CRÍTICA de C-03 ya aprobada y ejecutada.

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 
 from app.application.appointments import AgendaDeps
+from app.application.patients import PatientDeps
 from app.application.professionals import ScheduleDeps
 from app.domain.appointments import Appointment, NewAppointment, Notification
 from app.domain.auth import Principal, Role, UserAccount
@@ -87,6 +88,7 @@ class World:
     )
 
     def __post_init__(self) -> None:
+        self.patients = InMemoryPatientRepository(self.patient_list)
         self.accounts.add(_dentist("u-dra-a", PROF_A))
         self.accounts.add(_dentist("u-dr-b", PROF_B))
         self.working_hours.replace_for_professional(PROF_A, DRA_A_HOURS)
@@ -97,14 +99,12 @@ class World:
         self.accounts.professionals[professional_id] = replace(professional, active=active)
 
     def set_patient_active(self, patient_id: str, active: bool) -> None:
-        self.patient_list = [
-            replace(p, active=active) if p.id == patient_id else p for p in self.patient_list
-        ]
+        self.patients.set_active(patient_id, active)
 
     def deps(self) -> AgendaDeps:
         return AgendaDeps(
             appointments=self.appointments,
-            patients=InMemoryPatientRepository(self.patient_list),
+            patients=self.patients,
             professionals=InMemoryProfessionalRepository(self.accounts),
             working_hours=self.working_hours,
             time_off=self.time_off,
@@ -124,6 +124,19 @@ class World:
             professionals=InMemoryProfessionalRepository(self.accounts),
             working_hours=self.working_hours,
             time_off=self.time_off,
+            appointments=self.appointments,
+            settings=InMemoryClinicSettingsRepository(
+                ClinicSettings(
+                    slot_minutes=self.slot_minutes, min_notice_hours=self.min_notice_hours
+                )
+            ),
+            clock=lambda: self.now,
+        )
+
+    def patient_deps(self) -> PatientDeps:
+        """Los casos de uso de pacientes sobre los mismos repositorios que ``deps()``."""
+        return PatientDeps(
+            patients=self.patients,
             appointments=self.appointments,
             settings=InMemoryClinicSettingsRepository(
                 ClinicSettings(
