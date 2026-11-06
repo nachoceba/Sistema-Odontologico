@@ -211,7 +211,7 @@ describe('carga y errores', () => {
   })
 })
 
-describe('barra de navegación y solo lectura', () => {
+describe('barra de navegación y pedidos de la agenda', () => {
   it('recepción ve Pacientes, Profesionales y Salir pero no Usuarios', async () => {
     installAgendaApi(world())
     open('/agenda')
@@ -231,24 +231,85 @@ describe('barra de navegación y solo lectura', () => {
     expect(await screen.findByRole('link', { name: 'Usuarios' })).toBeInTheDocument()
   })
 
-  it('solo se hacen pedidos GET y no hay botones de agendar, cancelar ni marcar', async () => {
+  it('mirar no escribe: recorrer la semana y abrir dos detalles solo hace GET', async () => {
     const api = installAgendaApi(
       world({
         appointments: [turno(10, 0, 10, 30), turno(11, 0, 11, 30, { status: 'cancelled' })],
       }),
     )
-    open('/agenda')
+    open('/agenda?vista=semana&fecha=2026-11-09')
 
-    await screen.findAllByText('Agendado')
+    fireEvent.click(await screen.findByRole('button', { name: /10:00–10:30 Perez, Juan/ }))
+    await screen.findByRole('complementary')
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
+    fireEvent.click(screen.getByRole('button', { name: /11:00–11:30 Perez, Juan/ }))
+    await screen.findByRole('complementary')
     fireEvent.click(screen.getByRole('button', { name: 'Actualizar' }))
     await waitFor(() => {
-      expect(api.calls.filter((c) => c.startsWith('GET /appointments')).length).toBeGreaterThan(1)
+      expect(api.calls.filter((c) => c.startsWith('GET /appointments?')).length).toBeGreaterThan(1)
     })
 
     expect(api.calls.every((c) => c.startsWith('GET '))).toBe(true)
-    for (const name of [/agendar/i, /cancelar/i, /reprogramar/i, /marcar/i]) {
-      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+  })
+
+  it('después de agendar la agenda se vuelve a pedir sin apretar Actualizar', async () => {
+    const api = installAgendaApi(world({ patients: [{ id: 'pac-1', first_name: 'Juan', last_name: 'Perez' }] }))
+    open('/agenda?fecha=2026-11-10')
+    await screen.findAllByText('Libre')
+    const before = api.calls.filter((c) => c.startsWith('GET /appointments?')).length
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Agendar' })[0] as HTMLElement)
+    fireEvent.change(await screen.findByRole('searchbox', { name: 'Buscar paciente' }), {
+      target: { value: 'perez' },
+    })
+    fireEvent.click(await screen.findByRole('button', { name: 'Perez, Juan' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Agendar turno' }))
+
+    expect(await screen.findByText('09:00–09:30 Perez, Juan')).toBeInTheDocument()
+    expect(api.calls.filter((c) => c.startsWith('GET /appointments?')).length).toBeGreaterThan(
+      before,
+    )
+    expect(api.posts.map((p) => p.path)).toEqual(['/appointments'])
+  })
+
+  it('la odontóloga solo envía como escritura dos POST de asistencia', async () => {
+    vi.setSystemTime(new Date('2026-11-09T17:00:00Z')) // 14:00 en el consultorio
+    const first = turno(10, 0, 10, 30)
+    const second = turno(11, 0, 11, 30)
+    const api = installAgendaApi(
+      world({ me: DENTIST, professionals: [DRA], appointments: [first, second] }),
+    )
+    open('/agenda')
+
+    for (const name of [/10:00–10:30 Perez, Juan/, /11:00–11:30 Perez, Juan/]) {
+      fireEvent.click(await screen.findByRole('button', { name }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Ausente' }))
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Ausente' }))
+      await screen.findByText('Asistencia registrada')
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      })
     }
+
+    const writes = api.calls.filter((c) => !c.startsWith('GET '))
+    expect(writes).toEqual([
+      `POST /appointments/${first.id}/attendance`,
+      `POST /appointments/${second.id}/attendance`,
+    ])
+  })
+
+  it('nunca se envían PUT, PATCH ni DELETE al usar las acciones', async () => {
+    const juan = turno(15, 0, 15, 30)
+    const api = installAgendaApi(world({ appointments: [juan] }))
+    open('/agenda')
+
+    fireEvent.click(await screen.findByRole('button', { name: /15:00–15:30 Perez, Juan/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }))
+    fireEvent.change(screen.getByLabelText('Motivo'), { target: { value: 'Motivo' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar turno' }))
+    await screen.findByText('Turno cancelado')
+
+    expect(api.calls.some((c) => /^(PUT|PATCH|DELETE) /.test(c))).toBe(false)
   })
 
   it('Actualizar trae un turno nuevo', async () => {

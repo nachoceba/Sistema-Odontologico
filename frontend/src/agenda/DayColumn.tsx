@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { formatDayLabel, formatLocalTime } from './dates'
 import type { AppointmentItem, DayColumn as DayColumnModel, GridRow } from './grid'
 import {
@@ -14,19 +15,51 @@ function range(startsAt: string, endsAt: string): string {
   return `${formatLocalTime(startsAt)}–${formatLocalTime(endsAt)}`
 }
 
-function AppointmentLine({ item }: { item: AppointmentItem }) {
-  return (
-    <li className={`appointment appointment--${item.status}`}>
+/** Acciones opcionales de C-10; sin ellas la columna es de solo lectura como en C-09. */
+export interface DayActions {
+  onBookSlot?: (slot: { startsAt: string; endsAt: string }) => void
+  canBook?: (slot: { startsAt: string }) => boolean
+  onSelectAppointment?: (id: string) => void
+}
+
+function AppointmentLine({
+  item,
+  onSelect,
+}: {
+  item: AppointmentItem
+  onSelect: ((id: string) => void) | undefined
+}) {
+  const content = (
+    <>
       <span className="appointment-text">{`${range(item.startsAt, item.endsAt)} ${item.patientName}`}</span>{' '}
       <span className="status-tag">{STATUS_LABELS[item.status]}</span>
       {item.conflict === null ? null : (
         <span className="conflict-tag">{CONFLICT_LABELS[item.conflict]}</span>
       )}
+    </>
+  )
+  return (
+    <li className={`appointment appointment--${item.status}`}>
+      {onSelect === undefined ? (
+        content
+      ) : (
+        <button
+          type="button"
+          className="appointment-button"
+          onClick={() => {
+            onSelect(item.id)
+          }}
+        >
+          {content}
+        </button>
+      )}
     </li>
   )
 }
 
-function Row({ row }: { row: GridRow }) {
+function Row({ row, actions }: { row: GridRow; actions: DayActions }) {
+  const timeId = useId()
+  const { onBookSlot, canBook, onSelectAppointment } = actions
   if (row.kind === 'outside') {
     return (
       <li className="slot slot--outside">
@@ -38,19 +71,36 @@ function Row({ row }: { row: GridRow }) {
     return (
       <li className="slot slot--appointment">
         <ul className="appointment-list">
-          <AppointmentLine item={row.appointment} />
+          <AppointmentLine item={row.appointment} onSelect={onSelectAppointment} />
         </ul>
       </li>
     )
   }
   return (
     <li className={`slot slot--${row.kind}`}>
-      <span className="slot-time">{range(row.startsAt, row.endsAt)}</span>{' '}
+      <span className="slot-time" id={timeId}>
+        {range(row.startsAt, row.endsAt)}
+      </span>{' '}
       <span className="slot-label">{row.kind === 'busy' ? BUSY_LABEL : FREE_LABEL}</span>
+      {row.kind === 'free' && onBookSlot !== undefined && canBook?.({ startsAt: row.startsAt }) === true ? (
+        <>
+          {' '}
+          <button
+            type="button"
+            className="book-button"
+            aria-describedby={timeId}
+            onClick={() => {
+              onBookSlot({ startsAt: row.startsAt, endsAt: row.endsAt })
+            }}
+          >
+            Agendar
+          </button>
+        </>
+      ) : null}
       {row.appointments.length === 0 ? null : (
         <ul className="appointment-list">
           {row.appointments.map((item) => (
-            <AppointmentLine key={item.id} item={item} />
+            <AppointmentLine key={item.id} item={item} onSelect={onSelectAppointment} />
           ))}
         </ul>
       )}
@@ -58,7 +108,7 @@ function Row({ row }: { row: GridRow }) {
   )
 }
 
-interface DayColumnProps {
+interface DayColumnProps extends DayActions {
   column: DayColumnModel
   /** Resalta el día de hoy. */
   highlight?: boolean
@@ -66,8 +116,13 @@ interface DayColumnProps {
   onSelectDay?: (date: string) => void
 }
 
-/** Una columna de día de solo lectura; C-10 le suma las acciones sobre franjas y turnos. */
-export function DayColumn({ column, highlight = false, onSelectDay }: DayColumnProps) {
+/** Una columna de día; con las props de acciones permite agendar y elegir turnos (C-10). */
+export function DayColumn({
+  column,
+  highlight = false,
+  onSelectDay,
+  ...actions
+}: DayColumnProps) {
   const label = formatDayLabel(column.date)
   const { header } = column
   return (
@@ -94,7 +149,7 @@ export function DayColumn({ column, highlight = false, onSelectDay }: DayColumnP
       {header.kind === 'no_hours' ? <p className="day-banner">{NO_HOURS_MESSAGE}</p> : null}
       <ul className="slot-list">
         {column.rows.map((row) => (
-          <Row key={row.key} row={row} />
+          <Row key={row.key} row={row} actions={actions} />
         ))}
       </ul>
     </section>

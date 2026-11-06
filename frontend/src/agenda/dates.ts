@@ -64,3 +64,8 @@ export function formatDayLabel(isoDate: string): string {
   const weekday = (new Date(toUtcMs(isoDate)).getUTCDay() + 6) % 7
   return `${DAY_ABBREVIATIONS[weekday] ?? ''} ${isoDate.slice(8, 10)}/${isoDate.slice(5, 7)}`
 }
+
+/** Fecha local del consultorio (`AAAA-MM-DD`) de un instante UTC. */
+export function localDateOf(utcInstant: string): string {
+  return todayInClinic(new Date(utcInstant))
+}

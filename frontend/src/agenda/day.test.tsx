@@ -1,5 +1,5 @@
-import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import { DayColumn } from './DayColumn'
 import { at, daySlots, turno } from './fixtures'
 import { buildDayColumn, type DayColumn as DayColumnModel } from './grid'
@@ -157,5 +157,87 @@ describe('DayColumn', () => {
     screen.getByRole('button', { name: 'Lun 09/11' }).click()
     expect(picked).toEqual([DATE])
     expect(screen.getByRole('region', { name: 'Lun 09/11' })).toHaveClass('day-column--today')
+  })
+})
+
+describe('DayColumn con acciones opcionales (C-10)', () => {
+  const slots = daySlots(
+    [
+      [9, 13],
+      [14, 18],
+    ],
+    { busy: ['10:00'] },
+  )
+  const juan = turno(10, 0, 10, 30, { patient_first_name: 'Juan', patient_last_name: 'Perez' })
+
+  it('con onBookSlot y canBook, la franja libre permitida muestra Agendar y avisa la franja', () => {
+    const onBookSlot = vi.fn()
+    render(
+      <DayColumn
+        column={column({ slots, appointments: [juan] })}
+        onBookSlot={onBookSlot}
+        canBook={(slot) => slot.startsAt === at(9)}
+      />,
+    )
+
+    const buttons = screen.getAllByRole('button', { name: 'Agendar' })
+    expect(buttons).toHaveLength(1)
+    fireEvent.click(buttons[0] as HTMLElement)
+
+    expect(onBookSlot).toHaveBeenCalledTimes(1)
+    expect(onBookSlot).toHaveBeenCalledWith({ startsAt: at(9), endsAt: at(9, 30) })
+  })
+
+  it('canBook en verdadero para todas ofrece Agendar solo en las libres, no en las ocupadas', () => {
+    render(
+      <DayColumn
+        column={column({ slots, appointments: [juan] })}
+        onBookSlot={vi.fn()}
+        canBook={() => true}
+      />,
+    )
+
+    expect(screen.getAllByRole('button', { name: 'Agendar' })).toHaveLength(15)
+    const busy = screen.getByText('Ocupado').closest('li') as HTMLElement
+    expect(within(busy).queryByRole('button', { name: 'Agendar' })).not.toBeInTheDocument()
+  })
+
+  it('con onSelectAppointment, el turno es un botón que avisa su id', () => {
+    const onSelectAppointment = vi.fn()
+    render(
+      <DayColumn
+        column={column({ slots, appointments: [juan] })}
+        onSelectAppointment={onSelectAppointment}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Perez, Juan/ }))
+
+    expect(onSelectAppointment).toHaveBeenCalledWith(juan.id)
+    expect(screen.getByText('10:00–10:30 Perez, Juan')).toBeInTheDocument()
+  })
+
+  it('los turnos sueltos y cancelados también se pueden elegir', () => {
+    const cancelado = turno(11, 0, 11, 30, { status: 'cancelled', patient_last_name: 'Gomez' })
+    const suelto = turno(18, 0, 18, 30, { patient_last_name: 'Ruiz' })
+    const onSelectAppointment = vi.fn()
+    render(
+      <DayColumn
+        column={column({ slots, appointments: [juan, cancelado, suelto] })}
+        onSelectAppointment={onSelectAppointment}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Gomez/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Ruiz/ }))
+
+    expect(onSelectAppointment).toHaveBeenNthCalledWith(1, cancelado.id)
+    expect(onSelectAppointment).toHaveBeenNthCalledWith(2, suelto.id)
+  })
+
+  it('sin esas props no hay ningún botón (comportamiento de C-09)', () => {
+    render(<DayColumn column={column({ slots, appointments: [juan] })} />)
+
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 })

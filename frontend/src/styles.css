@@ -194,7 +194,7 @@ button.secondary {
   background: #fff;
 }
 
-/* Agenda (C-09): solo lectura. Los estados se distinguen por texto además del color. */
+/* Agenda (C-09). Los estados se distinguen por texto además del color. */
 .agenda-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -330,4 +330,176 @@ button[aria-pressed='true'] {
   border-color: #b45309;
   background: #fff7ed;
   color: #7c2d12;
+}
+
+/* Gestión de turnos (C-10): panel lateral, diálogos y acciones sobre la grilla. */
+button.danger {
+  background: #b3261e;
+}
+
+button.book-button,
+button.appointment-button {
+  padding: 0.15rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+button.book-button {
+  border: 1px solid #0b6e8a;
+  background: transparent;
+  color: #0b6e8a;
+  font-weight: 600;
+}
+
+button.appointment-button {
+  display: block;
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  text-align: left;
+}
+
+button.appointment-button:hover {
+  border-color: #0b6e8a;
+  background: #eef6f9;
+}
+
+.side-panel {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 10;
+  width: min(24rem, 100%);
+  overflow-y: auto;
+  padding: 1.25rem;
+  border-left: 1px solid #c9d3da;
+  background: #fff;
+  box-shadow: -8px 0 24px rgb(0 0 0 / 12%);
+  animation: panel-in 160ms ease-out;
+}
+
+.side-panel-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.side-panel-title:focus {
+  outline: none;
+}
+
+@keyframes panel-in {
+  from {
+    transform: translateX(1.5rem);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side-panel {
+    animation: none;
+  }
+}
+
+@media (max-width: 40rem) {
+  .side-panel {
+    width: 100%;
+    border-left: 0;
+  }
+}
+
+.detail-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0 0 0.75rem;
+}
+
+.detail-list dt {
+  color: #5b6770;
+}
+
+.detail-list dd {
+  margin: 0;
+}
+
+.hint {
+  margin: 0.4rem 0;
+  color: #5b6770;
+  font-size: 0.9rem;
+}
+
+.notice--ok {
+  border-left-color: #14532d;
+  background: #ecf7ef;
+}
+
+.dialog {
+  width: min(28rem, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0.5rem 0;
+}
+
+.dialog textarea,
+.dialog input[type='date'] {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #8a99a6;
+  border-radius: 0.4rem;
+  font: inherit;
+}
+
+.slot-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conflicts-panel {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid #b45309;
+  background: #fff7ed;
+}
+
+.conflicts-panel h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.conflict-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conflict-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid #f1d9b8;
+}
+
+.conflict-when {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.conflict-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-left: auto;
 }

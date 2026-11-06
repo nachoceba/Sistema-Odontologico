@@ -21,7 +21,7 @@
 | RESUELTA | Si cambia un horario y hay turnos afectados, ¿se avisa al paciente o solo a recepción? (RN-HO-04): solo a recepción, en pantalla (DD-68, confirmado en C-07 el 2026-11-03) | — | Product Owner |
 | Media | ¿Un paciente puede tener varios turnos el mismo día? (SU-05) | Validación de turnos | Product Owner |
 | RESUELTA | ¿Un paciente puede tener dos turnos a la misma hora con profesionales distintos? (H-2, SU-05): no, se rechaza con `PATIENT_DOUBLE_BOOKED` (DD-63, confirmado en C-08 el 2026-11-03) | — | Product Owner |
-| Media | ¿Se permite saltar la anticipación mínima para un turno urgente del mismo día (emergencia) y quién puede hacerlo? (RN-TU-12, DD-14; fuera del change `crear-turno-sin-solapamientos`) | Validación de turnos | Dueño / Product Owner |
+| Media | **RESUELTA (DD-65, sin excepción de urgencias).** ¿Se permite saltar la anticipación mínima para un turno urgente del mismo día (emergencia) y quién puede hacerlo? (RN-TU-12, DD-14; fuera del change `crear-turno-sin-solapamientos`) | Validación de turnos | Dueño / Product Owner |
 | Media | ¿El recordatorio debe incluir dirección, teléfono u otra información del consultorio? | Plantilla de email | Dueño |
 | Media | ¿Cuál es la zona horaria del consultorio? (SU-01) | Fechas y cron | Dueño |
 | Baja | ¿Qué duración de slot usa el consultorio realmente: 15, 20, 30 min? | Configuración | Dueño |

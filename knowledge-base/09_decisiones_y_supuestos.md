@@ -487,6 +487,21 @@
 **Alternativas consideradas**: panel de detalle en C-09; refresco cada minuto; partir en C-09a y C-09b.
 **Justificación**: mantiene C-09 chico, la agenda no puede tocar nada (regla dura 6) y el contrato y la pantalla se prueban juntos.
 
+### DD-84 — Cómo se agenda desde la pantalla (P-1, P-6 y P-7 de C-10)
+**Decisión**: "Agendar" aparece en toda franja "Libre" que todavía no empezó, para administración y recepción y con el profesional activo; la pantalla no conoce la anticipación mínima y, si falta menos, el servidor responde `INSUFFICIENT_NOTICE` y se muestra "Ese horario ya pasó o no respeta la anticipación mínima del consultorio". El panel de agendar muestra siempre, debajo del buscador, el aviso de que la búsqueda distingue tildes (DD-74); `/pacientes` no cambia. Ante un rechazo con código se muestra el mensaje, el panel queda abierto con lo elegido y la agenda se vuelve a pedir detrás.
+**Alternativas consideradas**: endpoint de configuración del consultorio para ocultar franjas cercanas; "Agendar" también en franjas pasadas; aviso de tildes solo sin resultados o también en `/pacientes`; solo el mensaje sin recargar.
+**Justificación**: no toca el servidor, nunca ofrece un horario pasado y el choque de slot se entiende al instante.
+
+### DD-85 — Cancelar, reprogramar y marcar atención en pantalla (P-2, P-3 y P-4 de C-10)
+**Decisión**: el motivo de cancelación es un texto libre obligatorio de hasta 500 caracteres. Reprogramar abre una ventana con una fecha (al abrir, la del turno) y los horarios libres no iniciados de ese día del mismo profesional, con un paso de confirmación "Mover de … a …". Marcar atendido o ausente pide confirmación ("Después no se puede cambiar", DD-22).
+**Alternativas consideradas**: lista de motivos frecuentes; modo reprogramar sobre la agenda; fecha y hora escritas a mano; marcar con un solo clic.
+**Justificación**: es lo que ya acepta el servidor, solo ofrece horarios libres y un clic equivocado en la asistencia no se puede corregir.
+
+### DD-86 — Dónde están las acciones, conflictos y tamaño (P-5, P-8 y P-9 de C-10)
+**Decisión**: "Agendar" va directo en cada franja libre; los turnos se tocan y abren un panel de detalle con sus acciones, igual en "Día" y "Semana"; las acciones que no corresponden se ocultan. Para administración y recepción, arriba de la agenda un aviso "N turnos en conflicto" lista todos los de `GET /professionals/{id}/conflicts` (nombre del paciente pedido turno por turno con `GET /appointments/{id}`) con "Reprogramar", "Cancelar" y "Ver en la agenda"; el odontólogo solo ve la marca. C-10 es un solo change por grupos, con puntos de corte tras los grupos 6 y 8. Actualiza DD-81 (los conflictos ya se pueden resolver) y DD-83 (la agenda deja de ser de solo lectura).
+**Alternativas consideradas**: botones pegados a cada turno; acciones solo en "Día"; nombres en la respuesta de conflictos; sin lista de conflictos; partir en C-10a y C-10b.
+**Justificación**: la grilla queda limpia, el detalle muestra motivo y conflicto antes de decidir y no hay cambios de backend.
+
 ## Supuestos inferidos
 
 ### SU-01 — Zona horaria única

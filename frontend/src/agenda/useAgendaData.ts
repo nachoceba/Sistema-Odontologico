@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
-import { getDaySlots, listAppointments } from '../api/appointments'
-import { listConflicts, listTimeOff } from '../api/professionals'
+import { getDaySlots, listAppointments, type Appointment } from '../api/appointments'
+import { listConflicts, listTimeOff, type Conflict } from '../api/professionals'
 import { NETWORK_MESSAGE, messageForError } from '../users/messages'
 import { buildDayColumn, type DayColumn } from './grid'
 
 export type AgendaData =
   | { status: 'loading' }
   | { status: 'error'; message: string; retryable: boolean }
-  | { status: 'ready'; columns: DayColumn[] }
+  | { status: 'ready'; columns: DayColumn[]; appointments: Appointment[]; conflicts: Conflict[] }
 
 async function load(professionalId: string, dates: readonly string[]): Promise<AgendaData> {
   try {
@@ -25,6 +25,8 @@ async function load(professionalId: string, dates: readonly string[]): Promise<A
         : await listAppointments(professionalId, first.starts_at, last.ends_at)
     return {
       status: 'ready',
+      appointments,
+      conflicts,
       columns: dates.map((date, index) =>
         buildDayColumn({
           date,

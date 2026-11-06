@@ -67,7 +67,7 @@ function postCalls(fetchMock: ReturnType<typeof vi.fn>): [string, RequestInit][]
 
 describe('formulario de alta y edición de pacientes', () => {
   it('el alta envía POST y el paciente nuevo aparece en la tabla', async () => {
-    let listed = [JUAN]
+    let listed: Array<typeof JUAN | typeof LAURA> = [JUAN]
     const fetchMock = mockApi({
       'GET /auth/me': () => jsonResponse(RECEPTIONIST),
       'GET /patients': () => jsonResponse({ items: listed, truncated: false }),

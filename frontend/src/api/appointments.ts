@@ -17,6 +17,20 @@ export interface Appointment {
   created_by: string
 }
 
+/** Turno tal como lo devuelven agendar, cancelar, reprogramar y marcar: sin nombre del paciente. */
+export interface AppointmentRecord {
+  id: string
+  patient_id: string
+  professional_id: string
+  starts_at: string
+  ends_at: string
+  status: AppointmentStatus
+  cancel_reason: string | null
+  created_by: string
+}
+
+export type AttendanceStatus = 'completed' | 'no_show'
+
 /** Franja de un día local del profesional; instantes UTC. */
 export interface Slot {
   starts_at: string
@@ -44,4 +58,42 @@ export async function getDaySlots(professionalId: string, date: string): Promise
     'GET',
   )
   return (await response.json()) as Slot[]
+}
+
+async function send(path: string, body: unknown): Promise<AppointmentRecord> {
+  const response = await request(path, 'POST', body)
+  return (await response.json()) as AppointmentRecord
+}
+
+const appointmentPath = (id: string): string => `/appointments/${encodeURIComponent(id)}`
+
+/** Agenda un turno; `startsAt` va tal como lo devolvió el servidor en la franja (UTC). */
+export function bookAppointment(input: {
+  patientId: string
+  professionalId: string
+  startsAt: string
+}): Promise<AppointmentRecord> {
+  return send('/appointments', {
+    patient_id: input.patientId,
+    professional_id: input.professionalId,
+    starts_at: input.startsAt,
+  })
+}
+
+export function cancelAppointment(id: string, reason: string): Promise<AppointmentRecord> {
+  return send(`${appointmentPath(id)}/cancel`, { reason })
+}
+
+export function rescheduleAppointment(id: string, startsAt: string): Promise<AppointmentRecord> {
+  return send(`${appointmentPath(id)}/reschedule`, { starts_at: startsAt })
+}
+
+export function recordAttendance(id: string, status: AttendanceStatus): Promise<AppointmentRecord> {
+  return send(`${appointmentPath(id)}/attendance`, { status })
+}
+
+/** Un turno con el nombre vigente del paciente (DD-79). */
+export async function getAppointment(id: string): Promise<Appointment> {
+  const response = await request(appointmentPath(id), 'GET')
+  return (await response.json()) as Appointment
 }
