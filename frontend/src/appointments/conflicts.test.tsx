@@ -132,7 +132,7 @@ describe('lista de turnos en conflicto', () => {
     fireEvent.click(await screen.findByRole('button', { name: '10:00–10:30' }))
     fireEvent.click(screen.getByRole('button', { name: 'Reprogramar turno' }))
 
-    expect(await screen.findByText('Turno reprogramado: Lun 16/11 10:00')).toBeInTheDocument()
+    expect(await screen.findByText('Turno reprogramado: Lun 16/11 10:00. Se enviará la confirmación por email al paciente.')).toBeInTheDocument()
     await waitFor(() => {
       expect(screen.queryByRole('region', { name: /en conflicto/ })).not.toBeInTheDocument()
     })

@@ -33,7 +33,8 @@ def _new_user(**overrides: object) -> dict[str, object]:
 
 
 def _login(client: TestClient, email: str, password: str) -> int:
-    return client.post(LOGIN, json={"email": email, "password": password}).status_code
+    status: int = client.post(LOGIN, json={"email": email, "password": password}).status_code
+    return status
 
 
 # --- Listado -------------------------------------------------------------------------------------

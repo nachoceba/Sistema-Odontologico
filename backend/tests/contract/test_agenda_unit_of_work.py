@@ -15,6 +15,7 @@ from app.domain.appointments import (
     AppointmentStatus,
     NewAppointment,
     NotificationRepository,
+    NotificationStatus,
     SlotTakenError,
 )
 from tests.contract.conftest import Refs, RepositoryFactory
@@ -138,3 +139,45 @@ def test_each_unit_is_independent_of_a_previous_rolled_back_one(
         saved = uow.appointments.add(new(ids, monday(10)))  # el horario quedo libre
 
     assert appointments.get(saved.id) == saved
+
+
+# --- Envio de notificaciones con la misma unidad de trabajo (C-11, design D-3) ----------------
+
+
+def test_claim_and_mark_sent_inside_the_unit_are_saved_on_commit(
+    factory: RepositoryFactory,
+    repos: tuple[AppointmentRepository, NotificationRepository],
+    ids: Refs,
+) -> None:
+    appointments, notifications = repos
+    mine = appointments.add(new(ids, monday(10)))
+    pending = notifications.add_pending_confirmation(mine.id, mine.starts_at)
+    assert pending is not None
+
+    with factory.unit_of_work()() as uow:
+        claimed = uow.notifications.claim_pending(pending.id)
+        assert claimed is not None
+        assert uow.appointments.get(claimed.appointment_id) == mine
+        assert uow.notifications.mark_sent(pending.id, monday(9)) is True
+
+    [row] = notifications.list_for_appointment(mine.id)
+    assert row.status is NotificationStatus.SENT
+    assert row.sent_at == monday(9)
+
+
+def test_an_error_after_marking_sent_leaves_the_notification_pending(
+    factory: RepositoryFactory,
+    repos: tuple[AppointmentRepository, NotificationRepository],
+    ids: Refs,
+) -> None:
+    appointments, notifications = repos
+    mine = appointments.add(new(ids, monday(10)))
+    pending = notifications.add_pending_confirmation(mine.id, mine.starts_at)
+    assert pending is not None
+
+    with pytest.raises(Boom), factory.unit_of_work()() as uow:
+        uow.notifications.claim_pending(pending.id)
+        uow.notifications.mark_failed(pending.id, "SMTP_PERMANENT 550")
+        raise Boom
+
+    assert notifications.list_for_appointment(mine.id) == [pending]

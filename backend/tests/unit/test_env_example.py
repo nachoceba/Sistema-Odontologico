@@ -61,6 +61,10 @@ def test_postgres_and_vite_variables_are_declared(example: dict[str, str]) -> No
         assert name in example
 
 
+def test_email_redirect_is_declared_empty_in_example(example: dict[str, str]) -> None:
+    assert example["EMAIL_REDIRECT_TO"] == ""
+
+
 @pytest.mark.parametrize("name", EMPTY_REQUIRED)
 def test_secrets_are_empty_in_example(example: dict[str, str], name: str) -> None:
     assert example[name] == ""

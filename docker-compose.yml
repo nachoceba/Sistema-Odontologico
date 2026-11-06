@@ -60,6 +60,8 @@ services:
     <<: *backend
     command: ["celery", "-A", "app.infrastructure.tasks.celery_app", "worker", "--loglevel=INFO"]
     depends_on:
+      db:
+        condition: service_healthy
       redis:
         condition: service_healthy
 

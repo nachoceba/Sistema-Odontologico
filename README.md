@@ -59,6 +59,14 @@ Requisito: Docker Desktop. No hace falta instalar Python, PostgreSQL ni Redis: e
 
 PostgreSQL y Redis no publican puertos: solo los ven los demás contenedores (`docker compose exec db psql -U odonto`).
 
+### Emails de confirmación
+
+Al agendar o reprogramar un turno, el servidor encola el envío de la confirmación (texto plano) y el `worker` la manda por SMTP. En desarrollo y en la demo el servidor SMTP es Mailpit: abrir http://localhost:8025 para ver los emails; no sale ningún email real. Si Redis o el `worker` están caídos, el turno se guarda igual y la confirmación queda `pending`: `beat` la reencola cada 10 minutos.
+
+El adaptador SMTP se configura solo con las variables `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_USE_TLS` y `EMAIL_FROM` del `.env` local (nunca en el repositorio ni en el frontend); cambiar de servidor no requiere tocar el código. La variable opcional `EMAIL_REDIRECT_TO` manda todos los emails a una única casilla con la línea "Email de demostración"; vacía, van al email del paciente.
+
+Tras actualizar el código: reconstruir la imagen (`docker compose build api worker beat`), aplicar la migración que agrega la antigüedad de las notificaciones (`docker compose exec api alembic upgrade head`) y reiniciar `worker` y `beat`.
+
 3. Chequeos del backend dentro del contenedor:
 
    ```bash

@@ -5,15 +5,19 @@ Respeta el ``UNIQUE (turno, tipo, horario)`` de la base. No es seguro entre hilo
 
 from __future__ import annotations
 
-from datetime import datetime
+from collections.abc import Callable
+from dataclasses import replace
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from app.domain.appointments.types import Notification, NotificationKind, NotificationStatus
 
 
 class InMemoryNotificationRepository:
-    def __init__(self) -> None:
+    def __init__(self, clock: Callable[[], datetime] | None = None) -> None:
         self._rows: dict[str, Notification] = {}
+        self._created: dict[str, datetime] = {}
+        self._clock = clock if clock is not None else lambda: datetime.now(UTC)
 
     def snapshot(self) -> dict[str, Notification]:
         """Copia del estado, para que la unidad de trabajo pueda revertir."""
@@ -21,6 +25,7 @@ class InMemoryNotificationRepository:
 
     def restore(self, state: dict[str, Notification]) -> None:
         self._rows = dict(state)
+        self._created = {key: when for key, when in self._created.items() if key in state}
 
     def add_pending_confirmation(
         self, appointment_id: str, starts_at: datetime
@@ -47,14 +52,46 @@ class InMemoryNotificationRepository:
         rows = [row for row in self._rows.values() if row.appointment_id == appointment_id]
         return sorted(rows, key=lambda row: (row.appointment_starts_at, row.kind.value))
 
+    def list_pending_created_before(self, before: datetime, limit: int) -> list[Notification]:
+        old = [
+            row
+            for row in self._rows.values()
+            if row.status is NotificationStatus.PENDING and self._created[row.id] < before
+        ]
+        old.sort(key=lambda row: self._created[row.id])
+        return old[:limit]
+
+    def claim_pending(self, notification_id: str) -> Notification | None:
+        row = self._rows.get(notification_id)
+        return row if row is not None and row.status is NotificationStatus.PENDING else None
+
+    def mark_sent(self, notification_id: str, sent_at: datetime) -> bool:
+        row = self.claim_pending(notification_id)
+        if row is None:
+            return False
+        self._rows[notification_id] = replace(
+            row, status=NotificationStatus.SENT, sent_at=sent_at, error=None
+        )
+        return True
+
+    def mark_failed(self, notification_id: str, error: str) -> bool:
+        row = self.claim_pending(notification_id)
+        if row is None:
+            return False
+        self._rows[notification_id] = replace(
+            row, status=NotificationStatus.FAILED, sent_at=None, error=error
+        )
+        return True
+
     def seed(
         self,
         appointment_id: str,
         kind: NotificationKind,
         status: NotificationStatus,
         starts_at: datetime,
+        created_at: datetime | None = None,
     ) -> Notification:
-        """Carga una fila con cualquier estado (atajo de tests: el envio es de C-11)."""
+        """Carga una fila con cualquier estado y fecha de alta (atajo de tests)."""
         if self._exists(appointment_id, kind, starts_at):
             raise ValueError("ya existe una notificacion con ese turno, tipo y horario")
         row = Notification(
@@ -67,6 +104,7 @@ class InMemoryNotificationRepository:
             appointment_starts_at=starts_at,
         )
         self._rows[row.id] = row
+        self._created[row.id] = created_at if created_at is not None else self._clock()
         return row
 
     def _exists(self, appointment_id: str, kind: NotificationKind, starts_at: datetime) -> bool:

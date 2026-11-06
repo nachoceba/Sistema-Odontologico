@@ -14,6 +14,33 @@ def test_defaults_when_nothing_is_configured(factory: RepositoryFactory) -> None
     assert settings.slot_minutes == 30
     assert settings.timezone == "America/Argentina/Buenos_Aires"
     assert settings.min_notice_hours == 6
+    assert settings.reminder_send_hour == 9
+    assert settings.clinic_name == "Consultorio"
+    assert settings.address == ""
+    assert settings.phone is None
+
+
+def test_clinic_data_for_the_emails_is_returned(factory: RepositoryFactory) -> None:
+    configured = ClinicSettings(
+        clinic_name="Consultorio Demo",
+        address="Av. Siempre Viva 742",
+        phone="011 4000-0000",
+        reminder_send_hour=8,
+    )
+    settings = factory.settings(configured).get()
+    assert settings.clinic_name == "Consultorio Demo"
+    assert settings.address == "Av. Siempre Viva 742"
+    assert settings.phone == "011 4000-0000"
+    assert settings.reminder_send_hour == 8
+    assert settings.slot_minutes == 30
+
+
+def test_a_clinic_without_phone_returns_no_phone(factory: RepositoryFactory) -> None:
+    settings = factory.settings(
+        ClinicSettings(clinic_name="Otro Consultorio", address="Calle 1", phone=None)
+    ).get()
+    assert settings.phone is None
+    assert settings.clinic_name == "Otro Consultorio"
 
 
 def test_configured_values_are_returned(factory: RepositoryFactory) -> None:

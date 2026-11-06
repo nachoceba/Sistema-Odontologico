@@ -1,4 +1,4 @@
-"""Despachador de notificaciones de C-08: no hace nada (C-11 lo reemplaza por el encolado)."""
+"""Despachador que no hace nada: doble de tests (en produccion encola el de Celery)."""
 
 from __future__ import annotations
 

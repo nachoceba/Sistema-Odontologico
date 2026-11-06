@@ -222,17 +222,12 @@ def test_the_default_clock_is_the_current_utc_instant() -> None:
     assert before <= moment <= after
 
 
-def test_the_default_agenda_wiring_has_a_dispatcher_that_does_nothing() -> None:
+def test_the_default_agenda_wiring_has_the_celery_dispatcher() -> None:
     from app.api.dependencies import get_agenda_deps
-    from app.domain.appointments import Notification, NotificationKind, NotificationStatus
-    from app.infrastructure.notifications import NoOpNotificationDispatcher
+    from app.infrastructure.tasks.dispatcher import CeleryNotificationDispatcher
 
     fixed = datetime(2026, 10, 5, 13, 0, tzinfo=UTC)
     deps = get_agenda_deps(lambda: fixed)
 
-    assert isinstance(deps.dispatcher, NoOpNotificationDispatcher)
+    assert isinstance(deps.dispatcher, CeleryNotificationDispatcher)
     assert deps.clock() == fixed
-    notification = Notification(
-        "n-1", "t-1", NotificationKind.CONFIRMATION, NotificationStatus.PENDING, None, None, fixed
-    )
-    assert deps.dispatcher.dispatch([notification]) is None

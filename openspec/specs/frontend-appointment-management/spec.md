@@ -44,11 +44,11 @@ Un turno "Cancelado", "Atendido" o "Ausente" MUST NOT ofrecer ninguna acción (D
 
 ### Requirement: Agendar desde una franja libre (US-007, Flujo 2, RN-TU-01 a RN-TU-04, RN-TU-12)
 
-"Agendar" en una franja libre SHALL abrir un panel con la fecha y la hora local de la franja (`Lun 09/11 10:00–10:30`) y el nombre del profesional, donde se elige o se crea el paciente. El botón "Agendar turno" MUST estar habilitado solo con un paciente elegido y MUST enviar un único `POST /api/v1/appointments` con el paciente, el profesional y el inicio de la franja tal como lo devolvió el servidor; mientras espera MUST quedar deshabilitado (un doble clic envía un solo pedido). Con 201, el panel MUST cerrarse, mostrarse "Turno agendado: <Apellido, Nombre>, <día> <HH:MM>" y la agenda MUST volver a pedirse, con la franja ahora "Ocupado". Con un rechazo, el panel MUST quedar abierto con el mensaje del código (requirement "Mensajes de error por código"), el paciente elegido MUST conservarse y la agenda MUST volver a pedirse detrás. El aviso de éxito MUST NOT mencionar emails (los envía C-11).
+"Agendar" en una franja libre SHALL abrir un panel con la fecha y la hora local de la franja (`Lun 09/11 10:00–10:30`) y el nombre del profesional, donde se elige o se crea el paciente. El botón "Agendar turno" MUST estar habilitado solo con un paciente elegido y MUST enviar un único `POST /api/v1/appointments` con el paciente, el profesional y el inicio de la franja tal como lo devolvió el servidor; mientras espera MUST quedar deshabilitado (un doble clic envía un solo pedido). Con 201, el panel MUST cerrarse, mostrarse "Turno agendado: <Apellido, Nombre>, <día> <HH:MM>. Se enviará la confirmación por email al paciente." y la agenda MUST volver a pedirse, con la franja ahora "Ocupado". Con un rechazo, el panel MUST quedar abierto con el mensaje del código (requirement "Mensajes de error por código"), el paciente elegido MUST conservarse y la agenda MUST volver a pedirse detrás. El aviso de éxito MUST NOT decir que el email ya se envió ni mostrar la dirección del paciente: el envío es posterior y lo hace el servidor (C-11, P-8).
 
 #### Scenario: Agendar en una franja libre (esperado)
 - **WHEN** la recepcionista elige "Agendar" en la franja de las 10:00 del lunes 09/11 de la Dra. A, busca y elige a Juan Perez y aprieta "Agendar turno"
-- **THEN** se envía `POST /api/v1/appointments` con Juan Perez, la Dra. A y el inicio de esa franja, se ve "Turno agendado: Perez, Juan, Lun 09/11 10:00" y la franja de las 10:00 pasa a "Ocupado" con "10:00–10:30 Perez, Juan"
+- **THEN** se envía `POST /api/v1/appointments` con Juan Perez, la Dra. A y el inicio de esa franja, se ve "Turno agendado: Perez, Juan, Lun 09/11 10:00. Se enviará la confirmación por email al paciente." y la franja de las 10:00 pasa a "Ocupado" con "10:00–10:30 Perez, Juan"
 
 #### Scenario: Otra recepcionista ocupó el horario (error de negocio)
 - **WHEN** la franja de las 10:00 se ve "Libre" pero otra recepcionista acaba de agendar ahí, y se aprieta "Agendar turno"
@@ -73,6 +73,10 @@ Un turno "Cancelado", "Atendido" o "Ausente" MUST NOT ofrecer ninguna acción (D
 #### Scenario: Cerrar el panel sin agendar (borde)
 - **WHEN** se abre el panel, se elige a un paciente y se aprieta "Cerrar"
 - **THEN** no se envía ningún pedido de escritura y la franja sigue "Libre"
+
+#### Scenario: El aviso no muestra el email del paciente (borde)
+- **WHEN** se agenda a Juan Perez, cuyo email es `juan.perez@example.com`
+- **THEN** el aviso de éxito no contiene `juan.perez@example.com`
 
 ### Requirement: Buscar o crear el paciente al agendar (DD-74, DD-78, RN-PA-04, P-6)
 
@@ -148,11 +152,11 @@ Elegir un turno en la grilla SHALL abrir un panel de detalle con la fecha y la h
 
 ### Requirement: Reprogramar a otra franja libre del mismo profesional (US-009, Flujo 3, RN-TU-06, DD-24, DD-25, DD-64, DD-67, P-3)
 
-"Reprogramar" SHALL abrir un diálogo con un campo de fecha (al abrir, la fecha del turno) y las franjas "Libre" de ese día del mismo profesional cuyo inicio es posterior a ahora, pedidas a `GET /api/v1/professionals/{id}/slots`. Sin franjas para ofrecer MUST mostrarse "No hay horarios libres este día". Elegir una franja MUST mostrar "Mover de <día> <HH:MM> a <día> <HH:MM>" y "Reprogramar turno", que envía un único `POST /api/v1/appointments/{id}/reschedule` con el inicio de esa franja. Con 200 MUST cerrarse el diálogo, mostrarse "Turno reprogramado: <día> <HH:MM>" y la agenda MUST volver a pedirse. Con un rechazo, el diálogo MUST mostrar el mensaje del código y el turno MUST verse sin cambios al volver a pedir la agenda (RN-TU-06). El profesional no cambia (DD-64): para cambiarlo se cancela y se agenda de nuevo.
+"Reprogramar" SHALL abrir un diálogo con un campo de fecha (al abrir, la fecha del turno) y las franjas "Libre" de ese día del mismo profesional cuyo inicio es posterior a ahora, pedidas a `GET /api/v1/professionals/{id}/slots`. Sin franjas para ofrecer MUST mostrarse "No hay horarios libres este día". Elegir una franja MUST mostrar "Mover de <día> <HH:MM> a <día> <HH:MM>" y "Reprogramar turno", que envía un único `POST /api/v1/appointments/{id}/reschedule` con el inicio de esa franja. Con 200 MUST cerrarse el diálogo, mostrarse "Turno reprogramado: <día> <HH:MM>. Se enviará la confirmación por email al paciente." y la agenda MUST volver a pedirse. Con un rechazo, el diálogo MUST mostrar el mensaje del código y el turno MUST verse sin cambios al volver a pedir la agenda (RN-TU-06). El profesional no cambia (DD-64): para cambiarlo se cancela y se agenda de nuevo.
 
 #### Scenario: Reprogramar a otro día (esperado)
 - **WHEN** la recepcionista reprograma el turno de Juan Perez del lunes 09/11 10:00, cambia la fecha al martes 10/11, elige 11:00 y aprieta "Reprogramar turno"
-- **THEN** se envía `POST /api/v1/appointments/{id}/reschedule` con ese inicio, se ve "Turno reprogramado: Mar 10/11 11:00", y la franja del lunes a las 10:00 vuelve a "Libre"
+- **THEN** se envía `POST /api/v1/appointments/{id}/reschedule` con ese inicio, se ve "Turno reprogramado: Mar 10/11 11:00. Se enviará la confirmación por email al paciente.", y la franja del lunes a las 10:00 vuelve a "Libre"
 
 #### Scenario: La nueva franja se ocupó (error de negocio)
 - **WHEN** se elige las 11:00 y antes de confirmar otra recepcionista agenda ahí

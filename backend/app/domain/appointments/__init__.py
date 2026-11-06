@@ -4,6 +4,7 @@ from app.domain.appointments.ports import (
     AppointmentRepository,
     NotificationDispatcher,
     NotificationRepository,
+    NotificationSendUnitOfWork,
 )
 from app.domain.appointments.slots import compute_slots
 from app.domain.appointments.transitions import (
@@ -41,6 +42,7 @@ __all__ = [
     "NotificationDispatcher",
     "NotificationKind",
     "NotificationRepository",
+    "NotificationSendUnitOfWork",
     "NotificationStatus",
     "RejectionReason",
     "Slot",

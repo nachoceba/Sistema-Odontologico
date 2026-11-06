@@ -30,7 +30,7 @@ C-01 foundation-setup     [x] archivado (2026-11-03)
  │         ├── C-07 professional-schedules      [x] archivado (2026-11-04)  (+ C-05)
  │         │    └── C-09 agenda-views           [x] archivado (2026-11-05)  (+ C-05, C-08)
  │         └── C-08 appointment-use-cases       [x] archivado (2026-11-03)  (+ C-05)
- │              ├── C-11 email-confirmation-infra
+ │              ├── C-11 email-confirmation-infra  [x] archivado (2026-11-06)  (+ C-08)
  │              │    └── C-12 reminders-cron
  │              └── C-10 appointment-management-ui   [x] archivado (2026-11-06)  (+ C-06, C-09)
  └── C-05 domain-scheduling-core   (funciones puras, no requiere BD)   [x] completo
@@ -367,9 +367,9 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 ## FASE 4 — Notificaciones por email
 
 ### [C-11] `email-confirmation-infra`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` implementado, verificado y archivado el 2026-11-06 (`openspec/changes/archive/2026-11-06-email-confirmation-infra/`): 54/54 tasks; 1475 tests por defecto, 306 de integración contra PostgreSQL y 380 de frontend; `ruff`, `mypy`, `tsc` y `eslint` limpios. Decisiones DD-87 a DD-95. Specs principales nuevas: `email-sending`, `email-templates`, `notification-sending` y `notification-tasks`; modificadas: `clinic-settings-repository`, `database-schema`, `frontend-appointment-management`, `local-environment` y `notification-registration` (el requisito "Aviso posterior al commit sin efecto en C-08" se quitó de esta última y su contenido pasó a `notification-tasks`).
 - **Scope**:
-  - **Primer paso (spike)**: elegir el proveedor SMTP gratuito de demo y verificar su cupo (SU-02); en desarrollo se usa Mailpit. Documentar el resultado en `09_decisiones_y_supuestos.md`
+  - **SMTP**: Mailpit en desarrollo y en la demo; el adaptador es configurable por variables `SMTP_*`, sin elegir proveedor (DD-87). SU-02 queda abierto solo para producción y no bloquea nada
   - Aplicación Celery con Redis como broker (`app/infrastructure/tasks`); servicio `worker` en Docker Compose
   - `EmailSender` (puerto) + adaptador SMTP en `app/infrastructure/email`; plantillas de `confirmation` y `reminder` (paciente, profesional, fecha/hora, dirección del consultorio)
   - Encolado después del commit con `apply_async(retry=False)` y timeout corto; tarea de Beat `reencolar_pendientes` (cada 10 minutos) para las `pending` antiguas
@@ -378,6 +378,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - Fallos de envío y Redis caído nunca rompen la operación de turno (RN-NO-04)
   - Tests con `EmailSender` falso y Celery en modo inmediato: éxito, fallo registrado, idempotencia por UNIQUE
   - Fuera de C-05d: datos del consultorio para los emails (nombre, dirección, teléfono y hora del recordatorio) en `ClinicSettings`; el puerto de C-05d solo expone duración, zona y anticipación mínima
+  - **Lo que C-12 recibe hecho (C-11, DD-87 a DD-95)**: plantilla `reminder` y `render_email` por tipo; `deliver_notification` genérico para cualquier `kind` (toma de la fila con `FOR UPDATE SKIP LOCKED`, `sent`/`failed`, `EXPIRED`, hasta 3 intentos ante fallos temporales); `ClinicSettings` con `clinic_name`, `address`, `phone` y `reminder_send_hour`; `NotificationRepository` con `claim_pending`, `mark_sent`, `mark_failed` y `list_pending_created_before`; migración `0002` (`created_at`); `CeleryNotificationDispatcher` y `publish_send_email`; `EMAIL_REDIRECT_TO` para la demo. Una `failed` no se reintenta: la segunda pasada de `failed` y el listado de turnos de todos los profesionales por rango son de C-12
   - **Nota (C-08 hecho, DD-62)**: C-08 ya guarda la fila `confirmation` `pending` junto con el turno (agendar y reprogramar; reprogramar y cancelar borran las `pending` del horario anterior) y llama a `AgendaDeps.dispatcher` (`NotificationDispatcher.dispatch`) después del commit; hoy es `NoOpNotificationDispatcher` (`app/infrastructure/notifications.py`). C-11 reemplaza ese despachador por el encolado, reusa `NotificationRepository` (ya existe, en memoria y PostgreSQL) y decide qué hacer con las filas `pending` acumuladas desde C-08 antes de activar `reencolar_pendientes`. Un despachador que falla no rompe la operación (se registra solo el id del turno)
 - **Dependencias**: `C-08`
 - **Governance**: ALTO
@@ -385,7 +386,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `knowledge-base/11_recordatorios_email.md` §Tipos de email, §Envío asincrónico, §Idempotencia y errores, §Límites y riesgos
   - `knowledge-base/05_reglas_de_negocio.md` §RN-NO
   - `knowledge-base/07_flujos_principales.md` §Flujo 2
-  - `knowledge-base/10_preguntas_abiertas.md` (proveedor SMTP SU-02, Celery DD-10, contenido de la plantilla)
+  - `knowledge-base/10_preguntas_abiertas.md` (proveedor SMTP de producción SU-02, Celery DD-10; el contenido de la plantilla quedó resuelto en DD-90)
 ### [C-12] `reminders-cron` (Celery Beat)
 - **Estado**: `[ ]` pendiente
 - **Nota de C-06 (P-8, DD-76)**: los turnos `scheduled` futuros de un paciente **inactivo** SIGUEN recibiendo recordatorio mientras no se cancelen (desactivar no los toca, DD-25); C-12 no debe saltear a los pacientes inactivos. Si recepción no quiere que el paciente venga, cancela el turno y el recordatorio no sale (RN-NO-05).
@@ -474,7 +475,7 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 
 | # | Riesgo | Change afectado | Mitigación |
 |---|---|---|---|
-| R-1 | Sin proveedor SMTP gratuito definido para la demo | C-11, C-12 | Spike al inicio de C-11; desarrollo con Mailpit (SU-02) |
+| R-1 | Proveedor SMTP de producción sin elegir | C-11, C-12, C-13 | Desarrollo y demo con Mailpit; el adaptador se configura por variables (SU-02, DD-87) |
 | R-2 | Redis o el worker de Celery caídos: no salen emails ni recordatorios | C-11, C-12 | La operación de turno nunca depende del envío (RN-NO-04); `reencolar_pendientes` recoge las notificaciones `pending` |
 | R-3 | La cátedra puede preferir otra herramienta distinta de Celery sobre Redis | C-01, C-11, C-12 | Confirmar con el profesor en C-01 (DD-10) |
 | R-4 | Errores de zona horaria en turnos y recordatorios | C-02, C-05, C-12 | Fechas en UTC y zona del consultorio en configuración (RN-GL-01); tests de borde |
@@ -506,8 +507,8 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-08 | appointment-use-cases (archivado `[x]`) | 3 | C-03, C-05 | MEDIO |
 | C-09 | agenda-views (archivado `[x]`) | 3 | C-05, C-07, C-08 | BAJO |
 | C-10 | appointment-management-ui (archivado `[x]`) | 3 | C-06, C-08, C-09 | MEDIO |
-| C-11 | email-confirmation-infra | 4 | C-08 | ALTO |
+| C-11 | email-confirmation-infra (archivado `[x]`) | 4 | C-08 | ALTO |
 | C-12 | reminders-cron | 4 | C-11 | ALTO |
 | C-13 | deploy-and-hardening | 5 | C-04, C-10, C-12 | MEDIO |
 
-**Siguientes changes habilitados**: C-01, C-02, C-03, C-04, C-06, C-07, C-08, C-09 y C-10 ya están archivados. Queda habilitado `C-11` (email-confirmation-infra, ALTO; depende solo de C-08). C-12 espera a C-11 y C-13 espera a C-10 y C-12. Para arrancar: `/opsx:propose C-11-email-confirmation-infra`. Gobernanza CRÍTICA de C-03 ya aprobada y ejecutada.
+**Siguientes changes habilitados**: C-01, C-02, C-03, C-04, C-05 (a-d), C-06, C-07, C-08, C-09, C-10 y C-11 ya están archivados. Queda habilitado `C-12` (reminders-cron, ALTO; depende de C-11). C-13 espera a C-12 (y a C-04 y C-10, ya archivados). Para arrancar: `/opsx:propose C-12-reminders-cron`. Gobernanza CRÍTICA de C-03 ya aprobada y ejecutada.

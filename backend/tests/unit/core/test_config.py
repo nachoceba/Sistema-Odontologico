@@ -27,6 +27,7 @@ ALL_NAMES = [
     "SMTP_USER",
     "SMTP_PASSWORD",
     "SMTP_USE_TLS",
+    "EMAIL_REDIRECT_TO",
 ]
 
 
@@ -155,3 +156,22 @@ def test_get_settings_is_lazy_and_cached(monkeypatch: pytest.MonkeyPatch) -> Non
         assert get_settings() is get_settings()
     finally:
         get_settings.cache_clear()
+
+
+def test_email_redirect_is_empty_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert load(monkeypatch).EMAIL_REDIRECT_TO == ""
+
+
+def test_a_valid_email_redirect_is_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = load(monkeypatch, EMAIL_REDIRECT_TO="equipo.demo@example.org")
+    assert settings.EMAIL_REDIRECT_TO == "equipo.demo@example.org"
+
+
+@pytest.mark.parametrize("value", ["no-es-un-email", "dos@@example.org", "con espacio@example.org"])
+def test_an_invalid_email_redirect_names_the_variable_without_repeating_the_value(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    text = error_text(monkeypatch, EMAIL_REDIRECT_TO=value)
+
+    assert "EMAIL_REDIRECT_TO" in text
+    assert value not in text

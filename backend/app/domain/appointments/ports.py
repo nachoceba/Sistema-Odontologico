@@ -57,7 +57,7 @@ class AppointmentRepository(Protocol):
 
 
 class NotificationRepository(Protocol):
-    """Registro de ``email_notifications``; no envia nada (eso es de C-11)."""
+    """Registro de ``email_notifications``: alta, borrado y estado del envio (C-11)."""
 
     def add_pending_confirmation(
         self, appointment_id: str, starts_at: datetime
@@ -77,6 +77,26 @@ class NotificationRepository(Protocol):
 
     def list_for_appointment(self, appointment_id: str) -> list[Notification]:
         """Todas las notificaciones del turno, por horario del turno y tipo."""
+        ...
+
+    def list_pending_created_before(self, before: datetime, limit: int) -> list[Notification]:
+        """Las ``pending`` creadas antes de ``before``, de la mas antigua, hasta ``limit``."""
+        ...
+
+    def claim_pending(self, notification_id: str) -> Notification | None:
+        """Toma una ``pending`` para enviarla; nada si no existe, no es ``pending`` o la tiene otro.
+
+        En PostgreSQL bloquea la fila hasta el fin de la transaccion (``FOR UPDATE SKIP LOCKED``):
+        otro procesamiento simultaneo no espera, recibe ``None`` (design D-3).
+        """
+        ...
+
+    def mark_sent(self, notification_id: str, sent_at: datetime) -> bool:
+        """Marca ``sent`` una ``pending``; ``False`` (sin cambios) si no estaba ``pending``."""
+        ...
+
+    def mark_failed(self, notification_id: str, error: str) -> bool:
+        """Marca ``failed`` con ``error`` una ``pending``; ``False`` si no estaba ``pending``."""
         ...
 
 
@@ -103,7 +123,30 @@ class AgendaUnitOfWork(Protocol):
     ) -> None: ...
 
 
+class NotificationSendUnitOfWork(Protocol):
+    """Transaccion del envio: toma la fila y lee el turno con la misma sesion (design D-3).
+
+    Al salir sin excepcion se confirma; con una excepcion se revierte (la fila sigue ``pending``).
+    Las unidades de trabajo de la agenda (memoria y PostgreSQL) ya cumplen este contrato.
+    """
+
+    @property
+    def appointments(self) -> AppointmentRepository: ...
+
+    @property
+    def notifications(self) -> NotificationRepository: ...
+
+    def __enter__(self) -> Self: ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None: ...
+
+
 class NotificationDispatcher(Protocol):
-    """Aviso posterior al commit (D-7). En C-08 no hace nada; C-11 encola los envios."""
+    """Aviso posterior al commit (D-7): C-11 encola un ``enviar_email`` por notificacion."""
 
     def dispatch(self, notifications: Sequence[Notification]) -> None: ...

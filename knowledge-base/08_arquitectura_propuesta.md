@@ -67,6 +67,7 @@ sistema-odontologico/
 | `SMTP_USER` / `SMTP_PASSWORD` | Credenciales SMTP (vacías en desarrollo) | — | Y |
 | `SMTP_USE_TLS` | Usar STARTTLS | `false` (Mailpit) / `true` (producción) | N |
 | `EMAIL_FROM` | Remitente de los emails | `turnos@ejemplo.com` | N |
+| `EMAIL_REDIRECT_TO` | Opcional: si tiene una dirección, todos los emails van a ella en lugar de al paciente, con una línea de demostración (DD-87) | vacía | N |
 | `CLINIC_TIMEZONE` | Valor inicial de la zona horaria (el seed la escribe en `clinic_settings`) y zona de la app Celery | `America/Argentina/Buenos_Aires` | N |
 | `CORS_ORIGINS` | Orígenes permitidos del frontend | `http://localhost:5173` | N |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Credenciales del contenedor de PostgreSQL | — | Y |

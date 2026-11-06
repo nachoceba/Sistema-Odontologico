@@ -147,7 +147,7 @@ def scene(
 def _book(
     scene: Scene, headers: dict[str, str], starts_at: datetime, patient: str = "Perez"
 ) -> Response:
-    return scene.client.post(
+    response: Response = scene.client.post(
         BASE,
         json={
             "patient_id": scene.patient_ids[patient],
@@ -156,6 +156,7 @@ def _book(
         },
         headers=headers,
     )
+    return response
 
 
 @pytest.mark.integration
@@ -302,7 +303,7 @@ def test_the_dentist_lists_her_own_agenda_and_slots(scene: Scene) -> None:
 
 
 def _week(scene: Scene, headers: dict[str, str], professional: str = "A") -> Response:
-    return scene.client.get(
+    response: Response = scene.client.get(
         BASE,
         params={
             "professional_id": scene.professional_ids[professional],
@@ -311,6 +312,7 @@ def _week(scene: Scene, headers: dict[str, str], professional: str = "A") -> Res
         },
         headers=headers,
     )
+    return response
 
 
 @pytest.mark.integration

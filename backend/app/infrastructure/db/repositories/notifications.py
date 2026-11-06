@@ -2,7 +2,7 @@
 
 ``UNIQUE (turno, tipo, horario)`` evita duplicados (RN-NO-03): el alta usa
 ``INSERT ... ON CONFLICT DO NOTHING`` para no abortar la transaccion externa cuando la fila ya
-existe. No envia nada: el envio es de C-11.
+existe. Tambien toma la fila a enviar y registra el resultado (C-11).
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -82,6 +82,73 @@ class SqlAlchemyNotificationRepository:
         with self._scope.write() as session:
             result = session.execute(statement)
             return int(result.rowcount)  # type: ignore[attr-defined]
+
+    def list_pending_created_before(self, before: datetime, limit: int) -> list[Notification]:
+        query = (
+            select(EmailNotificationModel)
+            .where(
+                EmailNotificationModel.status == enums.NotificationStatus.PENDING,
+                EmailNotificationModel.created_at < before,
+            )
+            .order_by(EmailNotificationModel.created_at, EmailNotificationModel.id)
+            .limit(limit)
+        )
+        with self._scope.read() as session:
+            return [_to_domain(row) for row in session.scalars(query)]
+
+    def claim_pending(self, notification_id: str) -> Notification | None:
+        key = parse_uuid(notification_id)
+        if key is None:
+            return None
+        query = (
+            select(EmailNotificationModel)
+            .where(
+                EmailNotificationModel.id == key,
+                EmailNotificationModel.status == enums.NotificationStatus.PENDING,
+            )
+            .with_for_update(skip_locked=True)
+        )
+        with self._scope.write() as session:
+            row = session.scalars(query).first()
+            return None if row is None else _to_domain(row)
+
+    def mark_sent(self, notification_id: str, sent_at: datetime) -> bool:
+        return self._mark_pending(
+            notification_id,
+            status=enums.NotificationStatus.SENT,
+            sent_at=sent_at,
+            error=None,
+        )
+
+    def mark_failed(self, notification_id: str, error: str) -> bool:
+        return self._mark_pending(
+            notification_id,
+            status=enums.NotificationStatus.FAILED,
+            sent_at=None,
+            error=error,
+        )
+
+    def _mark_pending(
+        self,
+        notification_id: str,
+        *,
+        status: enums.NotificationStatus,
+        sent_at: datetime | None,
+        error: str | None,
+    ) -> bool:
+        key = parse_uuid(notification_id)
+        if key is None:
+            return False
+        statement = (
+            update(EmailNotificationModel)
+            .where(
+                EmailNotificationModel.id == key,
+                EmailNotificationModel.status == enums.NotificationStatus.PENDING,
+            )
+            .values(status=status, sent_at=sent_at, error=error)
+        )
+        with self._scope.write() as session:
+            return int(session.execute(statement).rowcount) > 0  # type: ignore[attr-defined]
 
     def list_for_appointment(self, appointment_id: str) -> list[Notification]:
         key = parse_uuid(appointment_id)

@@ -15,6 +15,8 @@ from zoneinfo import ZoneInfo
 from pydantic import BeforeValidator, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+from app.domain.users.rules import is_valid_email
+
 JWT_SECRET_MIN_LENGTH = 32
 
 
@@ -48,6 +50,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: SecretStr = SecretStr("")
     SMTP_USE_TLS: bool = False
     EMAIL_FROM: str
+    EMAIL_REDIRECT_TO: str = ""
     CLINIC_TIMEZONE: str
     CORS_ORIGINS: CommaSeparated = Field(min_length=1)
 
@@ -56,6 +59,13 @@ class Settings(BaseSettings):
     def _jwt_key_long_enough(cls, value: SecretStr) -> SecretStr:
         if len(value.get_secret_value()) < JWT_SECRET_MIN_LENGTH:
             raise ValueError(f"debe tener al menos {JWT_SECRET_MIN_LENGTH} caracteres")
+        return value
+
+    @field_validator("EMAIL_REDIRECT_TO")
+    @classmethod
+    def _redirect_is_an_email(cls, value: str) -> str:
+        if value and not is_valid_email(value):
+            raise ValueError("no es una direccion de email valida")
         return value
 
     @field_validator("CLINIC_TIMEZONE")

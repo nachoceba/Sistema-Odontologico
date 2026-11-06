@@ -12,3 +12,8 @@ class ClinicSettings:
     slot_minutes: int = 30
     timezone: str = "America/Argentina/Buenos_Aires"
     min_notice_hours: int = 6
+    # Datos del consultorio para los emails y hora del recordatorio (C-11, D-10).
+    clinic_name: str = "Consultorio"
+    address: str = ""
+    phone: str | None = None
+    reminder_send_hour: int = 9

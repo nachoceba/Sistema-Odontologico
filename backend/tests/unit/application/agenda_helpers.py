@@ -9,7 +9,12 @@ from datetime import UTC, datetime, timedelta
 from app.application.appointments import AgendaDeps
 from app.application.patients import PatientDeps
 from app.application.professionals import ScheduleDeps
-from app.domain.appointments import Appointment, NewAppointment, Notification
+from app.domain.appointments import (
+    Appointment,
+    NewAppointment,
+    Notification,
+    NotificationDispatcher,
+)
 from app.domain.auth import Principal, Role, UserAccount
 from app.domain.patients.types import Patient
 from app.domain.settings.types import ClinicSettings
@@ -48,14 +53,17 @@ def _dentist(user_id: str, professional_id: str) -> UserAccount:
 
 
 class RecordingDispatcher:
-    """Despachador de prueba: anota cada llamada; puede fallar a pedido."""
+    """Despachador de prueba: anota cada llamada; puede fallar a pedido o delegar en otro."""
 
     def __init__(self) -> None:
         self.calls: list[list[Notification]] = []
         self.error: Exception | None = None
+        self.inner: NotificationDispatcher | None = None
 
     def dispatch(self, notifications: Sequence[Notification]) -> None:
         self.calls.append(list(notifications))
+        if self.inner is not None:
+            self.inner.dispatch(notifications)
         if self.error is not None:
             raise self.error
 

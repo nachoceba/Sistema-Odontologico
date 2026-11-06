@@ -22,4 +22,8 @@ class SqlAlchemyClinicSettingsRepository:
                 slot_minutes=row.slot_minutes,
                 timezone=row.timezone,
                 min_notice_hours=row.min_notice_hours,
+                clinic_name=row.clinic_name,
+                address=row.address,
+                phone=row.phone,
+                reminder_send_hour=row.reminder_send_hour,
             )

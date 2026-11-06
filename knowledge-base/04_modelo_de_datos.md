@@ -81,6 +81,8 @@ users 1───0..1 professionals
 - `status` enum (`pending`, `sent`, `failed`) NOT NULL default `pending`
 - `sent_at` timestamptz NULL, `error` text NULL
 - `appointment_starts_at` timestamptz NOT NULL (copia de `appointments.starts_at` al crear la notificación; permite una notificación nueva si el turno se reprograma)
+- `created_at` timestamptz NOT NULL default `now()` (migración `0002`, DD-88): permite reencolar solo las `pending` con más de 5 minutos. Índice parcial `ix_email_notifications_pending_created_at (created_at) WHERE status = 'pending'`
+- Un aviso de un turno que ya empezó no se envía y queda `failed` con `error = EXPIRED` (no hay estado nuevo)
 - Constraint UNIQUE `(appointment_id, kind, appointment_starts_at)`: garantiza idempotencia (RN-NO-03)
 
 ### clinic_settings

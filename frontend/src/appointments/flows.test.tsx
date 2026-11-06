@@ -20,7 +20,7 @@ async function pickPatientAndBook() {
 }
 
 describe('flujo: agendar', () => {
-  it('la franja pasa a Ocupado con el turno y se avisa sin mencionar emails', async () => {
+  it('la franja pasa a Ocupado con el turno y se avisa que se enviará la confirmación sin mostrar el email', async () => {
     const api = installAgendaApi(world())
     open('/agenda')
     await screen.findAllByText('Libre')
@@ -29,8 +29,9 @@ describe('flujo: agendar', () => {
     expect(await screen.findByRole('heading', { name: 'Lun 09/11 14:00–14:30' })).toBeInTheDocument()
     await pickPatientAndBook()
 
-    expect(await screen.findByText('Turno agendado: Perez, Juan, Lun 09/11 14:00')).toBeInTheDocument()
-    expect(document.body.textContent).not.toMatch(/email|correo/i)
+    expect(await screen.findByText('Turno agendado: Perez, Juan, Lun 09/11 14:00. Se enviará la confirmación por email al paciente.')).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('lucia@example.com')
+    expect(document.body.textContent).not.toMatch(/@example\.com/)
     expect(await screen.findByText('14:00–14:30 Perez, Juan')).toBeInTheDocument()
     expect(inRow('14:00–14:30').getByText('Ocupado')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Lun 09/11 14:00–14:30' })).not.toBeInTheDocument()
@@ -148,7 +149,7 @@ describe('flujo: reprogramar', () => {
     expect(screen.getByText('Mover de Lun 09/11 15:00 a Mar 10/11 11:00')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Reprogramar turno' }))
 
-    expect(await screen.findByText('Turno reprogramado: Mar 10/11 11:00')).toBeInTheDocument()
+    expect(await screen.findByText('Turno reprogramado: Mar 10/11 11:00. Se enviará la confirmación por email al paciente.')).toBeInTheDocument()
     await waitFor(() => {
       expect(inRow('15:00–15:30').getByText('Libre')).toBeInTheDocument()
     })

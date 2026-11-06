@@ -71,7 +71,7 @@
 ### DD-12 — Email por SMTP con Mailpit en desarrollo
 **Decisión**: el adaptador de email usa SMTP estándar detrás del puerto `EmailSender`; en desarrollo, Mailpit recibe todos los correos.
 **Justificación**: sin cuentas ni costos durante el desarrollo; el proveedor de producción se puede cambiar sin tocar el dominio.
-**Trade-offs aceptados**: el proveedor SMTP gratuito de demo queda por definir (SU-02).
+**Trade-offs aceptados**: el proveedor SMTP de producción queda por definir (SU-02); desarrollo y demo usan Mailpit (DD-87).
 
 ### DD-13 — SQLAlchemy 2.0 síncrono y Alembic
 **Decisión**: acceso síncrono a la base (endpoints `def`) y migraciones con Alembic.
@@ -502,6 +502,51 @@
 **Alternativas consideradas**: botones pegados a cada turno; acciones solo en "Día"; nombres en la respuesta de conflictos; sin lista de conflictos; partir en C-10a y C-10b.
 **Justificación**: la grilla queda limpia, el detalle muestra motivo y conflicto antes de decidir y no hay cambios de backend.
 
+### DD-87 — SMTP de desarrollo y demo: Mailpit; redirección de destinatarios (P-1 y P-2 de C-11)
+**Decisión**: SMTP de desarrollo y demo: Mailpit; el adaptador es configurable por variables de entorno (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_USE_TLS`, `EMAIL_FROM`), de modo que apuntar a otro servidor SMTP no toca el código. Los emails se ven en http://localhost:8025. No se elige proveedor externo. La variable opcional `EMAIL_REDIRECT_TO` manda todos los emails a una casilla única con la línea "Email de demostración: en producción se enviaría al paciente del turno."; vacía, van al paciente.
+**Alternativas consideradas**: elegir hoy un proveedor SMTP gratuito externo; lista de dominios permitidos; confiar en cargar solo emails del equipo.
+**Justificación**: sin cuentas ni credenciales durante el desarrollo y la demo; la redirección evita escribir a buzones de terceros si se carga un paciente con un email real.
+
+### DD-88 — Pendientes antiguas y avisos de turnos pasados (P-3 y P-4 de C-11)
+**Decisión**: la migración `0002` agrega `created_at` a `email_notifications` (con la hora de inserción) y un índice parcial sobre las `pending`. `reencolar_pendientes` corre cada 10 minutos, toma las `pending` creadas hace más de 5 minutos, de la más antigua a la más nueva y hasta 100 por pasada. Una `pending` cuyo turno ya empezó o ya no está agendado no se envía y queda `failed` con el error `EXPIRED`; las pendientes de turnos futuros acumuladas desde C-08 (DD-62) se envían normalmente.
+**Alternativas consideradas**: reencolar todas las `pending` sin migración; borrar las `pending` existentes con una migración de datos; enviar todas aunque el turno haya pasado.
+**Justificación**: hace lo que dice `11_recordatorios_email.md`, no duplica tareas en camino y una sola regla cubre las acumuladas y las futuras sin tocar datos a mano.
+
+### DD-89 — Reintentos y fallos (P-5 de C-11)
+**Decisión**: un fallo temporal (servidor caído, sin respuesta, 4xx) se reintenta hasta 3 intentos en total, con esperas de 1 y 2 minutos; la fila sigue `pending` durante los reintentos. Un fallo permanente (5xx, destinatario o credenciales rechazados) queda `failed` al instante. Una `failed` no se reintenta en C-11; la segunda pasada de `failed` la decide C-12. El texto de `error` es un código corto (`SMTP_PERMANENT 550`, `SMTP_TEMPORARY CONNECTION`, `EXPIRED`), nunca el texto del servidor ni la dirección. Corrige el Flujo 2 de `07_flujos_principales.md`: `reencolar_pendientes` reintenta solo las `pending` (coincide con `11_recordatorios_email.md`).
+**Alternativas consideradas**: sin reintentos; reintentar también las `failed` cada 10 minutos.
+**Justificación**: un corte breve del proveedor no debería dejar a un paciente sin confirmación, no tiene sentido insistir con una dirección rechazada y reintentar `failed` gastaría el cupo diario con casillas que rebotan.
+
+### DD-90 — Contenido de los emails (P-6 de C-11)
+**Decisión**: texto plano UTF-8 con saludo con el nombre del paciente, fecha y hora en la hora del consultorio escrita completa ("lunes 9 de noviembre de 2026, 10:00 h"), profesional, nombre, dirección y teléfono del consultorio (si tiene) y la aclaración de que el email es informativo. Al reprogramar se manda el mismo texto con el horario nuevo ("Tu turno quedó agendado."). El recordatorio cambia el asunto y dice "Te recordamos tu turno.", sin "mañana". No incluye documento, teléfono ni nacimiento del paciente, ni tratamiento (el sistema no lo guarda). Los datos son los vigentes al enviar (aclara DD-73). Resuelve la pregunta del contenido de la plantilla.
+**Alternativas consideradas**: versión HTML además del texto; texto "Tu turno fue reprogramado" al reprogramar.
+**Justificación**: el texto plano se lee en cualquier casilla, se prueba fácil y no tiene datos sensibles; distinguir la reprogramación obliga a buscar el historial del turno al enviar y queda como mejora posterior.
+
+### DD-91 — Volver a un horario ya confirmado (P-7 de C-11)
+**Decisión**: se mantiene DD-62: si un turno vuelve a un horario cuya confirmación ya se envió, no se manda otra, porque la base no admite dos confirmaciones del mismo turno y horario. El último email del paciente puede decir otro horario; recepción lo avisa por teléfono.
+**Alternativas consideradas**: borrar la confirmación vieja y crear una nueva `pending`.
+**Justificación**: no toca la agenda ya archivada ni la base, y es un caso muy poco frecuente.
+
+### DD-92 — Aviso en pantalla (P-8 de C-11)
+**Decisión**: los avisos de agendar y reprogramar terminan con "Se enviará la confirmación por email al paciente." (futuro: el envío es posterior y lo hace el servidor). No muestran la dirección del paciente.
+**Alternativas consideradas**: no tocar el frontend.
+**Justificación**: recepción sabe que el paciente va a recibir algo y puede decírselo; son dos textos y sus tests.
+
+### DD-93 — Un solo change por grupos (P-9 de C-11)
+**Decisión**: C-11 es un solo change con un punto de corte seguro tras el grupo 8 (envío de punta a punta: agendar, cola, worker, Mailpit); los grupos 9 a 12 completan migración y reencolado, frontend y KB.
+**Alternativas consideradas**: partir en C-11a (envío) y C-11b (reencolado, frontend y KB).
+**Justificación**: las specs y la KB se cierran juntas y C-12 recibe un solo archivo.
+
+### DD-94 — Envío con toma de la fila y publicación sin esperar a Redis (técnica, C-11)
+**Decisión**: el envío ocurre dentro de una transacción que toma la fila `pending` con `SELECT … FOR UPDATE SKIP LOCKED`: dos procesamientos simultáneos de la misma notificación envían a lo sumo un email y cancelar o reprogramar ese turno espera a que termine el envío (hasta 10 segundos). Si el worker cae después de que el SMTP aceptó y antes del commit, la fila sigue `pending` y podría salir un segundo email (riesgo aceptado). La publicación de `enviar_email` usa `apply_async(retry=False)` y `socket_connect_timeout` de 2 segundos en `broker_transport_options` (`broker_connection_timeout` solo aplica al worker): con Redis caído agendar y reprogramar responden igual y la `pending` queda para el reencolado (RN-NO-04).
+**Alternativas consideradas**: marcar con `UPDATE … WHERE status = 'pending'` después de enviar; un estado nuevo `sending`.
+**Justificación**: da idempotencia sin estados intermedios que queden trabados si el worker muere.
+
+### DD-95 — Datos del consultorio en la configuración leída (técnica, C-11)
+**Decisión**: `ClinicSettings` suma `clinic_name`, `address`, `phone` y `reminder_send_hour`, que ya existían en la tabla y en el seed; sin fila de configuración se devuelven `Consultorio`, dirección vacía, sin teléfono y recordatorio a las 9. Las plantillas usan los datos vigentes al enviar. C-12 recibe `reminder_send_hour` ya disponible.
+**Alternativas consideradas**: leer la tabla directamente desde la tarea de envío.
+**Justificación**: el dominio sigue sin conocer la base y la batería de contrato cubre memoria y PostgreSQL.
+
 ## Supuestos inferidos
 
 ### SU-01 — Zona horaria única
@@ -511,11 +556,12 @@
 **Cómo validar**: confirmar la zona con el usuario.
 **Ampliación (C-05b)**: se asume además que la zona del consultorio no tiene horario de verano; por eso `compute_slots` no se prueba con días de 23 o 25 horas ni con horas repetidas o inexistentes. El código calcula el inicio y el fin del día con la zona y no depende de que el día dure 24 horas. Si la zona cambia, hay que agregar esos escenarios.
 
-### SU-02 — Proveedor SMTP gratuito para producción o demo
-**Supuesto**: existe un servidor SMTP gratuito (por ejemplo una cuenta de correo con contraseña de aplicación, o el plan gratuito de un servicio de email) con cupo suficiente para un consultorio.
-**Origen**: conocimiento general; no verificado. En desarrollo no hace falta: Mailpit cubre todo.
-**Riesgo si es falso**: el envío real no funciona en la demo; se mostraría con Mailpit.
-**Cómo validar**: elegir el proveedor y revisar su cupo antes del change de email.
+### SU-02 — Proveedor SMTP gratuito para producción
+**Supuesto**: existe un servidor SMTP gratuito con cupo suficiente para un consultorio (unos 64 emails por día).
+**Origen**: conocimiento general; no verificado.
+**Riesgo si es falso**: el envío en producción no funciona; sigue siendo posible usar Mailpit.
+**Estado**: abierto solo para producción y no bloquea ningún change. Desarrollo y demo usan Mailpit (DD-87, C-11); el adaptador SMTP es configurable por variables de entorno, así que elegir un proveedor más adelante no requiere cambiar el código.
+**Cómo validar**: elegir el proveedor y revisar su cupo antes de un despliegue real (C-13).
 
 ### SU-03 — Un recordatorio diario alcanza
 **Supuesto**: Celery Beat dispara la tarea cada hora y esta actúa solo a la hora configurada; el recordatorio sale una vez al día, el día anterior, no exactamente 24 h antes.

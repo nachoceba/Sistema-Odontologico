@@ -39,7 +39,7 @@ Worker Celery → servidor SMTP (email de confirmación)
 **Casos de error**:
 - Slot ocupado o fuera de horario → error de validación, sin escribir.
 - Choque concurrente (constraint de exclusión) → se traduce a "el slot acaba de ocuparse".
-- Falla del email o de Redis → el turno queda creado; la notificación queda `failed` o `pending` y `reencolar_pendientes` la reintenta (RN-NO-04).
+- Falla del email o de Redis → el turno queda creado; la notificación queda `pending` (Redis caído o fallo temporal del SMTP) o `failed` (fallo permanente o reintentos agotados); `reencolar_pendientes` reintenta solo las `pending` (RN-NO-04, DD-89).
 
 ## Flujo 3: Cancelar o reprogramar
 **Disparador**: el paciente avisa por teléfono o mensaje

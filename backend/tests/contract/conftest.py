@@ -92,8 +92,9 @@ class RepositoryFactory(Protocol):
         kind: NotificationKind,
         status: NotificationStatus,
         starts_at: datetime,
+        created_at: datetime | None = None,
     ) -> Notification:
-        """Carga una fila con cualquier estado (el envio y el estado son de C-11)."""
+        """Carga una fila con cualquier estado y, si se indica, con esa fecha de alta."""
         ...
 
     def working_hours(self) -> WorkingHoursRepository: ...
@@ -153,8 +154,9 @@ class InMemoryFactory:
         kind: NotificationKind,
         status: NotificationStatus,
         starts_at: datetime,
+        created_at: datetime | None = None,
     ) -> Notification:
-        return self._notifications.seed(appointment_id, kind, status, starts_at)
+        return self._notifications.seed(appointment_id, kind, status, starts_at, created_at)
 
     def working_hours(self) -> WorkingHoursRepository:
         return InMemoryWorkingHoursRepository()
@@ -290,6 +292,7 @@ class PostgresFactory:
         kind: NotificationKind,
         status: NotificationStatus,
         starts_at: datetime,
+        created_at: datetime | None = None,
     ) -> Notification:
         row = EmailNotificationModel(
             appointment_id=uuid.UUID(appointment_id),
@@ -299,6 +302,8 @@ class PostgresFactory:
             error="fallo simulado" if status is NotificationStatus.FAILED else None,
             appointment_starts_at=starts_at,
         )
+        if created_at is not None:
+            row.created_at = created_at
         with self._sessions.begin() as session:
             session.add(row)
         return Notification(
@@ -326,11 +331,13 @@ class PostgresFactory:
         if initial is not None:
             row = ClinicSettingsModel(
                 id=1,
-                clinic_name="Consultorio Demo",
-                address="Calle Ficticia 123",
+                clinic_name=initial.clinic_name,
+                address=initial.address,
+                phone=initial.phone,
                 slot_minutes=initial.slot_minutes,
                 timezone=initial.timezone,
                 min_notice_hours=initial.min_notice_hours,
+                reminder_send_hour=initial.reminder_send_hour,
             )
             with self._sessions.begin() as session:
                 session.add(row)

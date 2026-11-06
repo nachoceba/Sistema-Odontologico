@@ -17,12 +17,12 @@
 
 | Prioridad | Pregunta | Bloquea | Decisor |
 |-----------|----------|---------|---------|
-| Alta | ¿Qué proveedor SMTP gratuito se usa en producción o demo y qué cupo tiene? (SU-02) | Recordatorios | Equipo técnico |
+| Baja | ¿Qué proveedor SMTP gratuito se usa en producción y qué cupo tiene? (SU-02): abierta solo para producción; desarrollo y demo usan Mailpit (DD-87, C-11 el 2026-11-06) | Despliegue (C-13) | Equipo técnico |
 | RESUELTA | Si cambia un horario y hay turnos afectados, ¿se avisa al paciente o solo a recepción? (RN-HO-04): solo a recepción, en pantalla (DD-68, confirmado en C-07 el 2026-11-03) | — | Product Owner |
 | Media | ¿Un paciente puede tener varios turnos el mismo día? (SU-05) | Validación de turnos | Product Owner |
 | RESUELTA | ¿Un paciente puede tener dos turnos a la misma hora con profesionales distintos? (H-2, SU-05): no, se rechaza con `PATIENT_DOUBLE_BOOKED` (DD-63, confirmado en C-08 el 2026-11-03) | — | Product Owner |
 | Media | **RESUELTA (DD-65, sin excepción de urgencias).** ¿Se permite saltar la anticipación mínima para un turno urgente del mismo día (emergencia) y quién puede hacerlo? (RN-TU-12, DD-14; fuera del change `crear-turno-sin-solapamientos`) | Validación de turnos | Dueño / Product Owner |
-| Media | ¿El recordatorio debe incluir dirección, teléfono u otra información del consultorio? | Plantilla de email | Dueño |
+| RESUELTA | ¿El recordatorio debe incluir dirección, teléfono u otra información del consultorio?: sí, nombre, dirección y teléfono del consultorio si lo tiene, además de paciente, profesional y fecha y hora (DD-90, confirmado en C-11 el 2026-11-06) | — | Dueño |
 | Media | ¿Cuál es la zona horaria del consultorio? (SU-01) | Fechas y cron | Dueño |
 | Baja | ¿Qué duración de slot usa el consultorio realmente: 15, 20, 30 min? | Configuración | Dueño |
 | Baja | ¿Se necesita registrar quién canceló y por qué en más detalle? | Auditoría | Product Owner |

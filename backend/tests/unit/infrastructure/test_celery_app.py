@@ -43,7 +43,19 @@ def test_timezone_follows_clinic_and_utc_internally(celery_conf: Any) -> None:
     assert celery_conf.conf.enable_utc is True
 
 
-def test_no_business_tasks_registered(celery_conf: Any) -> None:
-    own = [name for name in celery_conf.tasks if not name.startswith("celery.")]
-    assert own == []
-    assert not celery_conf.conf.beat_schedule
+def test_the_only_own_tasks_are_send_email_and_requeue_pending(celery_conf: Any) -> None:
+    own = sorted(name for name in celery_conf.tasks if not name.startswith("celery."))
+    assert own == ["enviar_email", "reencolar_pendientes"]
+
+
+def test_the_reminder_task_does_not_exist_yet(celery_conf: Any) -> None:
+    assert "enviar_recordatorios" not in celery_conf.tasks
+
+
+def test_publishing_has_a_short_connection_timeout(celery_conf: Any) -> None:
+    options = celery_conf.conf.broker_transport_options
+    assert 0 < options["socket_connect_timeout"] <= 2
+
+
+def test_tasks_use_json_so_arguments_are_plain_ids(celery_conf: Any) -> None:
+    assert celery_conf.conf.task_serializer == "json"

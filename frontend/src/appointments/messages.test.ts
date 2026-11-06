@@ -84,21 +84,30 @@ describe('shouldReloadAfter', () => {
 describe('textos de éxito', () => {
   it('turno agendado con nombre, día y hora local', () => {
     expect(bookedNotice('Perez, Juan', '2026-11-09T13:00:00Z')).toBe(
-      'Turno agendado: Perez, Juan, Lun 09/11 10:00',
+      'Turno agendado: Perez, Juan, Lun 09/11 10:00. Se enviará la confirmación por email al paciente.',
     )
     expect(bookedNotice('Ruiz, Laura', '2026-11-10T14:30:00Z')).toBe(
-      'Turno agendado: Ruiz, Laura, Mar 10/11 11:30',
+      'Turno agendado: Ruiz, Laura, Mar 10/11 11:30. Se enviará la confirmación por email al paciente.',
     )
   })
 
   it('reprogramado y resumen del movimiento', () => {
-    expect(rescheduledNotice('2026-11-10T14:00:00Z')).toBe('Turno reprogramado: Mar 10/11 11:00')
+    expect(rescheduledNotice('2026-11-10T14:00:00Z')).toBe(
+      'Turno reprogramado: Mar 10/11 11:00. Se enviará la confirmación por email al paciente.',
+    )
     expect(moveSummary('2026-11-09T13:00:00Z', '2026-11-10T14:00:00Z')).toBe(
       'Mover de Lun 09/11 10:00 a Mar 10/11 11:00',
     )
   })
 
+  it('los avisos no incluyen ningún email', () => {
+    expect(bookedNotice('Perez, Juan', '2026-11-09T13:00:00Z')).not.toContain('@')
+    expect(rescheduledNotice('2026-11-09T13:00:00Z')).not.toContain('@')
+  })
+
   it('el día sale en la zona del consultorio aunque el instante UTC sea del día siguiente', () => {
-    expect(rescheduledNotice('2026-11-10T01:30:00Z')).toBe('Turno reprogramado: Lun 09/11 22:30')
+    expect(rescheduledNotice('2026-11-10T01:30:00Z')).toBe(
+      'Turno reprogramado: Lun 09/11 22:30. Se enviará la confirmación por email al paciente.',
+    )
   })
 })

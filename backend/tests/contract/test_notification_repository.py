@@ -169,3 +169,178 @@ def test_a_sent_confirmation_blocks_registering_it_again_for_the_same_start(
 
     assert notification_repo.add_pending_confirmation(appointment.id, monday(10)) is None
     assert len(notification_repo.list_for_appointment(appointment.id)) == 1
+
+
+# --- Envio (C-11): tomar, marcar enviada o fallida -------------------------------------------
+
+
+def _pending(
+    notification_repo: NotificationRepository,
+    appointment_repo: AppointmentRepository,
+    ids: Refs,
+    hour: int = 10,
+) -> tuple[Appointment, str]:
+    appointment = make_appointment(appointment_repo, ids, monday(hour))
+    saved = notification_repo.add_pending_confirmation(appointment.id, appointment.starts_at)
+    assert saved is not None
+    return appointment, saved.id
+
+
+def test_claiming_a_pending_notification_returns_it(
+    notification_repo: NotificationRepository, appointment_repo: AppointmentRepository, ids: Refs
+) -> None:
+    appointment, notification_id = _pending(notification_repo, appointment_repo, ids)
+
+    claimed = notification_repo.claim_pending(notification_id)
+
+    assert claimed is not None
+    assert claimed.id == notification_id
+    assert claimed.appointment_id == appointment.id
+    assert claimed.status is PENDING
+
+
+def test_claiming_nothing_when_the_id_does_not_exist(
+    notification_repo: NotificationRepository,
+) -> None:
+    assert notification_repo.claim_pending("5b0a1c3e-7f64-4a0e-9d57-2f5c3a1d9e11") is None
+    assert notification_repo.claim_pending("no-es-un-id") is None
+
+
+def test_claiming_a_sent_notification_returns_nothing_and_changes_nothing(
+    notification_repo: NotificationRepository,
+    appointment_repo: AppointmentRepository,
+    ids: Refs,
+    factory: RepositoryFactory,
+) -> None:
+    appointment = make_appointment(appointment_repo, ids, monday(10))
+    sent = factory.seed_notification(
+        appointment.id, NotificationKind.CONFIRMATION, NotificationStatus.SENT, monday(10)
+    )
+
+    assert notification_repo.claim_pending(sent.id) is None
+    assert notification_repo.list_for_appointment(appointment.id) == [sent]
+
+
+def test_claiming_one_id_does_not_return_another_pending_notification(
+    notification_repo: NotificationRepository, appointment_repo: AppointmentRepository, ids: Refs
+) -> None:
+    _, first = _pending(notification_repo, appointment_repo, ids, 10)
+    _, second = _pending(notification_repo, appointment_repo, ids, 11)
+
+    claimed = notification_repo.claim_pending(second)
+
+    assert claimed is not None
+    assert claimed.id == second != first
+
+
+def test_marking_sent_stores_the_send_instant_and_no_error(
+    notification_repo: NotificationRepository, appointment_repo: AppointmentRepository, ids: Refs
+) -> None:
+    appointment, notification_id = _pending(notification_repo, appointment_repo, ids)
+    moment = monday(9)
+
+    assert notification_repo.mark_sent(notification_id, moment) is True
+
+    [row] = notification_repo.list_for_appointment(appointment.id)
+    assert row.status is NotificationStatus.SENT
+    assert row.sent_at == moment
+    assert row.error is None
+
+
+def test_marking_failed_stores_the_error_and_no_send_instant(
+    notification_repo: NotificationRepository, appointment_repo: AppointmentRepository, ids: Refs
+) -> None:
+    appointment, notification_id = _pending(notification_repo, appointment_repo, ids)
+
+    assert notification_repo.mark_failed(notification_id, "SMTP_PERMANENT 550") is True
+
+    [row] = notification_repo.list_for_appointment(appointment.id)
+    assert row.status is NotificationStatus.FAILED
+    assert row.error == "SMTP_PERMANENT 550"
+    assert row.sent_at is None
+
+
+def test_marking_a_notification_that_is_not_pending_changes_nothing(
+    notification_repo: NotificationRepository,
+    appointment_repo: AppointmentRepository,
+    ids: Refs,
+    factory: RepositoryFactory,
+) -> None:
+    appointment = make_appointment(appointment_repo, ids, monday(10))
+    sent = factory.seed_notification(
+        appointment.id, NotificationKind.CONFIRMATION, NotificationStatus.SENT, monday(10)
+    )
+    failed = factory.seed_notification(
+        appointment.id, NotificationKind.REMINDER, NotificationStatus.FAILED, monday(10)
+    )
+
+    assert notification_repo.mark_failed(sent.id, "X") is False
+    assert notification_repo.mark_sent(failed.id, monday(9)) is False
+    assert notification_repo.mark_sent("5b0a1c3e-7f64-4a0e-9d57-2f5c3a1d9e11", monday(9)) is False
+
+    assert set(notification_repo.list_for_appointment(appointment.id)) == {sent, failed}
+
+
+# --- Pendientes antiguas (C-11, reencolar_pendientes) ----------------------------------------
+
+
+def test_old_pending_notifications_come_oldest_first_and_respect_the_limit(
+    notification_repo: NotificationRepository,
+    appointment_repo: AppointmentRepository,
+    ids: Refs,
+    factory: RepositoryFactory,
+) -> None:
+    appointment = make_appointment(appointment_repo, ids, monday(10))
+    kind = NotificationKind.CONFIRMATION
+    newest = factory.seed_notification(appointment.id, kind, PENDING, monday(12), monday(8, 20))
+    oldest = factory.seed_notification(appointment.id, kind, PENDING, monday(10), monday(8, 0))
+    middle = factory.seed_notification(appointment.id, kind, PENDING, monday(11), monday(8, 10))
+    factory.seed_notification(
+        appointment.id, NotificationKind.REMINDER, NotificationStatus.SENT, monday(10), monday(7)
+    )
+
+    only_one = notification_repo.list_pending_created_before(monday(8, 15), 1)
+    both = notification_repo.list_pending_created_before(monday(8, 15), 10)
+
+    assert [n.id for n in only_one] == [oldest.id]
+    assert [n.id for n in both] == [oldest.id, middle.id]
+    assert newest.id not in [n.id for n in both]
+
+
+def test_old_pending_ignores_sent_failed_and_recent_ones(
+    notification_repo: NotificationRepository,
+    appointment_repo: AppointmentRepository,
+    ids: Refs,
+    factory: RepositoryFactory,
+) -> None:
+    appointment = make_appointment(appointment_repo, ids, monday(10))
+    factory.seed_notification(
+        appointment.id,
+        NotificationKind.CONFIRMATION,
+        NotificationStatus.SENT,
+        monday(10),
+        monday(1),
+    )
+    factory.seed_notification(
+        appointment.id, NotificationKind.REMINDER, NotificationStatus.FAILED, monday(10), monday(1)
+    )
+    factory.seed_notification(
+        appointment.id, NotificationKind.CONFIRMATION, PENDING, monday(11), monday(9)
+    )
+
+    assert notification_repo.list_pending_created_before(monday(8), 100) == []
+
+
+def test_a_notification_created_exactly_at_the_limit_is_not_old_yet(
+    notification_repo: NotificationRepository,
+    appointment_repo: AppointmentRepository,
+    ids: Refs,
+    factory: RepositoryFactory,
+) -> None:
+    appointment = make_appointment(appointment_repo, ids, monday(10))
+    factory.seed_notification(
+        appointment.id, NotificationKind.CONFIRMATION, PENDING, monday(10), monday(8)
+    )
+
+    assert notification_repo.list_pending_created_before(monday(8), 10) == []
+    assert len(notification_repo.list_pending_created_before(monday(8, 1), 10)) == 1

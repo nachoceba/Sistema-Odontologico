@@ -65,12 +65,15 @@ export function dayAndTime(utcInstant: string): string {
   return `${formatDayLabel(localDateOf(utcInstant))} ${formatLocalTime(utcInstant)}`
 }
 
+/** El envío es posterior y lo hace el servidor: el aviso habla en futuro y no muestra el email. */
+const CONFIRMATION_NOTE = 'Se enviará la confirmación por email al paciente.'
+
 export function bookedNotice(patientName: string, startsAt: string): string {
-  return `Turno agendado: ${patientName}, ${dayAndTime(startsAt)}`
+  return `Turno agendado: ${patientName}, ${dayAndTime(startsAt)}. ${CONFIRMATION_NOTE}`
 }
 
 export function rescheduledNotice(startsAt: string): string {
-  return `Turno reprogramado: ${dayAndTime(startsAt)}`
+  return `Turno reprogramado: ${dayAndTime(startsAt)}. ${CONFIRMATION_NOTE}`
 }
 
 export function moveSummary(fromStartsAt: string, toStartsAt: string): string {

@@ -33,7 +33,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyWorkingHoursRepository,
 )
 from app.infrastructure.db.session import get_session_factory
-from app.infrastructure.notifications import NoOpNotificationDispatcher
+from app.infrastructure.tasks.dispatcher import build_dispatcher
 
 
 def get_user_repository() -> UserAccountRepository:
@@ -61,7 +61,7 @@ def get_agenda_deps(clock: Annotated[Callable[[], datetime], Depends(get_clock)]
         time_off=SqlAlchemyTimeOffRepository(sessions),
         settings=SqlAlchemyClinicSettingsRepository(sessions),
         unit_of_work=lambda: SqlAlchemyAgendaUnitOfWork(sessions),
-        dispatcher=NoOpNotificationDispatcher(),
+        dispatcher=build_dispatcher(),
         clock=clock,
     )
 

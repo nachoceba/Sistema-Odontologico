@@ -195,6 +195,12 @@ class EmailNotificationModel(Base):
             "appointment_starts_at",
             name="uq_email_notifications_appointment_kind_starts_at",
         ),
+        # reencolar_pendientes: las pending mas antiguas primero (P-3 de C-11).
+        Index(
+            "ix_email_notifications_pending_created_at",
+            "created_at",
+            postgresql_where=text("status = 'pending'"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -207,6 +213,9 @@ class EmailNotificationModel(Base):
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error: Mapped[str | None] = mapped_column(Text)
     appointment_starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
 
 
 class ClinicSettingsModel(Base):
