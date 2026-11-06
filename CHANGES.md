@@ -32,7 +32,7 @@ C-01 foundation-setup     [x] archivado (2026-11-03)
  │         └── C-08 appointment-use-cases       [x] archivado (2026-11-03)  (+ C-05)
  │              ├── C-11 email-confirmation-infra
  │              │    └── C-12 reminders-cron
- │              └── C-10 appointment-management-ui   (+ C-06, C-09)
+ │              └── C-10 appointment-management-ui   [x] archivado (2026-11-06)  (+ C-06, C-09)
  └── C-05 domain-scheduling-core   (funciones puras, no requiere BD)   [x] completo
       ├── C-05a crear-turno-sin-solapamientos   [x] archivado (primer recorte de C-05)
       ├── C-05b calcular-slots-disponibles      [x] archivado (segundo recorte de C-05)
@@ -347,7 +347,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `knowledge-base/05_reglas_de_negocio.md` §RN-AU-04, §RN-GL-01
 
 ### [C-10] `appointment-management-ui`
-- **Estado**: `[~]` implementado en el frontend (grupos 0 a 10 de `tasks.md`; falta el recorrido en el navegador con el seed y el archivado): 379 tests de frontend (C-09 dejó 249; ningún test previo se perdió), `eslint` y `tsc` limpios. P-1 a P-9 confirmadas con la opción A (DD-84 a DD-86). Solo frontend: `src/appointments/` (`actions.ts` y `messages.ts` puros, `BookingPanel`, `AppointmentDetail`, `CancelDialog`, `RescheduleDialog`, `ConflictsPanel`), escrituras en `src/api/appointments.ts` y acciones opcionales en `DayColumn`/`WeekView`; sin migraciones, endpoints, dependencias ni variables de entorno nuevas. **Nota para C-11**: el aviso de éxito de agendar ("Turno agendado: …") no menciona emails; C-11 puede sumar "Se envió la confirmación por email" en `bookedNotice` de `src/appointments/messages.ts`.
+- **Estado**: `[x]` implementado, verificado y archivado el 2026-11-06 (`openspec/changes/archive/2026-11-06-appointment-management-ui/`): 379 tests de frontend (C-09 dejó 249; ningún test previo se perdió), `eslint` y `tsc` limpios. P-1 a P-9 confirmadas con la opción A (DD-84 a DD-86). Specs principales nuevas: `frontend-appointment-management`; modificadas: `frontend-agenda`. Solo frontend: `src/appointments/` (`actions.ts` y `messages.ts` puros, `BookingPanel`, `AppointmentDetail`, `CancelDialog`, `RescheduleDialog`, `ConflictsPanel`), escrituras en `src/api/appointments.ts` y acciones opcionales en `DayColumn`/`WeekView`; sin migraciones, endpoints, dependencias ni variables de entorno nuevas. **Nota para C-11**: el aviso de éxito de agendar ("Turno agendado: …") no menciona emails; C-11 puede sumar "Se envió la confirmación por email" en `bookedNotice` de `src/appointments/messages.ts`.
 - **Nota de C-06 (DD-78)**: reutilizar `PatientSearch` (solo pacientes activos, `onSelect` con id y nombre) y `PatientForm` (alta y edición, `onSaved`) de `frontend/src/patients/` para "buscar o crear paciente" al agendar. Avisar que buscar sin tilde no encuentra con tilde (DD-74).
 - **Scope**:
   - UI para agendar desde un slot libre (buscar/crear paciente inline con C-06), cancelar con motivo, reprogramar y marcar atendido/ausente, conectada a los casos de uso de C-08
@@ -505,9 +505,9 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-07 | professional-schedules (archivado `[x]`) | 2 | C-03, C-05 | MEDIO |
 | C-08 | appointment-use-cases (archivado `[x]`) | 3 | C-03, C-05 | MEDIO |
 | C-09 | agenda-views (archivado `[x]`) | 3 | C-05, C-07, C-08 | BAJO |
-| C-10 | appointment-management-ui | 3 | C-06, C-08, C-09 | MEDIO |
+| C-10 | appointment-management-ui (archivado `[x]`) | 3 | C-06, C-08, C-09 | MEDIO |
 | C-11 | email-confirmation-infra | 4 | C-08 | ALTO |
 | C-12 | reminders-cron | 4 | C-11 | ALTO |
 | C-13 | deploy-and-hardening | 5 | C-04, C-10, C-12 | MEDIO |
 
-**Siguientes changes habilitados**: C-01, C-02, C-03, C-04, C-06, C-07, C-08 y C-09 ya están archivados. Quedan habilitados `C-10` (appointment-management-ui, MEDIO; depende de C-06, C-08 y C-09, todos archivados) y `C-11` (email-confirmation-infra, ALTO; depende solo de C-08). Para arrancar: `/opsx:propose C-10-appointment-management-ui` o `C-11-email-confirmation-infra`. Gobernanza CRÍTICA de C-03 ya aprobada y ejecutada.
+**Siguientes changes habilitados**: C-01, C-02, C-03, C-04, C-06, C-07, C-08, C-09 y C-10 ya están archivados. Queda habilitado `C-11` (email-confirmation-infra, ALTO; depende solo de C-08). C-12 espera a C-11 y C-13 espera a C-10 y C-12. Para arrancar: `/opsx:propose C-11-email-confirmation-infra`. Gobernanza CRÍTICA de C-03 ya aprobada y ejecutada.
