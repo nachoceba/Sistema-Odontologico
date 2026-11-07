@@ -1,6 +1,7 @@
 import { useRef, useState, type SyntheticEvent } from 'react'
 import { Navigate } from 'react-router'
 import { useAuth } from '../auth/useAuth'
+import { ToothMark } from '../ui/ToothMark'
 import { useApiHealth, type ApiHealth } from '../useApiHealth'
 
 const HEALTH_MESSAGES: Record<ApiHealth, string> = {
@@ -43,7 +44,10 @@ export default function LoginPage() {
 
   return (
     <main className="page">
-      <h1>Sistema Odontológico</h1>
+      <div className="login-brand">
+        <ToothMark large />
+        <h1>Sistema Odontológico</h1>
+      </div>
       <form
         onSubmit={(event) => {
           void handleSubmit(event)

@@ -9,9 +9,9 @@ export default function RequireRole({ roles }: { roles: readonly Role[] }) {
   if (user !== null && roles.includes(user.role)) return <Outlet />
 
   return (
-    <main className="page">
+    <div className="page">
       <p role="alert">{FORBIDDEN_MESSAGE}</p>
       <Link to="/agenda">Volver a la agenda</Link>
-    </main>
+    </div>
   )
 }

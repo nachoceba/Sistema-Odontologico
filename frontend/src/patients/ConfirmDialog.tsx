@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef } from 'react'
+import { useRef } from 'react'
+import { Dialog } from '../ui/Dialog'
 
 /** Diálogo de confirmación accesible: foco en "Cancelar" (lo seguro) y Escape cancela. */
 export function ConfirmDialog({
@@ -14,35 +15,19 @@ export function ConfirmDialog({
   onConfirm: () => void
   onCancel: () => void
 }) {
-  const titleId = useId()
   const cancelRef = useRef<HTMLButtonElement>(null)
 
-  useEffect(() => {
-    cancelRef.current?.focus()
-  }, [])
-
   return (
-    <div className="dialog-backdrop">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="dialog"
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') onCancel()
-        }}
-      >
-        <h2 id={titleId}>{title}</h2>
-        <p>{message}</p>
-        <div className="form-actions">
-          <button type="button" onClick={onConfirm}>
-            {confirmLabel}
-          </button>
-          <button type="button" className="secondary" ref={cancelRef} onClick={onCancel}>
-            Cancelar
-          </button>
-        </div>
+    <Dialog title={title} onClose={onCancel} safeRef={cancelRef}>
+      <p>{message}</p>
+      <div className="form-actions">
+        <button type="button" onClick={onConfirm}>
+          {confirmLabel}
+        </button>
+        <button type="button" className="secondary" ref={cancelRef} onClick={onCancel}>
+          Cancelar
+        </button>
       </div>
-    </div>
+    </Dialog>
   )
 }

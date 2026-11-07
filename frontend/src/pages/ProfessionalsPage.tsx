@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
 import {
   getWorkingHours,
   listProfessionals,
@@ -15,6 +14,7 @@ import { NO_FILE_MESSAGE, messageForError } from '../professionals/messages'
 import { ProfileCard } from '../professionals/ProfileCard'
 import { TimeOffPanel } from '../professionals/TimeOffPanel'
 import { WeekEditor } from '../professionals/WeekEditor'
+import { LoadingNotice } from '../ui/Notices'
 
 type ListState =
   | { status: 'loading' }
@@ -68,7 +68,7 @@ function ProfessionalDetail({
   return (
     <article aria-label={`Ficha de ${professional.display_name}`}>
       <ProfileCard professional={professional} editable={editable} onSaved={onSaved} />
-      {detail.status === 'loading' ? <p role="status">Cargando…</p> : null}
+      {detail.status === 'loading' ? <LoadingNotice /> : null}
       {detail.status === 'error' ? <p role="alert">{detail.message}</p> : null}
       {detail.status === 'ready' ? (
         <>
@@ -124,46 +124,47 @@ export default function ProfessionalsPage() {
   const selected = onlyOne ?? professionals.find((p) => p.id === selectedId)
 
   return (
-    <main className="page page--wide">
+    <div className="page page--wide">
       <header className="page-header">
         <h1>Profesionales</h1>
-        <Link to="/agenda">Volver a la agenda</Link>
       </header>
-      {list.status === 'loading' ? <p role="status">Cargando…</p> : null}
+      {list.status === 'loading' ? <LoadingNotice /> : null}
       {list.status === 'error' ? <p role="alert">{list.message}</p> : null}
       {list.status === 'ready' && professionals.length === 0 ? <p>{NO_FILE_MESSAGE}</p> : null}
       {professionals.length > 1 ? (
-        <table className="users-table">
-          <thead>
-            <tr>
-              <th scope="col">Nombre</th>
-              <th scope="col">Matrícula</th>
-              <th scope="col">Estado</th>
-              <th scope="col">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {professionals.map((p) => (
-              <tr key={p.id}>
-                <td>{p.display_name}</td>
-                <td>{p.license_number ?? 'Sin matrícula'}</td>
-                <td>{p.active ? 'Activo' : 'Inactivo'}</td>
-                <td className="row-actions">
-                  <button
-                    type="button"
-                    className="secondary"
-                    aria-label={`Ver a ${p.display_name}`}
-                    onClick={() => {
-                      setSelectedId(p.id)
-                    }}
-                  >
-                    Ver
-                  </button>
-                </td>
+        <div className="table-scroll" role="region" aria-label="Profesionales" tabIndex={0}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Nombre</th>
+                <th scope="col">Matrícula</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {professionals.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.display_name}</td>
+                  <td>{p.license_number ?? 'Sin matrícula'}</td>
+                  <td>{p.active ? 'Activo' : 'Inactivo'}</td>
+                  <td className="row-actions">
+                    <button
+                      type="button"
+                      className="secondary"
+                      aria-label={`Ver a ${p.display_name}`}
+                      onClick={() => {
+                        setSelectedId(p.id)
+                      }}
+                    >
+                      Ver
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : null}
       {selected === undefined ? null : (
         <ProfessionalDetail
@@ -173,6 +174,6 @@ export default function ProfessionalsPage() {
           onSaved={replaceProfessional}
         />
       )}
-    </main>
+    </div>
   )
 }

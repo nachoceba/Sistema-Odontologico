@@ -124,3 +124,16 @@ describe('listado y edición de la ficha', () => {
     expect(screen.getByLabelText('Nombre a mostrar')).toBeInTheDocument()
   })
 })
+
+describe('tabla de profesionales en pantallas angostas (P-8)', () => {
+  it('está dentro de una región con nombre "Profesionales", enfocable y desplazable', async () => {
+    setup()
+    renderApp('/profesionales')
+
+    const region = await screen.findByRole('region', { name: 'Profesionales' })
+
+    expect(region).toHaveAttribute('tabindex', '0')
+    expect(region).toHaveClass('table-scroll')
+    expect(within(region).getByRole('table')).toHaveClass('data-table')
+  })
+})

@@ -61,7 +61,7 @@ Contexto de mercado (no normativo): [docs/discovery/informe-discovery.md](docs/d
 |--------|-----|------------------|
 | **Backend Core** | FastAPI / SQLAlchemy / Alembic / PostgreSQL | `supabase-postgres-best-practices` (solo la parte de PostgreSQL: esquema, índices, constraints), `tdd` |
 | **Backend Aux / Dominio** | Funciones puras de `domain/`, Celery, email | `revisor-escenarios-turnos` (al preparar specs de agenda), `tdd` |
-| **Frontend** | React + TypeScript + Vite | `frontend-design:frontend-design`, `vercel-react-best-practices` (solo la parte de React), `tdd` |
+| **Frontend** | React + TypeScript + Vite | `frontend-design:frontend-design`, `diseno-ui-odontologico` (al tocar estilos o pantallas), `vercel-react-best-practices` (solo la parte de React), `tdd` |
 | **Orquestación** | OPSX / SDD / docs | `kb-creator`, `roadmap-generator`, `agent-instruction`, `skill-creator` |
 
 Cargá la skill correspondiente al contexto ANTES de escribir código.
@@ -79,6 +79,34 @@ Herramienta de desarrollo para el agente (no forma parte del producto), creada c
 - **Qué necesita**: los escenarios o la spec borrador, y leer en el momento `05_reglas_de_negocio.md`, `10_preguntas_abiertas.md`, `09_decisiones_y_supuestos.md`, `04_modelo_de_datos.md` y la entrada del change en `CHANGES.md`.
 - **Cómo revisar el resultado**: cada hallazgo cita una regla (RN, DD o SU) o dice "sin respaldo en la KB"; los códigos citados existen en el archivo; las decisiones de dominio nuevas quedan como preguntas al usuario y no se incorporan solas; hay al menos un escenario esperado, uno de error de negocio y uno de borde.
 - **Límite**: solo revisa. No escribe código ni modifica la KB.
+
+### Skill propia: `diseno-ui-odontologico`
+
+Herramienta de desarrollo para el agente (no forma parte del producto), creada con `skill-creator`. Diseño en [docs/skills-mcp/investigacion-diseno-ui.md](docs/skills-mcp/investigacion-diseno-ui.md) y evidencia en [docs/skills-mcp/evidencias/ui-visual-refresh.md](docs/skills-mcp/evidencias/ui-visual-refresh.md).
+
+- **Ubicación**: `.claude/skills/diseno-ui-odontologico/SKILL.md`, versionada en el repo y registrada en `.atl/skill-registry.md`.
+- **Cuándo usarla**: al crear o cambiar estilos, tokens, componentes visuales o pantallas del frontend (por ejemplo C-14), y al revisar una pantalla por contraste, foco, tamaño de objetivos, anchos o motivo dental.
+- **Qué necesita**: la pantalla o el archivo a revisar, `frontend/src/styles.css` y `design.md` de C-14 (criterios C-1 a C-10 y paleta); para medir, el navegador integrado.
+- **Cómo revisar el resultado**: cada hallazgo cita el criterio (C-1 a C-10) y una medida (contraste con `contrastRatio`, tamaño en px, ancho de página); no cambia textos, acciones por rol ni pedidos a la API; las decisiones de diseño nuevas vuelven al usuario como pregunta.
+- **Límite**: solo revisa y propone. No agrega librerías de componentes sin la aprobación del usuario (MIT, Apache o BSD) y nunca pone el diente animado en la grilla ni sin `prefers-reduced-motion`.
+
+### Herramienta de revisión: navegador integrado (`mcp__Claude_Browser__*`)
+
+Es el panel de navegador de la app de escritorio de Claude, no una skill del repo; antes de usarlo se carga la skill `built-in-browser`.
+
+- **Propósito**: revisar la capa visual con la app levantada: tamaños de controles, ancho de página, color del foco calculado, recorrido con Tab y pedidos de red.
+- **Herramientas que se usan**: `resize_window` (375, 768 y 1280 px), `computer` (captura y teclas), `javascript_tool` (solo lectura de estilos y medidas), `read_network_requests` y `read_page`.
+- **Reglas**: solo `localhost` y entornos de desarrollo con datos ficticios; nunca la contraseña real de nadie ni credenciales del `.env` en la página; al terminar, `resize_window` con `preset: "desktop"`.
+- **Cómo revisar el resultado**: anotar cada medida en la evidencia del change; ningún pedido a dominios externos.
+
+### Integración MCP: Stitch (referencias de diseño)
+
+Servicio externo de Google elegido por el usuario (P-2), no una skill. Instalación y notas en [docs/skills-mcp/investigacion-diseno-ui.md](docs/skills-mcp/investigacion-diseno-ui.md).
+
+- **Propósito**: generar imágenes de referencia visual antes de tocar pantallas; se implementa a mano, sin importar HTML ni código generado.
+- **Herramientas que se usan**: `create_project`, `create_design_system`, `update_design_system`, `generate_screen_from_text`, `get_screen`, `list_screens`, `edit_screens` y `download_file` (solo la imagen).
+- **Reglas de datos**: solo descripciones con datos ficticios; nunca código, rutas internas, claves, `.env` ni datos de pacientes. Solo el proyecto propio "Sistema Odontologico": NUNCA `list_projects`, `delete_project` ni tocar otros proyectos de la cuenta.
+- **Cómo revisar el resultado**: comparar con el inventario de pantallas y con las specs funcionales; lo que la API no tiene se descarta; las referencias no reemplazan ninguna medición.
 
 ### Integración MCP: Context7
 
@@ -106,9 +134,9 @@ Integración con un servidor local, no una skill. Configuración y comprobación
 
 El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen:
 
-- **Total**: 13 changes en 6 fases (0 Fundación, 1 Datos y acceso, 2 Dominio y catálogos, 3 Agenda de turnos MVP, 4 Notificaciones por email, 5 Salida a producción).
+- **Total**: 14 changes en 7 fases (0 Fundación, 1 Datos y acceso, 2 Dominio y catálogos, 3 Agenda de turnos MVP, 4 Notificaciones por email, 5 Salida a producción, 6 Mejora de la capa visual).
 - **Camino crítico** (7): `C-01 → C-02 → C-03 → C-08 → C-11 → C-12 → C-13`, con una cadena paralela de igual longitud `C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13`.
-- **Estado del roadmap**: C-01 a C-13 archivados; no queda ningún change habilitado.
+- **Estado del roadmap**: C-01 a C-14 archivados; C-14 `ui-visual-refresh` archivado el 2026-11-07 en `openspec/changes/archive/2026-11-07-ui-visual-refresh/` (446 tests de frontend, decisiones DD-117 a DD-127).
 - **Changes ya archivados**: `C-01` `foundation-setup` (archivo en `openspec/changes/archive/2026-11-03-foundation-setup/`, specs principales en `openspec/specs/runtime-configuration/spec.md`, `openspec/specs/api-health/spec.md`, `openspec/specs/error-model/spec.md`, `openspec/specs/local-environment/spec.md`, `openspec/specs/quality-checks/spec.md` y `openspec/specs/frontend-shell/spec.md`). `C-03` `auth-login-rbac` (archivo en `openspec/changes/archive/2026-11-03-auth-login-rbac/`, specs principales nuevas en `openspec/specs/user-authentication/spec.md`, `openspec/specs/access-control/spec.md`, `openspec/specs/user-account-repository/spec.md` y `openspec/specs/frontend-auth/spec.md`; modificadas `openspec/specs/error-model/spec.md` y `openspec/specs/frontend-shell/spec.md`). `C-04` `user-management` (archivo en `openspec/changes/archive/2026-11-03-user-management/`, specs principales nuevas en `openspec/specs/user-management/spec.md`, `openspec/specs/professional-repository/spec.md` y `openspec/specs/frontend-user-management/spec.md`; modificadas `openspec/specs/user-account-repository/spec.md`, `openspec/specs/error-model/spec.md` y `openspec/specs/user-authentication/spec.md`; 605 tests por defecto y 193 de integración; decisiones DD-56 a DD-61). `C-05a` `crear-turno-sin-solapamientos` (recorte de C-05, 33 tests; archivo en `openspec/changes/archive/2026-09-30-crear-turno-sin-solapamientos/`, spec principal en `openspec/specs/appointment-creation/spec.md`). C-05 completo: C-05a a C-05d archivados.
   `C-05b` `calcular-slots-disponibles` (recorte de C-05, 71 tests en total con los de C-05a; archivo en `openspec/changes/archive/2026-11-03-calcular-slots-disponibles/`, specs principales en `openspec/specs/slot-availability/spec.md` y `openspec/specs/clinic-timezone/spec.md`).
   `C-05c` `completar-dominio-agenda` (recorte de C-05, 131 tests en total; archivo en `openspec/changes/archive/2026-11-03-completar-dominio-agenda/`, specs principales en `openspec/specs/schedule-validation/spec.md`, `openspec/specs/appointment-status-transitions/spec.md` y `openspec/specs/patient-booking-eligibility/spec.md`).

@@ -18,7 +18,7 @@ Sistema de gestión de turnos y agenda de pacientes para consultorios odontológ
 | `docker-compose.demo.yml` | Modo demo: se suma al archivo anterior (frontend en nginx, API sin recarga) |
 | `.env.example` | Variables de ejemplo, sin secretos |
 | `knowledge-base/` | Base de conocimiento: visión, actores, modelo de datos, reglas, flujos, arquitectura, decisiones (DD) y preguntas abiertas |
-| `CHANGES.md` | Roadmap de 13 changes con dependencias, estado y riesgos |
+| `CHANGES.md` | Roadmap de 14 changes con dependencias, estado y riesgos |
 | `openspec/specs/` y `openspec/changes/archive/` | Especificaciones vigentes y changes archivados (proposal, design, tasks y specs) |
 | `AGENTS.md` y `CLAUDE.md` | Reglas del proyecto para los agentes (mismo contenido) |
 | `docs/adopcion-recepcion.md` | Checklist de adopción para la recepción y el dueño |
@@ -165,7 +165,7 @@ Todo endpoint exige JWT y rol salvo el login y `GET /api/v1/health`. Una matriz 
 
 ## Estado de los changes y decisiones abiertas
 
-Los 13 changes del roadmap están implementados y archivados (ver `CHANGES.md`); la lista de decisiones está en `knowledge-base/09_decisiones_y_supuestos.md`. Quedan abiertas, antes de usar datos reales:
+Los changes C-01 a C-13 del roadmap están implementados y archivados, y C-14 (mejora de la capa visual) está implementado y pendiente de archivar (ver `CHANGES.md`); la lista de decisiones está en `knowledge-base/09_decisiones_y_supuestos.md`. Quedan abiertas, antes de usar datos reales:
 
 - **SU-02, SMTP de producción**: hoy los emails van a Mailpit; falta elegir un servidor SMTP y revisar su cupo (el adaptador se configura solo por variables).
 - **SU-01, zona horaria**: se asume `America/Argentina/Buenos_Aires` sin horario de verano; confirmar con el dueño.
@@ -207,6 +207,14 @@ Está en `.claude/skills/revisor-escenarios-turnos/` y viene con el repositorio:
 - **Límites de uso**: apunta solo a la base de **desarrollo** con datos ficticios, nunca a producción. Corre con `--access-mode=restricted` (solo lectura, con validación de las consultas): se comprobó que rechaza un `DELETE`. Ese modo también rechaza la función `tstzrange`; para auditar superposiciones se usan comparaciones de `starts_at` y `ends_at`. No se usa para cambiar datos ni el esquema: eso pasa por Alembic. La contraseña no se incluye en consultas, docs ni capturas.
 - **Problemas de instalación**: si da `Failed to connect`, verificar que el stack esté levantado y que la red exista; si cambia el nombre de la carpeta del proyecto, cambia el nombre de la red.
 - **Evidencia de uso real**: `docs/skills-mcp/evidencias/mcp-postgres-odonto-uso.md`.
+
+### Cómo revisar la capa visual (C-14)
+
+La mejora visual no cambia textos, permisos ni pedidos a la API; se revisa en tres capas:
+
+1. **Tests de contraste y tokens**: `cd frontend && npm test -- src/ui` corre `contrast.test.ts` (la función `contrastRatio`, WCAG 2.2) y `tokens.test.ts`, que lee `src/styles.css` y falla si falta un token, si un par de colores no llega a 4,5:1 (texto) o 3:1 (foco, borde de campo, marcas de estado), si hay colores sueltos fuera de `:root`, si un selector se repite o si se carga una fuente externa.
+2. **Lista de verificación con el navegador integrado**, a 375, 768 y 1280 px: sin desplazamiento horizontal de la página; ningún control de menos de 24 × 24 px; primer Tab en "Saltar al contenido" y foco visible; el diente decorativo solo en la barra, el login y los avisos (nunca en tablas ni en la grilla) y quieto con `prefers-reduced-motion`; ningún pedido a dominios externos. Las mediciones del change están en `docs/skills-mcp/evidencias/ui-visual-refresh.md`. La skill `diseno-ui-odontologico` guía la revisión.
+3. **Referencias de Stitch**: imágenes de referencia del proyecto "Sistema Odontologico" en Stitch (servicio externo, con datos ficticios); sirven para comparar a ojo y no reemplazan las mediciones. Se implementa a mano, sin importar el código generado.
 
 ## Stack
 

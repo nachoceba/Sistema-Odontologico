@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, saveToken } from '../auth/session'
@@ -143,5 +144,90 @@ describe('CancelDialog', () => {
     expect(JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string)).toEqual({
       reason: 'Licencia',
     })
+  })
+})
+
+function Harness() {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true)
+        }}
+      >
+        Abrir
+      </button>
+      {open ? (
+        <CancelDialog
+          appointment={TARGET}
+          onDone={() => undefined}
+          onRejected={() => undefined}
+          onClose={() => {
+            setOpen(false)
+          }}
+        />
+      ) : null}
+    </>
+  )
+}
+
+describe('CancelDialog: foco dentro del diálogo (P-11)', () => {
+  it('Tab desde el último botón vuelve al primer elemento del diálogo', () => {
+    setup()
+    const dialog = screen.getByRole('dialog')
+    const last = screen.getByRole('button', { name: 'Volver' })
+    last.focus()
+
+    fireEvent.keyDown(last, { key: 'Tab' })
+
+    expect(document.activeElement).toBe(screen.getByLabelText('Motivo'))
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
+  })
+
+  it('Shift+Tab desde el primer elemento va al último botón', () => {
+    setup()
+    const first = screen.getByLabelText('Motivo')
+    first.focus()
+
+    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true })
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Volver' }))
+  })
+
+  it('Tab entre elementos del medio no se desvía: lo resuelve el navegador', () => {
+    setup()
+    const middle = screen.getByRole('button', { name: 'Cancelar turno' })
+    middle.focus()
+
+    const notPrevented = fireEvent.keyDown(middle, { key: 'Tab' })
+
+    expect(notPrevented).toBe(true)
+    expect(document.activeElement).toBe(middle)
+  })
+
+  it('al cerrar con Escape el foco vuelve al botón que abrió el diálogo', () => {
+    render(<Harness />)
+    const opener = screen.getByRole('button', { name: 'Abrir' })
+    opener.focus()
+    fireEvent.click(opener)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(opener)
+  })
+
+  it('al cerrar con "Volver" el foco también vuelve al botón que abrió el diálogo', () => {
+    render(<Harness />)
+    const opener = screen.getByRole('button', { name: 'Abrir' })
+    opener.focus()
+    fireEvent.click(opener)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Volver' }))
+
+    expect(document.activeElement).toBe(opener)
   })
 })

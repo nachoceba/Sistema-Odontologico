@@ -524,3 +524,16 @@ describe('asignar contraseña', () => {
     expect(within(form).getByLabelText('Contraseña nueva')).toHaveValue('')
   })
 })
+
+describe('tabla de usuarios en pantallas angostas (P-8)', () => {
+  it('está dentro de una región con nombre "Usuarios", enfocable y desplazable', async () => {
+    setup()
+    renderApp('/usuarios')
+
+    const region = await screen.findByRole('region', { name: 'Usuarios' })
+
+    expect(region).toHaveAttribute('tabindex', '0')
+    expect(region).toHaveClass('table-scroll')
+    expect(within(region).getByRole('table')).toHaveClass('data-table')
+  })
+})

@@ -656,6 +656,61 @@
 **Decisión**: `CORSMiddleware` permite solo `GET`, `POST`, `PUT`, `PATCH`, `DELETE` y `OPTIONS`, solo los encabezados `Authorization` y `Content-Type` y `allow_credentials=False` (la sesión viaja en `Authorization`, DD-46). `Settings` rechaza un `CORS_ORIGINS` con `*` o con un origen sin `http://` o `https://`, con un error que nombra la variable sin repetir el valor.
 **Justificación**: un origen o un encabezado de más no debe aceptarse por omisión (regla dura 5).
 
+### DD-117 — Un solo change por grupos para la mejora visual (P-1 de C-14)
+**Decisión**: C-14 es un solo change, con un punto de corte seguro tras el grupo 5 (referencias de Stitch, tokens, componentes comunes, motivo dental y marco de navegación).
+**Alternativas consideradas**: partir en C-14a (base) y C-14b (pantallas), o en tres changes.
+**Justificación**: es trabajo solo de frontend y chico por pantalla; partirlo duplica revisión y documentación sin bajar el riesgo.
+
+### DD-118 — Stitch como MCP de diseño, solo referencias visuales (P-2 de C-14)
+**Decisión**: se usa Stitch (Google) para generar referencias visuales de pantallas con la paleta nueva, solo en el proyecto propio "Sistema Odontologico", con descripciones de datos ficticios, sin `list_projects`, `delete_project`, `upload_design_md` ni `create_design_system_from_design_md`. La implementación es a mano en React y CSS: no se importa el código generado ni se cargan fuentes externas. Riesgos aceptados por el usuario: cuenta de Google, descripciones que salen a Google, cuotas sin verificar.
+**Alternativas consideradas**: sin MCP de diseño; Figma MCP (cuenta, asiento y servicio propietario).
+**Justificación**: el usuario pidió una referencia visual antes de implementar; las mediciones siguen siendo propias.
+
+### DD-119 — Contraste medido con una función propia, sin `axe-core` (P-3 de C-14)
+**Decisión**: `frontend/src/ui/contrast.ts` calcula el contraste de WCAG y `tokens.test.ts` lee los tokens de `styles.css` y verifica la lista de pares; no se suma `vitest-axe`.
+**Alternativas consideradas**: `vitest-axe` (MIT, pero depende de `axe-core` MPL-2.0); solo revisión manual.
+**Justificación**: cumple la directiva de licencias MIT/Apache/BSD, no suma dependencias y cubre lo que más fallaba (foco y bordes).
+
+### DD-120 — Tipografía del sistema (P-4 de C-14)
+**Decisión**: la app usa `system-ui` y una escala de tamaños en tokens; no descarga ninguna fuente. La fuente elegida en el sistema de diseño de Stitch es solo para la referencia.
+**Alternativas consideradas**: una fuente abierta guardada en el repositorio (licencia SIL OFL); Google Fonts.
+**Justificación**: local, sin red ni licencias nuevas.
+
+### DD-121 — Barra de navegación común en las pantallas con sesión (P-5 de C-14)
+**Decisión**: `AppNav` pasa a un marco común (`AppLayout`) con "Saltar al contenido", el enlace "Agenda" y la página actual con `aria-current="page"`; los destinos de cada rol no cambian. El aviso de permiso conserva "Volver a la agenda".
+**Alternativas consideradas**: dejar la barra solo en `/agenda`; menú lateral fijo.
+**Justificación**: fuera de la agenda no se veía la cuenta ni cómo salir.
+
+### DD-122 — Sin modo oscuro (P-6 de C-14)
+**Decisión**: solo tema claro.
+**Alternativas consideradas**: seguir `prefers-color-scheme`.
+**Justificación**: decisión del usuario; menos pares de contraste que mantener.
+
+### DD-123 — Verificación visual con lista y navegador integrado, sin regresión visual automática (P-7 de C-14)
+**Decisión**: lista de verificación por pantalla y ancho (375, 768 y 1280 px) con el navegador integrado y medidas en `docs/skills-mcp/evidencias/ui-visual-refresh.md`, más los tests de contraste y tokens.
+**Alternativas consideradas**: Playwright con `toHaveScreenshot` (descarga navegadores); solo Vitest.
+**Justificación**: no suma dependencias ni cuentas y mira la app real.
+
+### DD-124 — Tablas con contenedor desplazable con nombre (P-8 de C-14)
+**Decisión**: cada tabla va dentro de una región con nombre accesible y `tabindex="0"` que se desplaza a lo ancho; la tabla no cambia.
+**Alternativas consideradas**: pasar a tarjetas por fila debajo de 40rem.
+**Justificación**: no toca el marcado que usan los tests y cumple el reflujo (WCAG 1.4.10).
+
+### DD-125 — Skill propia `diseno-ui-odontologico` (P-9 de C-14)
+**Decisión**: se crea la skill propia con los criterios C-1 a C-10 y se usa `frontend-design` como criterio de fondo; no se instala Impeccable.
+**Alternativas consideradas**: Impeccable (consulta una página externa y trae telemetría); solo `frontend-design`.
+**Justificación**: criterios fijos y verificables, sin red ni dependencias.
+
+### DD-126 — Paleta nueva en verdes y verde agua (P-10 de C-14)
+**Decisión**: tokens en `:root` (primario `#0a7368`, secundario `#2a7148`, fondo `#f3faf8`, texto `#12302b`, foco `#12302b` con separación de 2 px), cada par validado por `contrastRatio`.
+**Alternativas consideradas**: mantener el azul petróleo `#0b6e8a`.
+**Justificación**: identidad minimalista pedida por el usuario; los estados siguen distinguiéndose por texto, no solo por color.
+
+### DD-127 — Los diálogos retienen el foco y lo devuelven (P-11 de C-14)
+**Decisión**: una base común de diálogo para `Modal` y `ConfirmDialog` mantiene el foco adentro con Tab y Shift+Tab, conserva el foco inicial seguro y Escape, y devuelve el foco al elemento que abrió el diálogo.
+**Alternativas consideradas**: solo unificar el aspecto.
+**Justificación**: arreglo de accesibilidad (WCAG 2.4.3) que no cambia ninguna acción.
+
 ## Supuestos inferidos
 
 ### SU-01 — Zona horaria única

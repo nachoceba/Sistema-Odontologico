@@ -39,7 +39,8 @@ C-01 foundation-setup     [x] archivado (2026-11-03)
       ├── C-05c completar-dominio-agenda        [x] archivado (tercer recorte de C-05)
       └── C-05d puertos-repositorios-dominio    [x] archivado (cuarto y último recorte de C-05)
 
-C-13 deploy-and-hardening  ← C-04, C-10, C-12
+C-13 deploy-and-hardening  ← C-04, C-10, C-12   [x] archivado (2026-11-07)
+ └── C-14 ui-visual-refresh   [x] archivado (2026-11-07)  (+ C-04, C-06, C-07, C-09, C-10)
 ```
 
 ### Paralelismo por fase
@@ -69,6 +70,9 @@ GATE 4: C-11 ✓, C-09 ✓, C-06 ✓
 
 GATE 5: C-04 ✓, C-10 ✓, C-12 ✓
   → C-13 deploy-and-hardening              [Agente A]
+
+GATE 6: C-13 ✓
+  → C-14 ui-visual-refresh                 [Agente C — solo frontend]
 ```
 
 ### Camino crítico (7 changes — mínimo irreducible)
@@ -429,6 +433,52 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `knowledge-base/10_preguntas_abiertas.md`
 ---
 
+## FASE 6 — Mejora de la capa visual
+
+### [C-14] `ui-visual-refresh`
+- **Estado**: `[x]` implementado, verificado y archivado el 2026-11-07 (`openspec/changes/archive/2026-11-07-ui-visual-refresh/`; specs principales en `openspec/specs/frontend-visual-system/spec.md`; `openspec validate --strict` válido): 446 tests de frontend (392 previos sin cambiar aserciones y 54 nuevos), 1713 tests por defecto, 331 de integración y 6 de smoke sin cambios, `mypy --strict app/` y `ruff` limpios; typecheck, lint, `npm run build` y `npm run check:bundle` sin hallazgos. Decisiones DD-117 a DD-127 (P-1 a P-11 confirmadas). Spec nueva: `frontend-visual-system`. Sin cambios de backend, endpoints, migraciones ni dependencias.
+- **Resultado**: tokens en `:root` con la paleta verde y verde agua (solo tema claro), contraste validado por `contrastRatio` en tests sobre `styles.css`; marco común `AppLayout` con barra de navegación, "Agenda" y "Saltar al contenido"; diente SVG decorativo en la barra, el login y los avisos de carga y vacío, con pulso apagado por `prefers-reduced-motion`; base común de diálogo con retención de foco; tablas dentro de una región desplazable con nombre; barra de la agenda agrupada; ningún control de menos de 24 px y sin desplazamiento horizontal a 375 px; skill propia `diseno-ui-odontologico`; ningún pedido a dominios externos. Evidencia en `docs/skills-mcp/evidencias/ui-visual-refresh.md`.
+- **Scope**:
+  - Identidad nueva minimalista en verdes y verde agua, solo tema claro (P-6, P-10): primario `#0a7368`, secundario `#2a7148`, fondo `#f3faf8`, texto `#12302b`, estados éxito, error, aviso y pendiente con su fondo suave; cada par de texto y fondo validado por `contrastRatio` en un test
+  - Referencias de diseño en Stitch antes de tocar pantallas (P-2): proyecto propio "Sistema Odontologico", sistema de diseño con la paleta y una pantalla de referencia por grupo (login, agenda, detalle y diálogos de turno, pacientes, profesionales, usuarios) con datos ficticios, revisadas por el equipo; se implementa a mano, sin importar el código generado
+  - Motivo dental sutil: diente en SVG en línea con `aria-hidden` en la barra, el login y los avisos de carga y vacío, con un pulso suave al cargar que se apaga con `prefers-reduced-motion`; nunca en tablas, grilla ni diálogos
+  - Tokens visuales (color, tipografía del sistema, espacios, radios, sombras) en `:root` de `frontend/src/styles.css`; sin colores sueltos ni reglas duplicadas (`.hint`, `.dialog`)
+  - Contraste WCAG 2.2 AA medido por un test propio sin dependencias: texto ≥ 4,5:1; foco (hoy 1,95:1), borde de campos (hoy 2,92:1) y marcas de estado ≥ 3:1; objetivos de al menos 24 × 24 px
+  - Barra de navegación común en todas las pantallas con sesión, con "Agenda", página actual marcada y "Saltar al contenido" (P-5); los roles ven los mismos destinos que hoy
+  - Componentes visuales comunes: botones, campos, avisos de carga, vacío, error y éxito, tablas con contenedor desplazable (P-8), panel lateral y diálogos que retienen el foco (P-11)
+  - Pantalla por pantalla (13 pantallas o flujos del inventario de `design.md`): login, agenda con agendar, detalle, cancelar, reprogramar, marcar atención y conflictos, pacientes, profesionales y usuarios, a 375, 768 y 1280 px
+  - Skill propia `diseno-ui-odontologico` con criterios C-1 a C-10 (diseñada en `docs/skills-mcp/investigacion-diseno-ui.md`, se crea en el apply con `skill-creator`); mediciones con `contrastRatio` y el navegador integrado (`mcp__Claude_Browser__*`)
+- **Exclusiones**:
+  - Cambios de comportamiento, textos, permisos, rutas o pedidos a la API; backend, endpoints, migraciones, variables de entorno y dependencias nuevas
+  - Pantallas sin endpoint: configuración del consultorio y recordatorios enviados (la matriz de `03_actores_y_roles.md` los nombra, la API no los tiene); historia clínica y portal de pacientes (DD-07)
+  - Modo oscuro (P-6) y regresión visual con navegadores descargados (P-7)
+  - Figma MCP (P-2); importar HTML o código generado por Stitch; fuentes externas aunque Stitch sugiera una (P-4); tocar los otros proyectos de la cuenta de Stitch
+  - Mandar a Stitch código, rutas internas, claves, `.env` o datos de pacientes: solo descripciones con datos ficticios
+  - Siguen abiertos y no se resuelven acá: SU-02 (SMTP de producción), endurecer sesión y login (DD-46, DD-47, DD-112) y la prueba con una recepcionista real (R-8)
+- **Dependencias**: `C-13` (y las pantallas de `C-04`, `C-06`, `C-07`, `C-09` y `C-10`)
+- **Governance**: MEDIO (solo frontend y sin cambio de comportamiento, pero toca la barra y los diálogos que usan los tres roles; checkpoints por grupo y punto de corte seguro después del grupo 5; Stitch es un servicio externo elegido por el usuario con sus riesgos aceptados: cuenta de Google, datos que salen a Google, cuotas sin verificar)
+- **Leer antes**:
+  - `openspec/changes/ui-visual-refresh/design.md` (inventario, P-1 a P-11)
+  - `docs/skills-mcp/investigacion-diseno-ui.md`
+  - `knowledge-base/03_actores_y_roles.md` §RBAC
+  - `knowledge-base/06_funcionalidades.md` y `knowledge-base/07_flujos_principales.md`
+  - `openspec/specs/frontend-*/spec.md` (textos y acciones por rol que no cambian)
+  - `knowledge-base/01_vision_y_objetivos.md` (riesgo de adopción de recepción)
+- **Escenarios verificables** (spec `frontend-visual-system`):
+  - Dado el contorno de foco actual `#f0a500` sobre `#f5f8fa`, cuando corre el test de contraste, entonces lo rechaza (1,95:1) y el token nuevo da al menos 3:1
+  - Dada la paleta nueva, cuando corre el test de contraste, entonces blanco sobre el primario `#0a7368` da 5,73:1, texto `#12302b` sobre fondo `#f3faf8` da 13,38:1, y un par que no llega (por ejemplo `#2f7d4f` sobre `#e6f4ea`, 4,44:1) hace fallar el test nombrando los dos tokens
+  - Dado el diente de la barra, del login y de los avisos, cuando se lee la pantalla, entonces tiene `aria-hidden="true"`, no recibe foco, no cambia los textos ni roles accesibles y no aparece en tablas ni en la grilla; con `prefers-reduced-motion` queda quieto
+  - Dado el proyecto propio de Stitch, cuando el equipo revisa las seis referencias, entonces todas usan la paleta nueva y datos ficticios, y ninguna trae pantallas o campos que la API no tenga
+  - Dada la hoja de estilos, cuando una regla fuera de `:root` usa un color hexadecimal o repite un selector, entonces el test de tokens falla y nombra el selector
+  - Dado el administrador en `/pacientes`, cuando mira la barra, entonces ve "Agenda", "Pacientes" (marcado como actual), "Profesionales", "Usuarios" y "Salir"; recepción y odontología no ven "Usuarios"
+  - Dada recepción en `/usuarios`, cuando abre la dirección, entonces ve el aviso "No tenés permiso para esta acción" con el enlace a `/agenda`, sin pedir el listado y sin perder la sesión
+  - Dado administración en `/usuarios` a 375 px, cuando mira la tabla, entonces la página no se desplaza a lo ancho y la tabla se desplaza dentro de su contenedor
+  - Dado el diálogo "Cancelar turno" abierto, cuando se aprieta Tab desde el último botón, entonces el foco vuelve al primero; Escape lo cierra sin confirmar
+  - Dado un odontólogo con un turno propio ya iniciado, cuando abre el detalle, entonces ve solo "Marcar atendido" y "Marcar ausente", igual que antes
+  - Dada la suite al terminar, cuando corre, entonces pasan los 392 tests previos de Vitest sin cambiar sus aserciones, el smoke (`pytest -m smoke`) y la matriz de 32 rutas
+
+---
+
 ## Alineación con el informe de Discovery (sección D.3)
 
 El informe `docs/discovery/informe-discovery.md` recomienda un MVP en tres niveles. Esta tabla muestra qué cubre este roadmap y qué queda afuera, con el motivo (decisiones DD-07, DD-08 y DD-09 de `knowledge-base/09_decisiones_y_supuestos.md`).
@@ -488,6 +538,8 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | R-9 | El informe se basa solo en páginas comerciales y sin demos | Todo el roadmap | Validar prioridades con odontólogos reales antes de construir funciones grandes |
 | R-10 | Tratamiento legal de datos personales sin revisar (Ley 25.326; Ley 27.706 si se agrega ficha clínica) | C-02, C-06, C-13 | v1 usa solo datos ficticios; no declarar cumplimiento; revisión legal antes de usar datos reales (`10_preguntas_abiertas.md`); C-13 dejó la contraseña del seed vacía en `.env.example` y sin la consulta de búsqueda en el registro de accesos (DD-107, DD-113) |
 | R-11 | Migrar luego a sillón o duración variable (DD-08) exige cambiar el constraint EXCLUDE y `compute_slots` | C-02, C-05 | Encapsular la duración en un único punto del dominio y documentar el punto de extensión |
+| R-12 | La mejora visual cambia sin querer un texto, una acción por rol o un pedido a la API | C-14 | Los 392 tests previos de Vitest sin cambiar aserciones, el smoke y la matriz ruta × rol como red; requirement "La mejora visual no cambia comportamiento ni permisos" |
+| R-13 | Stitch es un servicio externo: cuenta de Google, descripciones que salen a Google, cuotas sin verificar y proyectos ajenos en la misma cuenta | C-14 | Riesgo aceptado por el usuario (P-2); solo descripciones con datos ficticios, solo el proyecto propio "Sistema Odontologico", sin `list_projects` ni `delete_project`; las referencias no reemplazan ninguna medición ni se importa su código |
 
 ---
 
@@ -512,5 +564,6 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-11 | email-confirmation-infra (archivado `[x]`) | 4 | C-08 | ALTO |
 | C-12 | reminders-cron (archivado `[x]`) | 4 | C-11 | ALTO |
 | C-13 | deploy-and-hardening (archivado `[x]`) | 5 | C-04, C-10, C-12 | MEDIO |
+| C-14 | ui-visual-refresh (archivado `[x]`) | 6 | C-13 | MEDIO |
 
-**Siguientes changes habilitados**: ninguno. C-01 a C-13 están implementados y archivados (C-13 el 2026-11-07, en `openspec/changes/archive/2026-11-07-deploy-and-hardening/`), así que el roadmap está completo. Lo que queda son decisiones abiertas en `knowledge-base/10_preguntas_abiertas.md` (proveedor SMTP de producción, endurecer sesión y login, adopción con una recepcionista real) y mejoras posteriores.
+**Siguientes changes habilitados**: C-01 a C-14 están implementados y archivados (C-14 el 2026-11-07, en `openspec/changes/archive/2026-11-07-ui-visual-refresh/`; C-13 el 2026-11-07, en `openspec/changes/archive/2026-11-07-deploy-and-hardening/`). Siguen abiertas en `knowledge-base/10_preguntas_abiertas.md` el proveedor SMTP de producción (SU-02), endurecer sesión y login (DD-46, DD-47, DD-112) y la adopción con una recepcionista real (R-8), además de las preguntas de dominio de prioridad media.

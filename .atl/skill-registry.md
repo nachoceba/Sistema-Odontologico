@@ -2,7 +2,7 @@
 
 **Delegator use only.** Any agent that launches sub-agents reads this registry to resolve compact rules, then injects them directly into sub-agent prompts. Sub-agents do NOT read this registry or individual SKILL.md files.
 
-Proyecto: Sistema Odontológico (agenda de turnos). Generado el 2026-09-30. Actualizado el 2026-11-03: se agregó la skill propia `revisor-escenarios-turnos` (no se regeneró el resto del registro).
+Proyecto: Sistema Odontológico (agenda de turnos). Generado el 2026-09-30. Actualizado el 2026-11-03: se agregó la skill propia `revisor-escenarios-turnos` (no se regeneró el resto del registro). Actualizado el 2026-11-07: se agregó la skill propia `diseno-ui-odontologico`.
 
 ## Decisiones de find-skill (una línea por recomendación)
 
@@ -35,6 +35,7 @@ Find-skill solo recomienda; la elección la tomó el equipo. Fuente de las recom
 | Generar CHANGES.md (roadmap de changes) | roadmap-generator | `~/.claude/skills/roadmap-generator/SKILL.md` |
 | Crear o mejorar skills | skill-creator | `~/.claude/skills/skill-creator/SKILL.md` |
 | Explorar, proponer o escribir spec, design o tasks de un change de turnos, horarios, licencias, slots, zona horaria o estados (C-05b, C-07, C-08, C-09); revisar escenarios, buscar ambigüedades o bordes faltantes | revisor-escenarios-turnos | `.claude/skills/revisor-escenarios-turnos/SKILL.md` |
+| Proponer, implementar o revisar cambios visuales del frontend (`.tsx` o `styles.css`): tokens, contraste, anchos, estados, foco, motivo dental; "revisá cómo se ve", "chequeá el contraste" | diseno-ui-odontologico | `.claude/skills/diseno-ui-odontologico/SKILL.md` |
 | Skills de frontend (UI prolija de la agenda) | frontend-design:frontend-design | plugin local `frontend-design` |
 
 ## Compact Rules
@@ -72,6 +73,12 @@ Pre-digested rules per skill. Delegators copy matching blocks into sub-agent pro
 ### frontend-design
 - UI con intención visual clara: tipografía y jerarquía propias, sin plantillas genéricas.
 - Mantener accesibilidad y consistencia en las pantallas de agenda y formularios.
+
+### diseno-ui-odontologico
+- Skill propia del proyecto (C-14), creada con `skill-creator`; herramienta de desarrollo, no parte del producto.
+- Usarla al proponer, implementar o revisar cambios visuales; leer en el momento `styles.css`, `ui/contrast.ts`, la spec `frontend-visual-system` y la spec funcional de la pantalla.
+- Criterios: C-1 texto 4,5:1; C-2 foco, bordes de campo y estados 3:1; C-3 solo tokens, tema claro; C-4 sin desplazamiento horizontal a 375 px (tablas dentro de su contenedor); C-5 carga, vacío y error con los textos de la spec; C-6 teclado y foco; C-7 sin cambio de comportamiento; C-8 sin dependencias nuevas sin aprobación; C-9 diente SVG decorativo solo en barra, login, carga y vacío, quieto con `prefers-reduced-motion`; C-10 Stitch solo como referencia.
+- Responde con una tabla de hallazgos (pantalla, ancho, criterio, qué pasa, evidencia, sugerencia).
 
 ### revisor-escenarios-turnos
 - Skill propia del proyecto (TP Skills+MCP), creada con `skill-creator`; herramienta de desarrollo para el agente, no parte del producto.

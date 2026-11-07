@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router'
 import type { Appointment, AttendanceStatus } from '../api/appointments'
 import { recordAttendance } from '../api/appointments'
 import { listProfessionals, type ConflictReason, type Professional } from '../api/professionals'
-import { AppNav } from '../agenda/AppNav'
 import { DateNavigator, type AgendaView } from '../agenda/DateNavigator'
 import { DayColumn } from '../agenda/DayColumn'
 import { addDays, parseIsoDate, todayInClinic, weekDays } from '../agenda/dates'
@@ -31,6 +30,7 @@ import { RescheduleDialog } from '../appointments/RescheduleDialog'
 import { ConfirmDialog } from '../patients/ConfirmDialog'
 import { listName } from '../patients/messages'
 import { NO_FILE_MESSAGE, messageForError } from '../professionals/messages'
+import { LoadingNotice } from '../ui/Notices'
 
 /** Lo que está abierto sobre la agenda: un solo panel o diálogo a la vez (design D-6). */
 type Panel =
@@ -212,7 +212,7 @@ export default function AgendaPage() {
   if (isDentist && ownId === null) {
     body = <p>{NO_FILE_MESSAGE}</p>
   } else if (listState.status === 'loading') {
-    body = <p role="status">Cargando…</p>
+    body = <LoadingNotice />
   } else if (listState.status === 'error') {
     body = <p role="alert">{listState.message}</p>
   } else if (professionalId === null) {
@@ -276,7 +276,7 @@ export default function AgendaPage() {
             }}
           />
         ) : null}
-        {data.status === 'loading' ? <p role="status">Cargando…</p> : null}
+        {data.status === 'loading' ? <LoadingNotice /> : null}
         {data.status === 'error' ? (
           <>
             <p role="alert">{data.message}</p>
@@ -312,8 +312,7 @@ export default function AgendaPage() {
   }
 
   return (
-    <main className="page page--wide">
-      <AppNav />
+    <div className="page page--wide">
       <h1>Agenda</h1>
       {body}
       {panel?.kind === 'book' && professionalId !== null ? (
@@ -402,6 +401,6 @@ export default function AgendaPage() {
           }}
         />
       ) : null}
-    </main>
+    </div>
   )
 }

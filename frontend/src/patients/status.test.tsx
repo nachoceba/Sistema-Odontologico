@@ -238,4 +238,41 @@ describe('desactivar, reactivar y borrar pacientes', () => {
       expect(screen.queryByText('Pérez, Juan')).not.toBeInTheDocument()
     })
   })
+
+  it('el foco queda dentro de la confirmación: Tab y Shift+Tab dan la vuelta (P-11)', async () => {
+    mockApi({
+      'GET /auth/me': () => jsonResponse(RECEPTIONIST),
+      'GET /patients': () => jsonResponse({ items: [JUAN], truncated: false }),
+    })
+    renderApp('/pacientes')
+    await screen.findByText('Pérez, Juan')
+    fireEvent.click(within(rowOf('Pérez, Juan')).getByRole('button', { name: 'Desactivar' }))
+    const dialog = within(screen.getByRole('dialog'))
+    const first = dialog.getByRole('button', { name: 'Desactivar' })
+    const last = dialog.getByRole('button', { name: 'Cancelar' })
+
+    last.focus()
+    fireEvent.keyDown(last, { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+
+    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+  })
+
+  it('al cancelar la confirmación el foco vuelve al botón que la abrió', async () => {
+    mockApi({
+      'GET /auth/me': () => jsonResponse(RECEPTIONIST),
+      'GET /patients': () => jsonResponse({ items: [JUAN], truncated: false }),
+    })
+    renderApp('/pacientes')
+    await screen.findByText('Pérez, Juan')
+    const opener = within(rowOf('Pérez, Juan')).getByRole('button', { name: 'Desactivar' })
+    opener.focus()
+    fireEvent.click(opener)
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(opener)
+  })
 })

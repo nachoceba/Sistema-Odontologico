@@ -1,6 +1,7 @@
-import { Link } from 'react-router'
+import { NavLink } from 'react-router'
 import { ROLE_LABELS } from '../auth/AuthContext'
 import { useAuth } from '../auth/useAuth'
+import { ToothMark } from '../ui/ToothMark'
 
 /** Barra con la cuenta, el rol y los enlaces de la app; "Usuarios" solo para administración. */
 export function AppNav() {
@@ -9,12 +10,17 @@ export function AppNav() {
 
   return (
     <nav className="app-nav" aria-label="Principal">
+      <span className="app-brand">
+        <ToothMark />
+        Sistema Odontológico
+      </span>
       <p>Hola, {user.full_name}</p>
       <p>{ROLE_LABELS[user.role]}</p>
       <div className="app-nav-links">
-        <Link to="/pacientes">Pacientes</Link>
-        <Link to="/profesionales">Profesionales</Link>
-        {user.role === 'admin' ? <Link to="/usuarios">Usuarios</Link> : null}
+        <NavLink to="/agenda">Agenda</NavLink>
+        <NavLink to="/pacientes">Pacientes</NavLink>
+        <NavLink to="/profesionales">Profesionales</NavLink>
+        {user.role === 'admin' ? <NavLink to="/usuarios">Usuarios</NavLink> : null}
         <button type="button" onClick={logout}>
           Salir
         </button>

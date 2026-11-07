@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router'
 import {
   ApiError,
   createUser,
@@ -16,6 +15,7 @@ import { useAuth } from '../auth/useAuth'
 import { USER_GONE_CODE, USER_ROLE_LABELS, messageForError } from '../users/messages'
 import { PasswordForm } from '../users/PasswordForm'
 import { CreateUserForm, EditUserForm } from '../users/UserForm'
+import { LoadingNotice } from '../ui/Notices'
 
 type ListState =
   | { status: 'loading' }
@@ -137,69 +137,70 @@ export default function UsersPage() {
   }
 
   return (
-    <main className="page page--wide">
+    <div className="page page--wide">
       <header className="page-header">
         <h1>Usuarios</h1>
-        <Link to="/agenda">Volver a la agenda</Link>
       </header>
       {alertMessage === null ? null : <p role="alert">{alertMessage}</p>}
       {notice === null ? null : <p role="status">{notice}</p>}
-      {list.status === 'loading' ? <p role="status">Cargando…</p> : null}
+      {list.status === 'loading' ? <LoadingNotice /> : null}
       {list.status === 'error' ? <p role="alert">{list.message}</p> : null}
       {list.status === 'ready' ? (
-        <table className="users-table">
-          <thead>
-            <tr>
-              <th scope="col">Nombre</th>
-              <th scope="col">Email</th>
-              <th scope="col">Rol</th>
-              <th scope="col">Estado</th>
-              <th scope="col">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.users.map((u) => (
-              <tr key={u.id}>
-                <td>{u.full_name}</td>
-                <td>{u.email}</td>
-                <td>{USER_ROLE_LABELS[u.role]}</td>
-                <td>{u.active ? 'Activo' : 'Inactivo'}</td>
-                <td className="row-actions">
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() => {
-                      setEditing(u)
-                    }}
-                  >
-                    Editar
-                  </button>
-                  {u.id === me?.id ? null : (
+        <div className="table-scroll" role="region" aria-label="Usuarios" tabIndex={0}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Nombre</th>
+                <th scope="col">Email</th>
+                <th scope="col">Rol</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.users.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.full_name}</td>
+                  <td>{u.email}</td>
+                  <td>{USER_ROLE_LABELS[u.role]}</td>
+                  <td>{u.active ? 'Activo' : 'Inactivo'}</td>
+                  <td className="row-actions">
                     <button
                       type="button"
                       className="secondary"
                       onClick={() => {
-                        void handleToggle(u)
+                        setEditing(u)
                       }}
                     >
-                      {u.active ? 'Desactivar' : 'Reactivar'}
+                      Editar
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() => {
-                      setNotice(null)
-                      setPasswordFor(u)
-                    }}
-                  >
-                    Asignar contraseña
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    {u.id === me?.id ? null : (
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => {
+                          void handleToggle(u)
+                        }}
+                      >
+                        {u.active ? 'Desactivar' : 'Reactivar'}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => {
+                        setNotice(null)
+                        setPasswordFor(u)
+                      }}
+                    >
+                      Asignar contraseña
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : null}
       {editing === null ? null : (
         <EditUserForm
@@ -223,6 +224,6 @@ export default function UsersPage() {
         />
       )}
       <CreateUserForm onSubmit={handleCreate} />
-    </main>
+    </div>
   )
 }

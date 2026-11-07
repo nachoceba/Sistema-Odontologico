@@ -26,44 +26,48 @@ export function DateNavigator({
 }: DateNavigatorProps) {
   return (
     <div className="agenda-toolbar">
-      <button type="button" onClick={onPrevious}>
-        Anterior
-      </button>
-      <button type="button" onClick={onToday}>
-        Hoy
-      </button>
-      <button type="button" onClick={onNext}>
-        Siguiente
-      </button>
-      <label>
-        Fecha{' '}
-        <input
-          type="date"
-          value={date}
-          onChange={(event) => {
-            const parsed = parseIsoDate(event.target.value)
-            if (parsed !== null) onDate(parsed)
+      <div role="group" aria-label="Navegar" className="toolbar-group">
+        <button type="button" onClick={onPrevious}>
+          Anterior
+        </button>
+        <button type="button" onClick={onToday}>
+          Hoy
+        </button>
+        <button type="button" onClick={onNext}>
+          Siguiente
+        </button>
+        <label>
+          Fecha{' '}
+          <input
+            type="date"
+            value={date}
+            onChange={(event) => {
+              const parsed = parseIsoDate(event.target.value)
+              if (parsed !== null) onDate(parsed)
+            }}
+          />
+        </label>
+      </div>
+      <div role="group" aria-label="Vista" className="toolbar-group">
+        <button
+          type="button"
+          aria-pressed={view === 'dia'}
+          onClick={() => {
+            onView('dia')
           }}
-        />
-      </label>
-      <button
-        type="button"
-        aria-pressed={view === 'dia'}
-        onClick={() => {
-          onView('dia')
-        }}
-      >
-        Día
-      </button>
-      <button
-        type="button"
-        aria-pressed={view === 'semana'}
-        onClick={() => {
-          onView('semana')
-        }}
-      >
-        Semana
-      </button>
+        >
+          Día
+        </button>
+        <button
+          type="button"
+          aria-pressed={view === 'semana'}
+          onClick={() => {
+            onView('semana')
+          }}
+        >
+          Semana
+        </button>
+      </div>
       <button type="button" onClick={onRefresh}>
         Actualizar
       </button>

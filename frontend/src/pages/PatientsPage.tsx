@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
 import {
   deactivatePatient,
   deletePatient,
@@ -20,6 +19,7 @@ import {
 } from '../patients/messages'
 import { PatientForm } from '../patients/PatientForm'
 import { usePatientSearch } from '../patients/usePatientSearch'
+import { EmptyNotice, LoadingNotice } from '../ui/Notices'
 
 type FormState = 'closed' | 'create' | Patient
 type ConfirmState = { kind: 'deactivate' | 'delete'; patient: Patient } | null
@@ -73,10 +73,9 @@ export default function PatientsPage() {
   }
 
   return (
-    <main className="page page--wide">
+    <div className="page page--wide">
       <header className="page-header">
         <h1>Pacientes</h1>
-        <Link to="/agenda">Volver a la agenda</Link>
       </header>
       <div className="search-bar">
         <input
@@ -111,72 +110,74 @@ export default function PatientsPage() {
       </div>
       {alertMessage === null ? null : <p role="alert">{alertMessage}</p>}
       <DeactivationNotice appointments={upcoming} />
-      {list.status === 'loading' ? <p role="status">Cargando…</p> : null}
+      {list.status === 'loading' ? <LoadingNotice /> : null}
       {list.status === 'error' ? <p role="alert">{list.message}</p> : null}
       {list.status === 'ready' && list.result.items.length === 0 ? (
-        <p role="status">{EMPTY_MESSAGE}</p>
+        <EmptyNotice>{EMPTY_MESSAGE}</EmptyNotice>
       ) : null}
       {list.status === 'ready' && list.result.truncated ? (
         <p role="status">{TRUNCATED_MESSAGE}</p>
       ) : null}
       {list.status === 'ready' && list.result.items.length > 0 ? (
-        <table className="users-table">
-          <thead>
-            <tr>
-              <th scope="col">Paciente</th>
-              <th scope="col">Documento</th>
-              <th scope="col">Email</th>
-              <th scope="col">Teléfono</th>
-              <th scope="col">Estado</th>
-              {canWrite ? <th scope="col">Acciones</th> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {list.result.items.map((p) => (
-              <tr key={p.id}>
-                <td>{listName(p)}</td>
-                <td>{p.document_number}</td>
-                <td>{p.email}</td>
-                <td>{p.phone ?? ''}</td>
-                <td>{p.active ? 'Activo' : 'Inactivo'}</td>
-                {canWrite ? (
-                  <td className="row-actions">
-                    <button
-                      type="button"
-                      className="secondary"
-                      onClick={() => {
-                        setForm(p)
-                      }}
-                    >
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary"
-                      onClick={() => {
-                        if (p.active) setConfirm({ kind: 'deactivate', patient: p })
-                        else void reactivate(p)
-                      }}
-                    >
-                      {p.active ? 'Desactivar' : 'Reactivar'}
-                    </button>
-                    {canDelete ? (
+        <div className="table-scroll" role="region" aria-label="Pacientes" tabIndex={0}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Paciente</th>
+                <th scope="col">Documento</th>
+                <th scope="col">Email</th>
+                <th scope="col">Teléfono</th>
+                <th scope="col">Estado</th>
+                {canWrite ? <th scope="col">Acciones</th> : null}
+              </tr>
+            </thead>
+            <tbody>
+              {list.result.items.map((p) => (
+                <tr key={p.id}>
+                  <td>{listName(p)}</td>
+                  <td>{p.document_number}</td>
+                  <td>{p.email}</td>
+                  <td>{p.phone ?? ''}</td>
+                  <td>{p.active ? 'Activo' : 'Inactivo'}</td>
+                  {canWrite ? (
+                    <td className="row-actions">
                       <button
                         type="button"
                         className="secondary"
                         onClick={() => {
-                          setConfirm({ kind: 'delete', patient: p })
+                          setForm(p)
                         }}
                       >
-                        Borrar
+                        Editar
                       </button>
-                    ) : null}
-                  </td>
-                ) : null}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => {
+                          if (p.active) setConfirm({ kind: 'deactivate', patient: p })
+                          else void reactivate(p)
+                        }}
+                      >
+                        {p.active ? 'Desactivar' : 'Reactivar'}
+                      </button>
+                      {canDelete ? (
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => {
+                            setConfirm({ kind: 'delete', patient: p })
+                          }}
+                        >
+                          Borrar
+                        </button>
+                      ) : null}
+                    </td>
+                  ) : null}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : null}
       {canWrite && form !== 'closed' ? (
         <PatientForm
@@ -208,6 +209,6 @@ export default function PatientsPage() {
           }}
         />
       )}
-    </main>
+    </div>
   )
 }

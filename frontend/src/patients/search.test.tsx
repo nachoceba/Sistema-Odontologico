@@ -168,3 +168,31 @@ describe('búsqueda y tabla de pacientes', () => {
     )
   })
 })
+
+describe('tabla de pacientes en pantallas angostas (P-8)', () => {
+  it('está dentro de una región con nombre "Pacientes", enfocable y desplazable', async () => {
+    mockApi({
+      'GET /auth/me': () => jsonResponse(RECEPTIONIST),
+      'GET /patients': () => jsonResponse({ items: [JUAN, ANA], truncated: false }),
+    })
+    renderApp('/pacientes')
+
+    const region = await screen.findByRole('region', { name: 'Pacientes' })
+
+    expect(region).toHaveAttribute('tabindex', '0')
+    expect(region).toHaveClass('table-scroll')
+    expect(region.querySelector('table')).toHaveClass('data-table')
+  })
+
+  it('sin pacientes no hay tabla ni región', async () => {
+    mockApi({
+      'GET /auth/me': () => jsonResponse(RECEPTIONIST),
+      'GET /patients': () => jsonResponse({ items: [], truncated: false }),
+    })
+    renderApp('/pacientes')
+
+    await screen.findByText('No se encontraron pacientes')
+
+    expect(screen.queryByRole('region', { name: 'Pacientes' })).not.toBeInTheDocument()
+  })
+})
