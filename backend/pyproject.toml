@@ -31,8 +31,9 @@ pythonpath = ["."]
 
 markers = [
     "integration: tests que requieren base de datos o Redis reales (se piden con -m integration)",
+    "smoke: recorrido de punta a punta contra el entorno levantado (se pide con -m smoke)",
 ]
-addopts = "-m 'not integration'"
+addopts = "-m 'not integration and not smoke'"
 
 [tool.ruff]
 target-version = "py312"
@@ -52,5 +53,5 @@ files = ["app", "tests", "scripts/seed.py"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["celery", "celery.*"]
+module = ["celery", "celery.*", "yaml"]
 ignore_missing_imports = true

@@ -7,15 +7,11 @@ entorno, que trabaja sobre la base de desarrollo. Los mensajes de Mailpit se bor
 
 from __future__ import annotations
 
-import json
 import time
-import urllib.parse
-import urllib.request
 import uuid
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from datetime import time as dtime
-from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -27,29 +23,11 @@ from app.infrastructure.tasks import wiring
 from app.infrastructure.tasks.celery_app import celery_app
 from app.infrastructure.tasks.notifications import enviar_recordatorios
 from tests.integration.db.helpers import World, insert_appointment, make_world
+from tests.mailpit_support import mailpit as _mailpit
+from tests.mailpit_support import messages_to as _messages_to
 
 BA = ZoneInfo("America/Argentina/Buenos_Aires")
-MAILPIT_API = "http://mailpit:8025/api/v1"
 WAIT_SECONDS = 20.0
-
-
-def _mailpit(path: str, *, method: str = "GET", body: dict[str, Any] | None = None) -> Any:
-    data = None if body is None else json.dumps(body).encode()
-    request = urllib.request.Request(
-        f"{MAILPIT_API}{path}",
-        data=data,
-        method=method,
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310
-        payload = response.read()
-    return json.loads(payload) if payload.startswith((b"{", b"[")) else payload
-
-
-def _messages_to(address: str) -> list[dict[str, Any]]:
-    query = urllib.parse.quote(f"to:{address}")
-    messages: list[dict[str, Any]] = _mailpit(f"/search?query={query}")["messages"]
-    return messages
 
 
 def _tomorrow_at_10() -> datetime:

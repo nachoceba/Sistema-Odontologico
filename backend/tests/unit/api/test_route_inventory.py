@@ -11,10 +11,10 @@ from collections.abc import Callable
 
 from fastapi import FastAPI
 from fastapi.dependencies.models import Dependant
-from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import current_user
+from tests.unit.api.route_helpers import api_routes, route_keys
 
 PUBLIC_ROUTES = {("POST", "/api/v1/auth/login"), ("GET", "/api/v1/health")}
 
@@ -24,19 +24,6 @@ def depends_on_current_user(dependant: Dependant) -> bool:
         child.call is current_user or depends_on_current_user(child)
         for child in dependant.dependencies
     )
-
-
-def api_routes(app: FastAPI) -> list[RouteContext]:
-    """Rutas efectivas con su prefijo (esta version de FastAPI anida los routers incluidos)."""
-    return [
-        context
-        for context in iter_route_contexts(app.routes)
-        if isinstance(context.original_route, APIRoute)
-    ]
-
-
-def route_keys(context: RouteContext) -> list[tuple[str, str]]:
-    return [(method, str(context.path)) for method in sorted(context.methods or set())]
 
 
 def unprotected_routes(app: FastAPI) -> list[str]:

@@ -1,8 +1,8 @@
 # Sistema Odontológico: agenda de turnos
 
-Trabajo de integración de Metodología I (Tecnicatura Universitaria en Programación): del Discovery al primer change con Spec-Driven Development (OpenSpec) y Active Stack.
+Trabajo de integración de Metodología I (Tecnicatura Universitaria en Programación): del Discovery a un sistema completo con Spec-Driven Development (OpenSpec) y Active Stack.
 
-Sistema de gestión de turnos y agenda de pacientes para consultorios odontológicos, pensado para el mercado argentino. Un consultorio puede tener uno o varios odontólogos y la agenda se maneja por profesional.
+Sistema de gestión de turnos y agenda de pacientes para consultorios odontológicos, pensado para el mercado argentino. Un consultorio puede tener uno o varios odontólogos y la agenda se maneja por profesional. Login por rol (administrador, recepción y odontólogo), pacientes, profesionales con horarios y licencias, agenda de turnos sin superposiciones (garantizada por la base de datos), email de confirmación al agendar o reprogramar y recordatorio el día anterior. Todo gratuito y con datos de pacientes ficticios.
 
 ## Video explicativo
 
@@ -12,124 +12,167 @@ Sistema de gestión de turnos y agenda de pacientes para consultorios odontológ
 
 | Carpeta o archivo | Contenido |
 |---|---|
-| `docs/discovery/` | Informe de Discovery (investigación de mercado, `.md` y `.pdf`) |
-| `discovery/` | Respuestas del checklist de Discovery |
-| `knowledge-base/` | Base de conocimiento: visión, descripción, actores, modelo de datos, reglas, funcionalidades, flujos, arquitectura, decisiones y preguntas abiertas (más un archivo extra sobre recordatorios por email y su índice) |
-| `CHANGES.md` | Roadmap de 13 changes con dependencias, camino crítico y riesgos |
-| `.atl/skill-registry.md` | Registro de skills con la decisión de cada recomendación |
+| `backend/` | API FastAPI en capas (`domain` puro, `application`, `infrastructure`), migraciones Alembic, tareas Celery, seed ficticio y tests |
+| `frontend/` | SPA React + TypeScript + Vite (login, agenda, pacientes, profesionales, usuarios) y su imagen nginx para la demo |
+| `docker-compose.yml` | Entorno de desarrollo de un solo comando |
+| `docker-compose.demo.yml` | Modo demo: se suma al archivo anterior (frontend en nginx, API sin recarga) |
+| `.env.example` | Variables de ejemplo, sin secretos |
+| `knowledge-base/` | Base de conocimiento: visión, actores, modelo de datos, reglas, flujos, arquitectura, decisiones (DD) y preguntas abiertas |
+| `CHANGES.md` | Roadmap de 13 changes con dependencias, estado y riesgos |
+| `openspec/specs/` y `openspec/changes/archive/` | Especificaciones vigentes y changes archivados (proposal, design, tasks y specs) |
 | `AGENTS.md` y `CLAUDE.md` | Reglas del proyecto para los agentes (mismo contenido) |
-| `.active-orchestrator-state.json` | Estado de la fundación del proyecto |
-| `openspec/specs/` | Especificaciones vigentes (`appointment-creation`) |
-| `openspec/changes/archive/` | Change archivado `crear-turno-sin-solapamientos` (proposal, design, tasks y specs) |
-| `backend/app/` | Backend: lógica de dominio, configuración, API base (`/api/v1/health`) y esqueleto de Celery |
-| `frontend/` | SPA React + TypeScript + Vite con la pantalla inicial que muestra el estado de la API |
-| `docker-compose.yml`, `.env.example` | Entorno de desarrollo de un solo comando y variables de ejemplo (sin secretos) |
-| `backend/tests/` | Tests automatizados, uno por cada escenario de la especificación |
-| `docs/opsx/` | Resumen de Explore y registro de Verify del change |
-| `docs/engram/` | Evidencia de la memoria del agente (Engram) |
-| `.claude/skills/revisor-escenarios-turnos/` | Skill propia del agente para revisar escenarios de agenda |
-| `docs/skills-mcp/` | Ficha de investigación, referencia de la skill creadora, configuración de ejemplo del MCP y evidencias |
+| `docs/adopcion-recepcion.md` | Checklist de adopción para la recepción y el dueño |
+| `docs/discovery/`, `discovery/`, `docs/opsx/`, `docs/engram/`, `docs/skills-mcp/`, `.atl/`, `.claude/skills/` | Discovery, registros del flujo de trabajo con agentes, memoria y herramientas del agente |
 
-El código está en `backend/` porque el stack del proyecto tiene backend y frontend separados (FastAPI y React). Hoy hay lógica de dominio, configuración, API base de salud y un frontend mínimo; la base de datos, el login y la agenda llegan en los próximos changes.
+## Requisitos
 
-## Cómo levantar el entorno y correr los chequeos
+Docker Desktop con una versión reciente de Docker Compose (el modo demo usa las directivas `!reset` y `!override`; se probó con v5.6.1). No hace falta instalar Python, PostgreSQL, Redis ni Node: todo corre en contenedores (el backend usa Python 3.12).
 
-### Con Docker (recomendado)
+## Puesta en marcha
 
-Requisito: Docker Desktop. No hace falta instalar Python, PostgreSQL ni Redis: el contenedor del backend usa Python 3.12 (el `python` 3.11 del sistema no sirve para este proyecto).
-
-1. Copiar el archivo de ejemplo y completar la clave JWT (la API no arranca sin ella):
+1. Copiar el archivo de ejemplo y completar dos valores **solo en el `.env` local** (nunca en `.env.example` ni en el repositorio; `.env` está ignorado por git):
 
    ```bash
    cp .env.example .env
    python -c "import secrets; print(secrets.token_urlsafe(48))"   # pegar el resultado en JWT_SECRET_KEY
    ```
 
-2. Levantar los siete servicios (`db`, `redis`, `api`, `worker`, `beat`, `frontend`, `mailpit`):
+   - `JWT_SECRET_KEY`: clave para firmar los tokens (mínimo 32 caracteres). Sin valor, nada arranca.
+   - `SEED_DEMO_PASSWORD`: una contraseña propia para las cuentas de demostración que crea el seed (DD-40). Sin valor, el paso de preparación falla y nada arranca.
+   - Recomendado: cambiar también la contraseña de la base (`POSTGRES_PASSWORD` y, con la misma contraseña, `DATABASE_URL` y `TEST_DATABASE_URL`).
+
+2. Levantar todo con un comando:
 
    ```bash
    docker compose up
    ```
 
+   Antes de que arranquen `api` y `worker`, el servicio `migrate` aplica las migraciones y el seed ficticio y termina (código 0); si falla (por ejemplo, falta `SEED_DEMO_PASSWORD`) nada más arranca y `docker compose logs migrate` muestra el motivo. Volver a levantar no duplica datos ni pisa cambios.
+
 | Servicio | URL en la máquina |
 |---|---|
+| Frontend (desarrollo, Vite con recarga) | http://localhost:5173 |
 | API (docs en `/docs`, salud en `/api/v1/health`) | http://localhost:8000 |
-| Frontend | http://localhost:5173 |
 | Mailpit (emails de desarrollo) | http://localhost:8025 |
 
 PostgreSQL y Redis no publican puertos: solo los ven los demás contenedores (`docker compose exec db psql -U odonto`).
 
-### Emails de confirmación
+Cuentas del seed (todas con la contraseña de `SEED_DEMO_PASSWORD`): `admin@example.com` (administrador), `recepcion@example.com` (recepción), `dra.a@example.com` y `dr.b@example.com` (odontólogos). El seed también crea 2 profesionales con horario de lunes a viernes, la configuración del consultorio (30 minutos, zona de `CLINIC_TIMEZONE`) y 10 pacientes con emails `@example.com`.
 
-Al agendar o reprogramar un turno, el servidor encola el envío de la confirmación (texto plano) y el `worker` la manda por SMTP. En desarrollo y en la demo el servidor SMTP es Mailpit: abrir http://localhost:8025 para ver los emails; no sale ningún email real. Si Redis o el `worker` están caídos, el turno se guarda igual y la confirmación queda `pending`: `beat` la reencola cada 10 minutos.
+### Actualizar a una versión nueva
 
-El adaptador SMTP se configura solo con las variables `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_USE_TLS` y `EMAIL_FROM` del `.env` local (nunca en el repositorio ni en el frontend); cambiar de servidor no requiere tocar el código. La variable opcional `EMAIL_REDIRECT_TO` manda todos los emails a una única casilla con la línea "Email de demostración"; vacía, van al email del paciente.
+`docker compose up --build`. Si el `.env` es anterior a C-13, agregar `http://localhost:8080` a `CORS_ORIGINS` (ver Modo demo) y completar `SEED_DEMO_PASSWORD`.
 
-### Recordatorios del día anterior
+## Modo demo
 
-`beat` dispara la tarea `enviar_recordatorios` cada hora en punto, pero la tarea solo actúa cuando la hora local del consultorio es la hora de recordatorio guardada en la configuración (`reminder_send_hour`, por defecto 9:00): entonces toma los turnos agendados de mañana de todos los profesionales y manda un recordatorio por turno, sin repetirlo si la tarea corre dos veces. En desarrollo el email llega a Mailpit (http://localhost:8025). Si esa hora pasa con `beat` o el `worker` caídos, ese día no salen recordatorios (los pacientes igual tienen su confirmación).
+Sirve el frontend ya construido con nginx y la API sin recarga de código ni montaje del código del anfitrión. Los emails siguen yendo a Mailpit: no se usa ningún servidor SMTP ni cuenta externa.
 
-Para verla sin esperar a esa hora, forzar la pasada desde la consola del contenedor (no existe ninguna ruta de la API para hacerlo):
+```bash
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build
+```
+
+| Servicio | URL |
+|---|---|
+| Frontend (nginx, archivos estáticos) | http://localhost:8080 |
+| API | http://localhost:8000 |
+| Mailpit | http://localhost:8025 |
+
+- **CORS**: el navegador llama a la API directo (puerto 8000), así que `CORS_ORIGINS` del `.env` debe incluir `http://localhost:8080` (el ejemplo ya lo trae: `http://localhost:5173,http://localhost:8080`). Sin eso, la pantalla de login muestra "API no disponible".
+- La URL de la API se fija al construir la imagen con `VITE_API_URL` (por defecto `http://localhost:8000/api/v1`); si cambia, reconstruir con `--build`.
+- La construcción de la imagen falla si falta `VITE_API_URL` o si el bundle contiene el nombre o el patrón de un secreto (`npm run check:bundle`).
+- **Volver a desarrollo**: `docker compose -f docker-compose.yml -f docker-compose.demo.yml down` y después `docker compose up --build` (sin el archivo de la demo).
+
+## Smoke test de punta a punta
+
+Con el entorno levantado (desarrollo o demo):
+
+```bash
+docker compose exec api pytest -m smoke
+```
+
+Recorre, por HTTP contra la API y Mailpit: login de las tres cuentas del seed, agendar un turno de mañana, rechazo de una franja ocupada (`SLOT_TAKEN`) y del odontólogo que intenta agendar (403), confirmación en Mailpit, cancelar (la franja vuelve a quedar libre), agendar otro turno, reprogramarlo, pasada de recordatorios forzada (un solo recordatorio, el del turno reprogramado) y una segunda pasada que no agrega nada. Si mañana ningún profesional atiende, agrega un tramo a un profesional y al final le restituye los originales. Deja dos pacientes `Smoke… Prueba` desactivados y sus turnos cancelados; los datos del seed no cambian. Si falta `SEED_DEMO_PASSWORD`, o la API o Mailpit no responden, falla de entrada nombrándolos. No corre en `pytest` ni en `pytest -m integration`.
+
+La pasada de recordatorios también se puede forzar a mano desde la consola (no existe ninguna ruta de la API para hacerlo):
 
 ```bash
 docker compose exec worker celery -A app.infrastructure.tasks.celery_app call enviar_recordatorios --kwargs='{"forzar": true}'
 ```
 
-Con un turno agendado para mañana de un paciente del seed, el recordatorio aparece en Mailpit a los pocos segundos; repetir el comando no manda otro. El resultado de cada pasada queda en el log del `worker` (`recordatorios: processed=… sent=… failed=… pending=…`), sin datos de pacientes.
+## Servicios
 
-Tras actualizar el código: reconstruir la imagen (`docker compose build api worker beat`), aplicar la migración que agrega la antigüedad de las notificaciones (`docker compose exec api alembic upgrade head`) y reiniciar `worker` y `beat`.
+| Servicio | Qué hace |
+|---|---|
+| `db` | PostgreSQL 16 (constraint de exclusión de turnos con `btree_gist`) |
+| `redis` | Broker de Celery |
+| `migrate` | Una sola vez por `up`: `alembic upgrade head` y seed ficticio idempotente |
+| `api` | FastAPI en el puerto 8000 (en desarrollo con recarga automática) |
+| `worker` | Celery: envía los emails de confirmación y de recordatorio |
+| `beat` | Celery Beat: dispara `enviar_recordatorios` cada hora en punto (solo actúa a la hora configurada) y `reencolar_pendientes` cada 10 minutos |
+| `frontend` | Vite en el 5173 (desarrollo) o nginx en el 8080 (demo) |
+| `mailpit` | Servidor SMTP y bandeja web de desarrollo; no sale ningún email real |
 
-3. Chequeos del backend dentro del contenedor:
+Si Redis o el `worker` están caídos, el turno se guarda igual y la confirmación queda `pending`: `beat` la reencola. Si la hora de recordatorios pasa con `beat` o el `worker` caídos, ese día no salen recordatorios.
 
-   ```bash
-   docker compose run --rm api pytest
-   docker compose run --rm api ruff check .
-   docker compose run --rm api ruff format --check .
-   docker compose run --rm api mypy
-   ```
+## Variables de entorno
 
-   Los tests de integración no corren por defecto; se piden con `pytest -m integration`.
+Los valores van solo en el `.env` local; `.env.example` declara todas sin secretos. Las marcadas como sensibles nunca deben ir al repositorio ni al frontend.
 
-### Base de datos: migración, datos de demostración y tests contra PostgreSQL
+| Variable | Descripción | Sensible |
+|---|---|---|
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Credenciales del contenedor de PostgreSQL | Sí (la contraseña) |
+| `DATABASE_URL` | Cadena de conexión a PostgreSQL | Sí |
+| `TEST_DATABASE_URL` | Base aparte (nombre terminado en `_test`) para los tests de integración | Sí |
+| `REDIS_URL` | Conexión a Redis | No |
+| `JWT_SECRET_KEY` | Clave de firma de los tokens (mínimo 32 caracteres) | Sí |
+| `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES` | Algoritmo (`HS256`) y vida del token (30 minutos) | No |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USE_TLS`, `EMAIL_FROM` | Servidor SMTP (en desarrollo y demo, Mailpit) y remitente | No |
+| `SMTP_USER`, `SMTP_PASSWORD` | Credenciales SMTP (vacías con Mailpit) | Sí |
+| `EMAIL_REDIRECT_TO` | Opcional: manda todos los emails a una sola casilla | No |
+| `CLINIC_TIMEZONE` | Zona horaria del consultorio | No |
+| `CORS_ORIGINS` | Orígenes del navegador permitidos, con esquema y sin `*` | No |
+| `SEED_DEMO_PASSWORD` | Contraseña de las cuentas de demostración del seed | Sí |
+| `VITE_API_URL` | URL pública de la API para el navegador (única variable del frontend) | No |
 
-El backend agregó la dependencia `argon2-cffi`: tras actualizar el código, reconstruir la imagen (`docker compose build api worker beat`) y volver a levantar.
+## Chequeos
 
-Agregar al `.env` (los valores de ejemplo están en `.env.example`): `SEED_DEMO_PASSWORD` (contraseña ficticia de las cuentas de demo; no se escribe en el código) y `TEST_DATABASE_URL` (una base **aparte** del mismo servidor, cuyo nombre termina en `_test`; los tests de integración se niegan a correr sobre otra).
+Backend, dentro del contenedor (con el entorno levantado: `docker compose exec api …`; sin él: `docker compose run --rm api …`):
 
 ```bash
-docker compose exec api alembic upgrade head       # crea las 8 tablas, los enumerados y el constraint de exclusión
-docker compose exec api python -m scripts.seed     # carga datos ficticios; se puede repetir sin duplicar nada
-docker compose exec api alembic downgrade base     # deja la base sin tablas ni tipos del sistema
-docker compose exec api pytest -m integration      # tests contra la base *_test (la crea y la migra sola)
+docker compose exec api pytest                  # tests por defecto (sin base ni red)
+docker compose exec api pytest -m integration   # contra PostgreSQL, Redis y Mailpit (base *_test, la crea y la migra sola)
+docker compose exec api pytest -m smoke         # recorrido de punta a punta (ver arriba)
+docker compose exec api mypy --strict app/
+docker compose exec api ruff check .
+docker compose exec api ruff format --check .
 ```
 
-El seed crea: 1 administrador, 1 recepcionista, 2 profesionales (cada uno con su cuenta de odontólogo) con horario de lunes a viernes, la configuración del consultorio (30 minutos, zona de `CLINIC_TIMEZONE`) y 10 pacientes, todo con emails `@example.com`. Las contraseñas se guardan solo como hash argon2.
-
-### Sin Docker (solo backend, Python 3.12 o superior)
-
-```bash
-cd backend
-python -m venv .venv
-.venv\Scripts\Activate.ps1        # PowerShell; en Git Bash o Linux: source .venv/Scripts/activate (o .venv/bin/activate)
-pip install -e ".[dev]"
-pytest && ruff check . && ruff format --check . && mypy
-```
-
-### Frontend
+Frontend:
 
 ```bash
 cd frontend
 npm ci
-npm test            # Vitest
-npm run typecheck   # TypeScript estricto
-npm run lint        # ESLint (any explícito es error)
+npm test               # Vitest
+npm run typecheck      # TypeScript estricto
+npm run lint           # ESLint (any explícito es error)
+npm run build && npm run check:bundle   # el bundle no contiene secretos
 ```
 
-## El change implementado
+Sin Docker (solo backend, Python 3.12 o superior): `cd backend && python -m venv .venv && pip install -e ".[dev]" && pytest`.
 
-`crear-turno-sin-solapamientos`: dado un profesional, su horario, sus licencias y sus turnos, el sistema responde si se puede crear un turno nuevo o no, con un solo motivo de rechazo en orden fijo (anticipación mínima de 6 horas, grilla de 30 minutos, horario de trabajo, licencia y solapamiento). Los turnos que empiezan justo cuando termina otro no se consideran solapados.
+## Seguridad
 
-Para ver el recorrido completo: `docs/opsx/explore-crear-turno-sin-solapamientos.md`, `openspec/changes/archive/` y `docs/opsx/verify-crear-turno-sin-solapamientos.md`.
+Todo endpoint exige JWT y rol salvo el login y `GET /api/v1/health`. Una matriz única ruta × rol (`backend/tests/unit/api/test_permission_matrix.py`) debe ser igual al conjunto de rutas registradas, y comprueba 401 sin token y 403 por rol. CORS permite solo los orígenes de `CORS_ORIGINS` y solo los métodos y encabezados que usa el frontend, sin credenciales de navegador. El registro de accesos de la API no guarda la parte `?…` de la dirección (la búsqueda de pacientes). El código del frontend solo lee `VITE_API_URL` y el bundle se revisa para que no contenga secretos.
+
+## Estado de los changes y decisiones abiertas
+
+Los 13 changes del roadmap están implementados y archivados (ver `CHANGES.md`); la lista de decisiones está en `knowledge-base/09_decisiones_y_supuestos.md`. Quedan abiertas, antes de usar datos reales:
+
+- **SU-02, SMTP de producción**: hoy los emails van a Mailpit; falta elegir un servidor SMTP y revisar su cupo (el adaptador se configura solo por variables).
+- **SU-01, zona horaria**: se asume `America/Argentina/Buenos_Aires` sin horario de verano; confirmar con el dueño.
+- **Sesión y login (DD-46, DD-47)**: el token vive en `sessionStorage` y el login no tiene límite de intentos; evaluar cookie httpOnly y límite de intentos antes de usar datos reales.
+- **R-10, revisión legal**: la v1 usa solo datos ficticios y no declara cumplimiento de la Ley 25.326; hace falta una revisión legal antes de cargar pacientes reales.
+- **R-8, adopción**: ver `docs/adopcion-recepcion.md`.
+- No hay HTTPS, dominio ni despliegue en la nube: el sistema corre en local con Docker Compose.
 
 ## Herramientas del agente: skill propia y MCP
 
@@ -165,6 +208,6 @@ Está en `.claude/skills/revisor-escenarios-turnos/` y viene con el repositorio:
 - **Problemas de instalación**: si da `Failed to connect`, verificar que el stack esté levantado y que la red exista; si cambia el nombre de la carpeta del proyecto, cambia el nombre de la red.
 - **Evidencia de uso real**: `docs/skills-mcp/evidencias/mcp-postgres-odonto-uso.md`.
 
-## Stack previsto
+## Stack
 
 Backend: Python, FastAPI, JWT, SQLAlchemy, PostgreSQL, Redis, Celery y Docker Compose. Frontend: React, TypeScript y Vite. Todo gratuito, con datos de pacientes ficticios. El detalle está en `knowledge-base/02_descripcion_general.md`.

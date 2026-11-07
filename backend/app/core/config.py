@@ -18,6 +18,7 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from app.domain.users.rules import is_valid_email
 
 JWT_SECRET_MIN_LENGTH = 32
+CORS_ORIGIN_SCHEMES = ("http://", "https://")
 
 
 def _split_comma(value: Any) -> Any:
@@ -59,6 +60,13 @@ class Settings(BaseSettings):
     def _jwt_key_long_enough(cls, value: SecretStr) -> SecretStr:
         if len(value.get_secret_value()) < JWT_SECRET_MIN_LENGTH:
             raise ValueError(f"debe tener al menos {JWT_SECRET_MIN_LENGTH} caracteres")
+        return value
+
+    @field_validator("CORS_ORIGINS")
+    @classmethod
+    def _origins_are_explicit(cls, value: list[str]) -> list[str]:
+        if any(not origin.startswith(CORS_ORIGIN_SCHEMES) for origin in value):
+            raise ValueError("cada origen debe ser explicito, con http:// o https:// (sin comodin)")
         return value
 
     @field_validator("EMAIL_REDIRECT_TO")

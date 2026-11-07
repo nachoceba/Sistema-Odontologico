@@ -45,6 +45,7 @@ Ambos son **informativos**: el paciente no confirma ni cancela desde el email (D
 
 - **Solo desarrollo y pruebas:** Mailpit (contenedor incluido en Docker Compose) recibe todos los emails y los muestra en una interfaz web. No sale ningún email real.
 - **Desarrollo y demo:** Mailpit es el servidor SMTP; los emails se ven en http://localhost:8025 (DD-87). El adaptador SMTP se configura solo con las variables `SMTP_*` y `EMAIL_FROM`, así que apuntar a otro servidor no toca el código. El proveedor de producción queda abierto (SU-02).
+- **Smoke test y modo demo (C-13):** `docker compose exec api pytest -m smoke` recorre login, agenda, confirmación, cancelación, reprogramación y la pasada de recordatorios forzada, y verifica los emails en la API HTTP de Mailpit, sin ningún servidor SMTP externo (DD-108). El modo demo (`docker-compose.demo.yml`, DD-105) también envía todo a Mailpit.
 - Los emails de pacientes ficticios no deben apuntar a buzones de terceros reales. La variable opcional `EMAIL_REDIRECT_TO` manda todos los emails a una única casilla, con la línea "Email de demostración: en producción se enviaría al paciente del turno." y sin la dirección original; vacía, van al paciente.
 - El broker Redis es un servicio más que puede caerse; ver el manejo en "Envío asincrónico".
 

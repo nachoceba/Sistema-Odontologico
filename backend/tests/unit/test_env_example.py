@@ -15,7 +15,7 @@ import pytest
 from app.core.config import Settings
 
 SENSITIVE_FRAGMENTS = ("SECRET", "PASSWORD", "TOKEN", "KEY", "DATABASE")
-EMPTY_REQUIRED = ("JWT_SECRET_KEY", "SMTP_PASSWORD")
+EMPTY_REQUIRED = ("JWT_SECRET_KEY", "SMTP_PASSWORD", "SEED_DEMO_PASSWORD")
 POSTGRES_VARIABLES = ("POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB")
 
 
@@ -101,3 +101,34 @@ def test_missing_file_fails_instead_of_skipping(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setenv("ENV_EXAMPLE_PATH", str(Path("no") / "existe" / ".env.example"))
 
     assert not env_example_path().is_file()
+
+
+def test_cors_origins_list_the_dev_and_demo_origins_and_no_wildcard(
+    example: dict[str, str],
+) -> None:
+    origins = [item.strip() for item in example["CORS_ORIGINS"].split(",")]
+
+    assert "http://localhost:5173" in origins
+    assert "http://localhost:8080" in origins
+    assert "*" not in origins
+
+
+def test_example_cors_origins_pass_the_settings_validation(
+    example: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name, value in {
+        "DATABASE_URL": "postgresql+psycopg://odonto:odonto_dev@db:5432/odonto",
+        "REDIS_URL": "redis://redis:6379/0",
+        "JWT_SECRET_KEY": "k" * 48,
+        "SMTP_HOST": "mailpit",
+        "SMTP_PORT": "1025",
+        "EMAIL_FROM": "turnos@consultorio.test",
+        "CLINIC_TIMEZONE": "America/Argentina/Buenos_Aires",
+        "CORS_ORIGINS": example["CORS_ORIGINS"],
+    }.items():
+        monkeypatch.setenv(name, value)
+
+    assert Settings(_env_file=None).CORS_ORIGINS == [
+        "http://localhost:5173",
+        "http://localhost:8080",
+    ]

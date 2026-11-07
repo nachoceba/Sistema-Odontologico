@@ -17,7 +17,8 @@
 
 | Prioridad | Pregunta | Bloquea | Decisor |
 |-----------|----------|---------|---------|
-| Baja | ¿Qué proveedor SMTP gratuito se usa en producción y qué cupo tiene? (SU-02): abierta solo para producción; desarrollo y demo usan Mailpit (DD-87, C-11 el 2026-11-06) | Despliegue (C-13) | Equipo técnico |
+| Baja | ¿Qué proveedor SMTP gratuito se usa en producción y qué cupo tiene? (SU-02): abierta solo para producción; desarrollo y demo usan Mailpit (DD-87, C-11 el 2026-11-06; C-13 no la resuelve, DD-105) | Uso con datos reales | Equipo técnico |
+| Media | ¿Se endurecen la sesión y el login antes de usar datos reales (cookie httpOnly, límite de intentos de login)? (DD-46, DD-47; C-13 los mantuvo sin cambios, DD-112) | Uso con datos reales | Dueño / Equipo técnico |
 | RESUELTA | Si cambia un horario y hay turnos afectados, ¿se avisa al paciente o solo a recepción? (RN-HO-04): solo a recepción, en pantalla (DD-68, confirmado en C-07 el 2026-11-03) | — | Product Owner |
 | Media | ¿Un paciente puede tener varios turnos el mismo día? (SU-05) | Validación de turnos | Product Owner |
 | RESUELTA | ¿Un paciente puede tener dos turnos a la misma hora con profesionales distintos? (H-2, SU-05): no, se rechaza con `PATIENT_DOUBLE_BOOKED` (DD-63, confirmado en C-08 el 2026-11-03) | — | Product Owner |
@@ -36,7 +37,7 @@
 | Baja | Facturación ARCA y obras sociales: evidenciadas solo en algunos competidores (ClinIA, iAsistemas, DrApp, Bilog, Dentalink). ¿Son decisivas para el consultorio? | Backlog | Dueño |
 | Baja | Precio de Dentalink (USD 29 según un tercero, sin respaldo del sitio oficial): no verificado. | Contexto de mercado | Equipo |
 | Baja | Normativa: Ley 25.326 y Ley 27.706 no fueron contrastadas con su texto. ¿Hace falta revisión legal si el proyecto pasara a datos reales? | Cumplimiento | Dueño |
-| Baja | Adopción: ¿cómo se hace que recepción abandone planilla y WhatsApp? | Éxito del proyecto | Dueño |
+| Media | Adopción: ¿cómo se hace que recepción abandone planilla y WhatsApp? Checklist y criterio para dejar la planilla en `docs/adopcion-recepcion.md` (C-13, DD-114); falta que el dueño decida y pruebe con una recepcionista real (R-8) | Éxito del proyecto | Dueño |
 
 ## Preguntas resueltas
 

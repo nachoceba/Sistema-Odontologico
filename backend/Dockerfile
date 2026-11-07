@@ -1,4 +1,5 @@
-# Imagen de desarrollo del backend (D-5/D-6). C-13 define una imagen de produccion sin extras de dev.
+# Imagen de desarrollo del backend (D-5/D-6); tambien la usa el modo demo (DD-105). Una imagen
+# sin extras de dev (multi-stage) queda como mejora posterior.
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

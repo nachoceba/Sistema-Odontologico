@@ -1,0 +1,31 @@
+# Modo demo (spec demo-packaging, DD-105): se suma al archivo de desarrollo, no lo reemplaza.
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build
+# Frontend construido y servido por nginx en http://localhost:8080 (agregar ese origen a
+# CORS_ORIGINS del .env), API sin --reload y sin montar el codigo del anfitrion. Los emails siguen
+# yendo a Mailpit (http://localhost:8025): no hay ningun servidor SMTP externo.
+# Volver al desarrollo: docker compose up --build (sin este archivo).
+
+services:
+  migrate:
+    volumes: !reset []
+
+  api:
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    volumes: !reset []
+
+  worker:
+    volumes: !reset []
+
+  beat:
+    volumes: !reset []
+
+  frontend:
+    build:
+      target: demo
+      args:
+        # Unica variable del frontend: URL publica de la API para el navegador (se fija al construir).
+        VITE_API_URL: ${VITE_API_URL}
+    environment: !reset {}
+    ports: !override
+      - "8080:80"
+    volumes: !reset []

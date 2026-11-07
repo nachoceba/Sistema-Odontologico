@@ -1,5 +1,6 @@
-# Entorno de desarrollo: `docker compose up` levanta los siete servicios (spec local-environment).
-# Requiere un .env en la raiz (copiar de .env.example). db y redis NO publican puertos.
+# Entorno de desarrollo: `docker compose up` levanta los siete servicios (spec local-environment)
+# y antes corre `migrate` (migraciones + seed, una sola vez). Requiere un .env en la raiz (copiar
+# de .env.example). db y redis NO publican puertos. Modo demo: ver docker-compose.demo.yml.
 
 x-backend: &backend
   build: ./backend
@@ -30,6 +31,16 @@ services:
       timeout: 3s
       retries: 10
 
+  # Preparacion de una sola vez (DD-104): aplica migraciones y seed idempotente antes de api/worker.
+  # Si falta SEED_DEMO_PASSWORD o JWT_SECRET_KEY termina con error y nada mas arranca.
+  migrate:
+    <<: *backend
+    command: ["sh", "-c", "alembic upgrade head && python -m scripts.seed"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+
   api:
     <<: *backend
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
@@ -40,11 +51,14 @@ services:
     volumes:
       - ./backend:/app
       - ./.env.example:/.env.example:ro
+      - ./docker-compose.yml:/docker-compose.yml:ro
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test:
         - CMD
@@ -64,6 +78,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   beat:
     <<: *backend
@@ -80,7 +96,9 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: dev
     # Sin env_file: solo VITE_API_URL llega al frontend (ningun secreto).
     environment:
       VITE_API_URL: ${VITE_API_URL}

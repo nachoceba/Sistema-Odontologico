@@ -409,8 +409,9 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 ## FASE 5 — Salida a producción
 
 ### [C-13] `deploy-and-hardening`
-- **Estado**: `[ ]` pendiente
-- **Nota de C-06 (P-10, DD-77)**: la búsqueda de pacientes viaja como `GET /api/v1/patients?q=...`, así que el apellido o documento buscado puede quedar en el registro de accesos del servidor web (nginx/uvicorn). Revisar ese registro (no guardar `q`, o rotarlo) antes de usar datos reales. La aplicación misma no escribe datos de pacientes en errores ni logs.
+- **Estado**: `[x]` implementado, verificado y archivado el 2026-11-07 (`openspec/changes/archive/2026-11-07-deploy-and-hardening/`): 1713 tests por defecto (165 nuevos), 331 de integración contra PostgreSQL (más 1 omitido, igual que antes), 6 del smoke test de punta a punta (`pytest -m smoke`, marcador nuevo) y 392 de frontend (12 nuevos); `ruff`, `mypy` y `mypy --strict app/` limpios; typecheck y lint del frontend limpios; `npm run build` y `npm run check:bundle` sin hallazgos. Decisiones DD-104 a DD-116. Specs nuevas: `demo-packaging`, `access-logging` y `end-to-end-smoke`; modificadas: `local-environment`, `api-health`, `runtime-configuration` y `access-control`. Sin migraciones, endpoints ni dependencias nuevas.
+- **Resultado**: `docker compose up` aplica migraciones y seed antes de `api` y `worker` (servicio `migrate`, DD-104); modo demo con `docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build` (frontend en nginx en el 8080, API sin recarga, Mailpit; DD-105 y DD-106); CORS con métodos y encabezados explícitos y `CORS_ORIGINS` sin `*` (DD-116); matriz única ruta × rol igual al inventario de rutas, 32 rutas (DD-110); registro de accesos sin `?q=` (DD-107); ningún secreto en el bundle (DD-111); smoke test `docker compose exec api pytest -m smoke` (DD-108 y DD-109); README completo y `docs/adopcion-recepcion.md` (DD-114). Sesión y login sin cambios (DD-112); SU-02 (SMTP de producción) sigue abierto solo para producción.
+- **Nota de C-06 (P-10, DD-77)**: la búsqueda de pacientes viaja como `GET /api/v1/patients?q=...`, así que el apellido o documento buscado podía quedar en el registro de accesos. Resuelto en C-13 (DD-107): el registro de la API no guarda la consulta y en la demo nginx solo sirve archivos estáticos. La aplicación misma no escribe datos de pacientes en errores ni logs.
 - **Scope**:
   - Dockerfile del frontend multi-stage (build con `VITE_API_URL` como build-arg, servido con nginx); en desarrollo, servidor de Vite; Mailpit solo en desarrollo
   - Empaquetado final con Docker Compose: un comando levanta `db`, `redis`, `api`, `worker`, `beat`, `frontend` y `mailpit`; migraciones y seed ficticio aplicados al iniciar
@@ -476,16 +477,16 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 
 | # | Riesgo | Change afectado | Mitigación |
 |---|---|---|---|
-| R-1 | Proveedor SMTP de producción sin elegir | C-11, C-12, C-13 | Desarrollo y demo con Mailpit; el adaptador se configura por variables (SU-02, DD-87) |
+| R-1 | Proveedor SMTP de producción sin elegir | C-11, C-12, C-13 | Desarrollo y demo con Mailpit; el adaptador se configura por variables (SU-02, DD-87); C-13 no lo resuelve y lo deja abierto solo para producción (DD-105) |
 | R-2 | Redis o el worker de Celery caídos: no salen emails ni recordatorios | C-11, C-12 | La operación de turno nunca depende del envío (RN-NO-04); `reencolar_pendientes` recoge las notificaciones `pending` |
 | R-3 | La cátedra puede preferir otra herramienta distinta de Celery sobre Redis | C-01, C-11, C-12 | Confirmar con el profesor en C-01 (DD-10) |
 | R-4 | Errores de zona horaria en turnos y recordatorios | C-02, C-05, C-12 | Fechas en UTC y zona del consultorio en configuración (RN-GL-01); tests de borde |
 | R-5 | Concurrencia: dos recepcionistas agendan el mismo slot | C-02, C-08 | Constraint de exclusión en la base (DD-04) |
-| R-6 | Módulos de gobernanza CRÍTICA (auth, esquema) y autorización solo en la aplicación, sin RLS | C-02, C-03 | Análisis y aprobación humana antes de escribir código; test de permisos por cada endpoint |
+| R-6 | Módulos de gobernanza CRÍTICA (auth, esquema) y autorización solo en la aplicación, sin RLS | C-02, C-03 | Análisis y aprobación humana antes de escribir código; test de permisos por cada endpoint; C-13 sumó la matriz única ruta × rol, igual al inventario de rutas (DD-110) |
 | R-7 | Sin recordatorios por WhatsApp el producto queda por debajo del estándar del mercado | C-11, C-12 | DD-09; evaluar enlace `wa.me` manual tras v1 |
-| R-8 | Adopción: la recepción puede seguir usando planilla y WhatsApp | C-13 | Checklist de adopción; probar con una recepcionista real |
+| R-8 | Adopción: la recepción puede seguir usando planilla y WhatsApp | C-13 | Checklist de adopción en `docs/adopcion-recepcion.md` (C-13, DD-114); falta probar con una recepcionista real |
 | R-9 | El informe se basa solo en páginas comerciales y sin demos | Todo el roadmap | Validar prioridades con odontólogos reales antes de construir funciones grandes |
-| R-10 | Tratamiento legal de datos personales sin revisar (Ley 25.326; Ley 27.706 si se agrega ficha clínica) | C-02, C-06, C-13 | v1 usa solo datos ficticios; no declarar cumplimiento; revisión legal antes de usar datos reales (`10_preguntas_abiertas.md`) |
+| R-10 | Tratamiento legal de datos personales sin revisar (Ley 25.326; Ley 27.706 si se agrega ficha clínica) | C-02, C-06, C-13 | v1 usa solo datos ficticios; no declarar cumplimiento; revisión legal antes de usar datos reales (`10_preguntas_abiertas.md`); C-13 dejó la contraseña del seed vacía en `.env.example` y sin la consulta de búsqueda en el registro de accesos (DD-107, DD-113) |
 | R-11 | Migrar luego a sillón o duración variable (DD-08) exige cambiar el constraint EXCLUDE y `compute_slots` | C-02, C-05 | Encapsular la duración en un único punto del dominio y documentar el punto de extensión |
 
 ---
@@ -509,7 +510,7 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-09 | agenda-views (archivado `[x]`) | 3 | C-05, C-07, C-08 | BAJO |
 | C-10 | appointment-management-ui (archivado `[x]`) | 3 | C-06, C-08, C-09 | MEDIO |
 | C-11 | email-confirmation-infra (archivado `[x]`) | 4 | C-08 | ALTO |
-| C-12 | reminders-cron | 4 | C-11 | ALTO |
-| C-13 | deploy-and-hardening | 5 | C-04, C-10, C-12 | MEDIO |
+| C-12 | reminders-cron (archivado `[x]`) | 4 | C-11 | ALTO |
+| C-13 | deploy-and-hardening (archivado `[x]`) | 5 | C-04, C-10, C-12 | MEDIO |
 
-**Siguientes changes habilitados**: C-01, C-02, C-03, C-04, C-05 (a-d), C-06, C-07, C-08, C-09, C-10 y C-11 ya están archivados. Queda habilitado `C-12` (reminders-cron, ALTO; depende de C-11). C-13 espera a C-12 (y a C-04 y C-10, ya archivados). Para arrancar: `/opsx:propose C-12-reminders-cron`. Gobernanza CRÍTICA de C-03 ya aprobada y ejecutada.
+**Siguientes changes habilitados**: ninguno. C-01 a C-13 están implementados y archivados (C-13 el 2026-11-07, en `openspec/changes/archive/2026-11-07-deploy-and-hardening/`), así que el roadmap está completo. Lo que queda son decisiones abiertas en `knowledge-base/10_preguntas_abiertas.md` (proveedor SMTP de producción, endurecer sesión y login, adopción con una recepcionista real) y mejoras posteriores.

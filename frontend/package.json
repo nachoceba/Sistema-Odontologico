@@ -9,6 +9,7 @@
     "test": "vitest run",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
+    "check:bundle": "node scripts/check-bundle.mjs dist",
     "preview": "vite preview"
   },
   "dependencies": {

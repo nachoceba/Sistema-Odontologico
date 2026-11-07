@@ -269,6 +269,7 @@
 **Alternativas consideradas**: contraseña fija en el script.
 **Justificación**: no deja una contraseña conocida en el repositorio; el seed corre en una sola transacción.
 **Trade-offs aceptados**: C-13 debe definir una contraseña propia si usa el seed en la demo pública.
+**Actualización (C-13, DD-104 y DD-113)**: el seed corre solo en `docker compose up`, dentro del servicio `migrate`; `.env.example` deja `SEED_DEMO_PASSWORD` vacía y cada persona completa una contraseña propia en su `.env` local (nunca en el repositorio). Sin ella, `migrate` falla nombrando la variable y nada arranca.
 
 ### DD-41 — C-02 agrega solo `hash_password` (argon2); el resto de la seguridad es de C-03 (P-5 de C-02)
 **Decisión**: `app/core/security.py` expone `hash_password` con `argon2-cffi` (parámetros por defecto, sal aleatoria). La verificación y el JWT se hacen en C-03.
@@ -311,12 +312,14 @@
 **Alternativas consideradas**: solo memoria; `localStorage`; cookie httpOnly.
 **Justificación**: equilibrio entre comodidad (F5 no saca de la sesión) y exposición.
 **Trade-offs aceptados**: un XSS podría leer el token (riesgo ya aceptado; la cookie httpOnly se evalúa en C-13).
+**Actualización (C-13, DD-112)**: se mantiene `sessionStorage`; la cookie httpOnly (con CSRF y CORS con credenciales) queda como decisión abierta antes de usar datos reales. CORS ya no habilita credenciales del navegador (DD-116).
 
 ### DD-47 — Sin límite de intentos fallidos en C-03 (P-3 de C-03)
 **Decisión**: no hay bloqueo de cuenta ni límite por email/IP; se revisa en C-13. Para no revelar si una cuenta existe, el login verifica contra un hash ficticio cuando el email no existe.
 **Alternativas consideradas**: límite con Redis (429); bloqueo hasta que el administrador desbloquee.
 **Justificación**: datos ficticios; argon2 ya es lento; el bloqueo permitiría dejar fuera a otra persona a propósito.
 **Trade-offs aceptados**: fuerza bruta posible hasta C-13.
+**Actualización (C-13, DD-112)**: C-13 no agrega límite de intentos; queda como decisión abierta antes de usar datos reales (límite por email con Redis, 429).
 
 ### DD-48 — Matriz RBAC confirmada; solo el administrador edita horarios (P-4 de C-03)
 **Decisión**: se confirma la matriz de `03_actores_y_roles.md` tal cual, incluido que solo el administrador edita horarios y licencias. Resuelve SU-06.
@@ -456,6 +459,7 @@
 **Decisión**: la búsqueda es un `GET` con `q` en la dirección; se acepta que quede en el registro de accesos del servidor web (datos ficticios), la aplicación nunca escribe datos de pacientes en sus mensajes de error ni en sus registros, y se anota para C-13 revisar el registro de accesos antes de usar datos reales.
 **Alternativas consideradas**: buscar con `POST` para que el texto no viaje en la dirección.
 **Justificación**: `GET` es lo convencional y rompe menos la API; el endurecimiento de registros corresponde a la salida a producción (C-13).
+**Actualización (C-13, DD-107)**: el registro de accesos de la API ya no guarda la parte de consulta (`?q=…`): quedan método, ruta y código. En la demo nginx solo sirve archivos estáticos y no ve las búsquedas (DD-106).
 
 ### DD-78 — Pantalla en C-06 y un solo change (P-11 y P-12 de C-06)
 **Decisión**: la pantalla `/pacientes` (listado con búsqueda, alta, edición, desactivar/reactivar y borrar para administración; el odontólogo en lectura) entra en C-06, con el buscador y el formulario como piezas reutilizables para C-10. C-06 es un solo change por grupos, con punto de corte seguro al terminar el backend (grupo 6).
@@ -587,6 +591,71 @@
 **Alternativas consideradas**: un listado genérico por superposición; leer el turno y registrar sin bloqueo.
 **Justificación**: el criterio por inicio es el que dice `11_recordatorios_email.md` y el bloqueo evita una `pending` que el reencolado pediría cada 10 minutos sin fin.
 
+### DD-104 — Migraciones y seed al iniciar con un servicio `migrate` (P-1 de C-13)
+**Decisión**: `docker-compose.yml` suma el servicio `migrate` (misma imagen y `env_file` que el backend, `restart: "no"`), que corre `alembic upgrade head` y después `python -m scripts.seed` y termina; `api` y `worker` dependen de él con `service_completed_successfully` (`beat` no usa la base). Si falta `SEED_DEMO_PASSWORD` o `JWT_SECRET_KEY`, `migrate` falla nombrando la variable y nada más arranca.
+**Alternativas consideradas**: un script de arranque dentro de `api`; dejarlo manual y documentado.
+**Justificación**: un solo lugar, corre una vez por `up`, el seed ya es idempotente y el error queda en un log propio.
+**Trade-offs aceptados**: una `JWT_SECRET_KEY` vacía ahora frena en `migrate` y no en `api`; el seed corre en cada `up` (tarda poco y no pisa cambios).
+
+### DD-105 — Modo demo con `docker-compose.demo.yml` sobre el archivo de desarrollo (P-2 de C-13)
+**Decisión**: `docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build` suma el frontend con la etapa nginx en el 8080 (`target: demo`, `ports: !override`), `api` sin `--reload` y los servicios del backend sin montar `./backend` (`volumes: !reset []`). Misma imagen de backend; Mailpit sigue siendo el SMTP (DD-87). Se probó con Docker Compose v5.6.1.
+**Alternativas consideradas**: un archivo de Compose completo para la demo; un solo archivo con perfiles.
+**Justificación**: no duplica servicios y deja el desarrollo intacto. Una imagen de backend sin extras de desarrollo (multi-stage) queda como mejora posterior: la demo es local.
+
+### DD-106 — nginx sirve solo archivos estáticos y el navegador llama a la API directo (P-3 de C-13)
+**Decisión**: `frontend/Dockerfile` tiene las etapas `dev` (Vite, la de `docker compose up`), `build` (`ARG VITE_API_URL`, falla si está vacía, `npm run build` y `npm run check:bundle`) y `demo` (nginx con `try_files` a `index.html` para las rutas de la SPA y 404 para archivos con extensión inexistentes). La API se llama directo en `http://localhost:8000/api/v1` y `CORS_ORIGINS` incluye `http://localhost:8080`.
+**Alternativas consideradas**: nginx como proxy de `/api/`; `vite preview`.
+**Justificación**: misma forma de llamar a la API que en desarrollo y el CORS ya está probado; nginx no ve las búsquedas (DD-107).
+
+### DD-107 — Registro de accesos sin la parte de consulta (P-4 de C-13)
+**Decisión**: `app/core/logging.py` instala en `create_app()` un filtro en el logger `uvicorn.access` que quita desde `?` de la dirección: quedan método, ruta y código. Se prueba con registros de formato uvicorn y con un servidor real en el test.
+**Alternativas consideradas**: apagar el registro de accesos; dejarlo y documentarlo.
+**Justificación**: conserva lo útil para diagnosticar y saca la búsqueda del paciente (DD-77).
+
+### DD-108 — Smoke test como test de pytest con marcador `smoke` (P-5 de C-13)
+**Decisión**: `backend/tests/smoke/test_end_to_end.py`, marcador `smoke` fuera de la batería por defecto y de `-m integration` (`addopts = "-m 'not integration and not smoke'"`), corre en el contenedor `api` contra la API levantada y la API de Mailpit y pide la pasada forzada al `worker` real por la cola: `docker compose exec api pytest -m smoke`. Las contraseñas salen de `SEED_DEMO_PASSWORD`; deja dos pacientes propios desactivados y sus turnos cancelados.
+**Alternativas consideradas**: un script de Python; Playwright con navegador.
+**Justificación**: reusa pytest, `httpx` y el patrón de Mailpit de C-11 y C-12 y no agrega dependencias.
+
+### DD-109 — Si mañana no hay franjas, el smoke test agrega un tramo y lo restituye (P-6 de C-13)
+**Decisión**: si mañana ningún profesional tiene franjas libres porque no atiende (el seed es de lunes a viernes), el test, como administrador, agrega un tramo de 09:00 a 12:00 a un profesional con `PUT /working-hours` y al terminar le devuelve exactamente sus tramos originales, aun si un paso falla.
+**Alternativas consideradas**: saltear el paso del recordatorio; documentar que se corre de domingo a jueves.
+**Justificación**: el test pasa completo cualquier día y usa la API como un usuario real.
+
+### DD-110 — Matriz única de permisos ruta × rol (P-7 de C-13)
+**Decisión**: `tests/unit/api/test_permission_matrix.py` declara una tabla ruta × rol, armada desde `03_actores_y_roles.md`, que debe ser exactamente el conjunto de rutas registradas (una ruta nueva sin fila o una fila de una ruta inexistente falla nombrándola). Para cada ruta protegida comprueba 401 sin token, 403 con cada rol no permitido y ni 401 ni 403 con cada rol permitido. El alcance "propio" del odontólogo sigue en los tests por recurso. Hoy son 32 rutas (2 públicas).
+**Alternativas consideradas**: solo un chequeo de que cada ruta aparece en algún archivo de permisos; la regla "propio" en la misma tabla.
+**Justificación**: una sola fuente que no deja pasar una ruta sin declarar (R-6).
+
+### DD-111 — Ningún secreto en el bundle: test del código y chequeo del `dist/` (P-8 de C-13)
+**Decisión**: `src/env-usage.test.ts` exige que el código del frontend (sin tests) lea de `import.meta.env` solo `VITE_API_URL`, y `frontend/scripts/check-bundle.mjs` (`npm run check:bundle`) busca en `dist/` `JWT_SECRET_KEY`, `SMTP_PASSWORD`, `SEED_DEMO_PASSWORD`, `POSTGRES_PASSWORD`, `DATABASE_URL` y `postgresql`; corre en la etapa de build de la imagen de la demo y la hace fallar.
+**Alternativas consideradas**: solo el test sobre el código; un test de pytest que lee `frontend/dist`.
+**Justificación**: el test detecta el error antes del build y el script cubre lo que realmente se publica (RN-PR-03).
+
+### DD-112 — Sesión y login no se endurecen en C-13 (P-9 de C-13)
+**Decisión**: se mantienen el token en `sessionStorage` (DD-46) y el login sin límite de intentos (DD-47); quedan como decisiones abiertas antes de usar datos reales (cookie httpOnly y límite de intentos con Redis).
+**Alternativas consideradas**: límite de intentos por email con Redis; ese límite más cookie httpOnly.
+**Justificación**: la demo es local con datos ficticios y argon2 ya hace lento cada intento; lo demás suma lógica y casos de error que el alcance no necesita.
+
+### DD-113 — Valores de `.env.example` (P-10 de C-13)
+**Decisión**: `.env.example` mantiene las credenciales de base ficticias de desarrollo; `JWT_SECRET_KEY`, `SMTP_PASSWORD` y `SEED_DEMO_PASSWORD` van vacías; `CORS_ORIGINS=http://localhost:5173,http://localhost:8080`. El README pide completar en el `.env` local una `JWT_SECRET_KEY` y una `SEED_DEMO_PASSWORD` propias y cambiar la contraseña de la base.
+**Alternativas consideradas**: dejar vacías también las credenciales de base.
+**Justificación**: permite levantar sin pensar y los valores reales viven solo en el `.env` local, que los agentes no leen ni commitean.
+
+### DD-114 — README completo y checklist de adopción aparte (P-11 de C-13)
+**Decisión**: `README.md` reescrito (qué es, requisitos, setup, desarrollo y demo, servicios, variables sin valores, chequeos, smoke test, decisiones abiertas) y `docs/adopcion-recepcion.md` con el checklist de adopción para la recepción y el dueño (R-8).
+**Alternativas consideradas**: todo en el README.
+**Justificación**: el README queda técnico; el checklist es para quien usa el sistema.
+
+### DD-115 — Un solo change por grupos (P-12 de C-13)
+**Decisión**: C-13 es un solo change, con un punto de corte seguro tras el grupo 5 (endurecimiento terminado: CORS, matriz, registros y bundle, sin tocar Compose).
+**Alternativas consideradas**: partir en C-13a (endurecimiento) y C-13b (empaquetado, smoke test y documentación).
+**Justificación**: son pocas tareas por grupo y la documentación final cierra todo junto.
+
+### DD-116 — CORS con métodos y encabezados explícitos y `CORS_ORIGINS` sin comodín (técnica, C-13)
+**Decisión**: `CORSMiddleware` permite solo `GET`, `POST`, `PUT`, `PATCH`, `DELETE` y `OPTIONS`, solo los encabezados `Authorization` y `Content-Type` y `allow_credentials=False` (la sesión viaja en `Authorization`, DD-46). `Settings` rechaza un `CORS_ORIGINS` con `*` o con un origen sin `http://` o `https://`, con un error que nombra la variable sin repetir el valor.
+**Justificación**: un origen o un encabezado de más no debe aceptarse por omisión (regla dura 5).
+
 ## Supuestos inferidos
 
 ### SU-01 — Zona horaria única
@@ -601,7 +670,7 @@
 **Origen**: conocimiento general; no verificado.
 **Riesgo si es falso**: el envío en producción no funciona; sigue siendo posible usar Mailpit.
 **Estado**: abierto solo para producción y no bloquea ningún change. Desarrollo y demo usan Mailpit (DD-87, C-11); el adaptador SMTP es configurable por variables de entorno, así que elegir un proveedor más adelante no requiere cambiar el código.
-**Cómo validar**: elegir el proveedor y revisar su cupo antes de un despliegue real (C-13).
+**Cómo validar**: elegir el proveedor y revisar su cupo antes de un despliegue real. C-13 (demo local con Mailpit, DD-105) no lo resuelve: sigue abierto solo para producción.
 
 ### SU-03 — Un recordatorio diario alcanza
 **Supuesto**: Celery Beat dispara la tarea cada hora y esta actúa solo a la hora configurada; el recordatorio sale una vez al día, el día anterior, no exactamente 24 h antes.

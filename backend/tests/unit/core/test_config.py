@@ -175,3 +175,31 @@ def test_an_invalid_email_redirect_names_the_variable_without_repeating_the_valu
 
     assert "EMAIL_REDIRECT_TO" in text
     assert value not in text
+
+
+# --- CORS_ORIGINS explicito (spec runtime-configuration, C-13) ---
+
+
+def test_two_explicit_origins_are_loaded(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = load(monkeypatch, CORS_ORIGINS="http://localhost:5173,http://localhost:8080")
+
+    assert settings.CORS_ORIGINS == ["http://localhost:5173", "http://localhost:8080"]
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["*", "http://localhost:5173,*", "localhost:5173", "http://localhost:5173,otro.example"],
+)
+def test_cors_origins_with_wildcard_or_without_scheme_fail_naming_the_variable(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    text = error_text(monkeypatch, CORS_ORIGINS=value)
+
+    assert "CORS_ORIGINS" in text
+    assert value not in text
+
+
+def test_https_origin_is_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = load(monkeypatch, CORS_ORIGINS="https://consultorio.example")
+
+    assert settings.CORS_ORIGINS == ["https://consultorio.example"]
