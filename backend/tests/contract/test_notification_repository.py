@@ -9,6 +9,7 @@ import pytest
 from app.domain.appointments import (
     Appointment,
     AppointmentRepository,
+    AppointmentStatus,
     NewAppointment,
     NotificationKind,
     NotificationRepository,
@@ -344,3 +345,116 @@ def test_a_notification_created_exactly_at_the_limit_is_not_old_yet(
 
     assert notification_repo.list_pending_created_before(monday(8), 10) == []
     assert len(notification_repo.list_pending_created_before(monday(8, 1), 10)) == 1
+
+
+# --- Alta condicionada del recordatorio (C-12, D-4) ----------------------------------
+
+
+def test_registers_a_pending_reminder_next_to_a_sent_confirmation(
+    notification_repo: NotificationRepository,
+    appointment_repo: AppointmentRepository,
+    ids: Refs,
+    factory: RepositoryFactory,
+) -> None:
+    appointment = make_appointment(appointment_repo, ids, monday(10))
+    confirmation = factory.seed_notification(
+        appointment.id, NotificationKind.CONFIRMATION, NotificationStatus.SENT, monday(10)
+    )
+
+    saved = notification_repo.add_pending_reminder(appointment.id, monday(10))
+
+    assert saved is not None
+    assert saved.kind is NotificationKind.REMINDER
+    assert saved.status is PENDING
+    assert saved.sent_at is None
+    assert saved.error is None
+    assert saved.appointment_starts_at == monday(10)
+    listed = notification_repo.list_for_appointment(appointment.id)
+    assert sorted((n.kind.value, n.status.value) for n in listed) == [
+        ("confirmation", "sent"),
+        ("reminder", "pending"),
+    ]
+    assert confirmation.id in [n.id for n in listed]
+
+
+@pytest.mark.parametrize(
+    "existing",
+    [NotificationStatus.PENDING, NotificationStatus.SENT, NotificationStatus.FAILED],
+)
+def test_an_existing_reminder_in_any_status_is_never_registered_again(
+    notification_repo: NotificationRepository,
+    appointment_repo: AppointmentRepository,
+    ids: Refs,
+    factory: RepositoryFactory,
+    existing: NotificationStatus,
+) -> None:
+    appointment = make_appointment(appointment_repo, ids, monday(10))
+    seeded = factory.seed_notification(
+        appointment.id, NotificationKind.REMINDER, existing, monday(10)
+    )
+
+    again = notification_repo.add_pending_reminder(appointment.id, monday(10))
+
+    assert again is None
+    assert notification_repo.list_for_appointment(appointment.id) == [seeded]
+
+
+def test_a_reminder_for_another_start_of_the_same_appointment_is_a_new_row(
+    notification_repo: NotificationRepository,
+    appointment_repo: AppointmentRepository,
+    ids: Refs,
+    factory: RepositoryFactory,
+) -> None:
+    appointment = make_appointment(appointment_repo, ids, monday(10))
+    factory.seed_notification(
+        appointment.id, NotificationKind.REMINDER, NotificationStatus.SENT, monday(9)
+    )
+
+    saved = notification_repo.add_pending_reminder(appointment.id, monday(10))
+
+    assert saved is not None
+    assert [
+        n.appointment_starts_at for n in notification_repo.list_for_appointment(appointment.id)
+    ] == [
+        monday(9),
+        monday(10),
+    ]
+
+
+@pytest.mark.parametrize(
+    "status",
+    [AppointmentStatus.CANCELLED, AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW],
+)
+def test_no_reminder_is_registered_for_an_appointment_that_is_not_scheduled(
+    notification_repo: NotificationRepository,
+    appointment_repo: AppointmentRepository,
+    ids: Refs,
+    status: AppointmentStatus,
+) -> None:
+    appointment = make_appointment(appointment_repo, ids, monday(10))
+    appointment_repo.change_status(
+        appointment.id, status, "motivo" if status is AppointmentStatus.CANCELLED else None
+    )
+
+    assert notification_repo.add_pending_reminder(appointment.id, monday(10)) is None
+    assert notification_repo.list_for_appointment(appointment.id) == []
+
+
+def test_no_reminder_is_registered_when_the_appointment_now_starts_at_another_time(
+    notification_repo: NotificationRepository, appointment_repo: AppointmentRepository, ids: Refs
+) -> None:
+    appointment = make_appointment(appointment_repo, ids, monday(10))
+    appointment_repo.reschedule(appointment.id, monday(11), monday(11, 30))
+
+    assert notification_repo.add_pending_reminder(appointment.id, monday(10)) is None
+    assert notification_repo.list_for_appointment(appointment.id) == []
+    assert notification_repo.add_pending_reminder(appointment.id, monday(11)) is not None
+
+
+def test_no_reminder_is_registered_for_an_unknown_appointment(
+    notification_repo: NotificationRepository, ids: Refs
+) -> None:
+    unknown = "00000000-0000-0000-0000-000000000000"
+
+    assert notification_repo.add_pending_reminder(unknown, monday(10)) is None
+    assert notification_repo.add_pending_reminder("no-es-un-id", monday(10)) is None

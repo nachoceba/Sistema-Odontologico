@@ -99,3 +99,18 @@ def test_the_inventory_sees_the_real_routes(
 
 def test_public_list_is_exactly_login_and_health() -> None:
     assert {("POST", "/api/v1/auth/login"), ("GET", "/api/v1/health")} == PUBLIC_ROUTES
+
+
+FORBIDDEN_PATH_WORDS = ("notif", "email", "recordatorio", "reminder", "task", "tarea", "celery")
+
+
+def test_there_is_no_http_route_to_trigger_notifications_reminders_or_tasks(
+    make_client: Callable[[], tuple[FastAPI, TestClient]],
+) -> None:
+    _, client = make_client()
+
+    paths = list(client.get("/openapi.json").json()["paths"])
+
+    assert paths, "el OpenAPI no lista ninguna ruta"
+    offenders = [p for p in paths if any(word in p.lower() for word in FORBIDDEN_PATH_WORDS)]
+    assert offenders == []

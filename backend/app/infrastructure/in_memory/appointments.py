@@ -85,6 +85,15 @@ class InMemoryAppointmentRepository:
     ) -> list[Appointment]:
         return self._list(lambda a: a.patient_id == patient_id, start, end)
 
+    def list_scheduled_starting_between(self, start: datetime, end: datetime) -> list[Appointment]:
+        require_query_range(start, end)
+        matches = [
+            a
+            for a in self._appointments.values()
+            if a.status is AppointmentStatus.SCHEDULED and start <= a.starts_at < end
+        ]
+        return sorted(matches, key=lambda a: (a.starts_at, a.id))
+
     def _existing(self, appointment_id: str) -> Appointment:
         current = self._appointments.get(appointment_id)
         if current is None:

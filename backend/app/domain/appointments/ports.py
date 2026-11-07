@@ -55,6 +55,14 @@ class AppointmentRepository(Protocol):
         """Igual que list_for_professional, filtrando por paciente."""
         ...
 
+    def list_scheduled_starting_between(self, start: datetime, end: datetime) -> list[Appointment]:
+        """Turnos ``scheduled`` de todos los profesionales que EMPIEZAN en [start, end).
+
+        Criterio por inicio y no por superposicion (DD-66): orden ``(starts_at, id)``. Ambos
+        limites son obligatorios; sin zona o ``start >= end`` lanza ``ValueError``.
+        """
+        ...
+
 
 class NotificationRepository(Protocol):
     """Registro de ``email_notifications``: alta, borrado y estado del envio (C-11)."""
@@ -65,6 +73,16 @@ class NotificationRepository(Protocol):
         """Registra una ``confirmation`` ``pending`` para el turno y su horario.
 
         Devuelve ``None`` si ya existia una con ese turno, tipo y horario (RN-NO-03).
+        """
+        ...
+
+    def add_pending_reminder(self, appointment_id: str, starts_at: datetime) -> Notification | None:
+        """Registra un ``reminder`` ``pending`` solo si el turno sigue vigente con ese horario.
+
+        Devuelve ``None``, sin error, si el turno no existe, ya no esta ``scheduled``, ahora
+        empieza en otro horario, o si ya existia un ``reminder`` de ese turno y horario en
+        cualquier estado (RN-NO-03). En PostgreSQL espera a una reprogramacion o cancelacion en
+        curso y decide con el dato confirmado (``FOR SHARE``, design D-4).
         """
         ...
 

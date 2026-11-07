@@ -64,14 +64,14 @@ Worker Celery → servidor SMTP (email de confirmación)
 
 **Pasos**:
 1. Celery Beat dispara la tarea `enviar_recordatorios` (no hay ruta HTTP que proteger).
-2. La tarea calcula el día siguiente en la zona del consultorio.
-3. Busca turnos `scheduled` del día siguiente sin notificación `reminder`.
-4. Por cada uno crea la notificación y envía el email por SMTP.
-5. Registra `sent` o `failed` por turno y sigue con el siguiente.
+2. La tarea lee la zona y la hora configurada de `clinic_settings`; si la hora local no es `reminder_send_hour`, termina sin hacer nada.
+3. Calcula el día siguiente en la zona del consultorio y busca los turnos `scheduled` de todos los profesionales que empiezan ese día.
+4. Por cada uno crea la notificación `reminder` (solo si no existe para ese horario y el turno sigue vigente) y envía el email por SMTP en el momento.
+5. Registra `sent` o `failed` por turno (o lo deja `pending` ante un fallo temporal) y sigue con el siguiente; al final registra `processed`, `sent`, `failed` y `pending`.
 
 **Casos de error**:
-- Redis o el worker caídos → la tarea no corre ese día; la siguiente pasada recoge los turnos pendientes.
-- Falla de un envío → se registra y no corta el lote.
+- Redis, Beat o el worker caídos durante toda la hora configurada → la tarea no corre ese día y las pasadas de otras horas no lo recuperan (DD-98); los pacientes conservan su confirmación.
+- Falla de un envío → se registra y no corta el lote; un fallo temporal deja la fila `pending` para el reencolado y una `failed` no se reintenta (DD-97).
 - Ejecución duplicada de la tarea → el `UNIQUE (appointment_id, kind, appointment_starts_at)` evita reenvíos.
 
 ## Flujo 5: Definir horarios y licencias

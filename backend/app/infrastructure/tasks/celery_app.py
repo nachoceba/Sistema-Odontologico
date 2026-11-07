@@ -1,13 +1,15 @@
 """Aplicacion Celery (D-4): broker Redis, zona del consultorio y tareas de notificaciones.
 
 Todo lo de Celery vive en esta carpeta; si la herramienta cambia, no se toca el
-dominio ni la API. Las tareas propias son ``enviar_email`` y ``reencolar_pendientes`` (C-11);
-el recordatorio diario llega en C-12.
+dominio ni la API. Las tareas propias son ``enviar_email`` y ``reencolar_pendientes`` (C-11) y
+``enviar_recordatorios`` (C-12). Beat dispara la ultima cada hora en punto (``crontab(minute=0)``,
+evaluado en la zona de ``CLINIC_TIMEZONE``); la propia tarea decide si es la hora configurada.
 """
 
 from __future__ import annotations
 
 from celery import Celery
+from celery.schedules import crontab
 
 from app.core.config import get_settings
 
@@ -20,6 +22,8 @@ celery_app.conf.update(
     task_serializer="json",
     beat_schedule={
         "reencolar-pendientes": {"task": "reencolar_pendientes", "schedule": 600.0},
+        # Sin argumentos: Beat nunca fuerza la pasada (solo la consola, design D-5).
+        "enviar-recordatorios": {"task": "enviar_recordatorios", "schedule": crontab(minute=0)},
     },
     accept_content=["json"],
     # El timeout de conexion del productor va en las opciones del transporte:

@@ -10,13 +10,19 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, literal, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.sql.dml import ReturningInsert
 
-from app.domain.appointments.types import Notification, NotificationKind, NotificationStatus
+from app.domain.appointments.types import (
+    AppointmentStatus,
+    Notification,
+    NotificationKind,
+    NotificationStatus,
+)
 from app.infrastructure.db import enums
-from app.infrastructure.db.models import EmailNotificationModel
+from app.infrastructure.db.models import AppointmentModel, EmailNotificationModel
 from app.infrastructure.db.repositories._ids import parse_uuid
 from app.infrastructure.db.scope import SessionScope
 
@@ -65,6 +71,41 @@ class SqlAlchemyNotificationRepository:
             .on_conflict_do_nothing(constraint=UNIQUE_NAME)
             .returning(EmailNotificationModel)
         )
+        return self._insert_returning(statement)
+
+    def add_pending_reminder(self, appointment_id: str, starts_at: datetime) -> Notification | None:
+        key = parse_uuid(appointment_id)
+        if key is None:
+            return None
+        # Un solo INSERT ... SELECT: ``FOR SHARE`` espera a una reprogramacion o cancelacion en
+        # curso (que tiene el turno con ``FOR UPDATE``) y vuelve a evaluar la condicion con el
+        # dato confirmado, asi nunca queda una ``pending`` con un horario viejo (design D-4).
+        vigente = (
+            select(
+                AppointmentModel.id,
+                literal(enums.NotificationKind.REMINDER, EmailNotificationModel.kind.type),
+                literal(enums.NotificationStatus.PENDING, EmailNotificationModel.status.type),
+                AppointmentModel.starts_at,
+            )
+            .where(
+                AppointmentModel.id == key,
+                AppointmentModel.status == AppointmentStatus.SCHEDULED,
+                AppointmentModel.starts_at == starts_at,
+            )
+            .with_for_update(read=True)
+        )
+        statement = (
+            pg_insert(EmailNotificationModel)
+            .from_select(["appointment_id", "kind", "status", "appointment_starts_at"], vigente)
+            .on_conflict_do_nothing(constraint=UNIQUE_NAME)
+            .returning(EmailNotificationModel)
+        )
+        return self._insert_returning(statement)
+
+    def _insert_returning(
+        self, statement: ReturningInsert[EmailNotificationModel]
+    ) -> Notification | None:
+        """Corre un alta con ``ON CONFLICT DO NOTHING``: la fila nueva, o ``None`` si no entro."""
         with self._scope.write() as session:
             row = session.scalars(statement).first()
             return None if row is None else _to_domain(row)

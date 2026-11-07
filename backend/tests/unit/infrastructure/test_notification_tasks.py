@@ -4,18 +4,28 @@ notification-tasks, design D-7)."""
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Iterator
+from dataclasses import replace
 from datetime import timedelta
 
 import pytest
 from kombu.connection import Connection
+from sqlalchemy.exc import OperationalError
 
 from app.application.notifications import RequeueDeps
+from app.application.reminders import ReminderDeps
 from app.domain.appointments import NotificationKind, NotificationStatus
+from app.domain.settings.types import ClinicSettings
 from app.infrastructure.tasks import wiring
-from app.infrastructure.tasks.notifications import enviar_email, reencolar_pendientes
+from app.infrastructure.tasks.notifications import (
+    enviar_email,
+    enviar_recordatorios,
+    reencolar_pendientes,
+)
 from tests.unit.application.notification_helpers import SendWorld
-from tests.unit.domain.appointments.helpers import local
+from tests.unit.application.reminder_helpers import ReminderWorld
+from tests.unit.domain.appointments.helpers import local, monday
 
 
 @pytest.fixture
@@ -129,10 +139,78 @@ def test_requeue_task_requests_old_pending_and_the_original_queued_task_sends_no
     assert scenario.sender.sent[0].subject.startswith("Recordatorio de turno")
 
 
-def test_beat_has_a_single_own_entry_every_ten_minutes() -> None:
-    from app.infrastructure.tasks.celery_app import celery_app
+# --- Recordatorios (C-12) -----------------------------------------------------------------------
 
-    schedule = celery_app.conf.beat_schedule
-    assert list(schedule) == ["reencolar-pendientes"]
-    assert schedule["reencolar-pendientes"]["task"] == "reencolar_pendientes"
-    assert schedule["reencolar-pendientes"]["schedule"] == 600.0
+
+@pytest.fixture
+def reminders(monkeypatch: pytest.MonkeyPatch) -> Iterator[ReminderWorld]:
+    world = ReminderWorld()
+    monkeypatch.setattr(wiring, "build_reminder_deps", lambda: world.deps())
+    yield world
+
+
+def test_the_reminder_task_sends_the_reminder_at_the_configured_hour(
+    reminders: ReminderWorld,
+) -> None:
+    appointment = reminders.world.seed(monday(10))
+
+    result = enviar_recordatorios.apply(throw=True).get()
+
+    assert result == {"processed": 1, "sent": 1, "failed": 0, "pending": 0}
+    [email] = reminders.sender.sent
+    assert email.subject.startswith("Recordatorio de turno")
+    assert [row.status for row in reminders.rows(appointment.id)] == [NotificationStatus.SENT]
+
+
+def test_the_reminder_task_does_nothing_outside_the_configured_hour(
+    reminders: ReminderWorld,
+) -> None:
+    appointment = reminders.world.seed(monday(10))
+    reminders.world.now = local(2026, 10, 4, 14)
+
+    result = enviar_recordatorios.apply(throw=True).get()
+
+    assert result == {"processed": 0, "sent": 0, "failed": 0, "pending": 0}
+    assert reminders.sender.attempts == 0
+    assert reminders.rows(appointment.id) == []
+
+
+def test_the_reminder_task_can_be_forced_outside_the_hour_and_twice_sends_once(
+    reminders: ReminderWorld,
+) -> None:
+    reminders.world.seed(monday(10))
+    reminders.world.now = local(2026, 10, 4, 14)
+
+    first = enviar_recordatorios.apply(kwargs={"forzar": True}, throw=True).get()
+    second = enviar_recordatorios.apply(kwargs={"forzar": True}, throw=True).get()
+
+    assert first["sent"] == 1
+    assert second["processed"] == 0
+    assert len(reminders.sender.sent) == 1
+
+
+class UnreachableSettings:
+    def get(self) -> ClinicSettings:
+        raise OperationalError("SELECT 1", {}, Exception("la base no responde"))
+
+
+def test_a_database_error_at_the_start_ends_the_task_logged_without_retrying_or_patient_data(
+    reminders: ReminderWorld, caplog: pytest.LogCaptureFixture
+) -> None:
+    reminders.world.seed(monday(10))
+    deps = reminders.deps()
+
+    def broken_deps() -> ReminderDeps:
+        return replace(deps, settings=UnreachableSettings())
+
+    with pytest.MonkeyPatch.context() as patch, caplog.at_level(logging.ERROR):
+        patch.setattr(wiring, "build_reminder_deps", broken_deps)
+        result = enviar_recordatorios.apply(throw=False)
+
+    assert result.failed()
+    assert result.traceback is not None
+    assert result.result.__class__ is OperationalError
+    assert "OperationalError" in caplog.text
+    assert "juan@example.com" not in caplog.text
+    assert "Pérez" not in caplog.text
+    assert reminders.sender.attempts == 0

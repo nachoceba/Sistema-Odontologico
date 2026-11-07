@@ -127,8 +127,10 @@ class InMemoryFactory:
 
     def __init__(self) -> None:
         self._accounts = InMemoryUserAccountRepository()
-        self._notifications = InMemoryNotificationRepository()
         self._appointments = InMemoryAppointmentRepository()
+        self._notifications = InMemoryNotificationRepository(
+            appointment_lookup=self._appointments.get
+        )
 
     def professional(self, name: str) -> str:
         return name

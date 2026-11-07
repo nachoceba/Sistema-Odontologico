@@ -22,16 +22,21 @@ Ambos son **informativos**: el paciente no confirma ni cancela desde el email (D
 
 ## Programación del recordatorio
 
-- Celery Beat dispara `enviar_recordatorios` **cada hora**. La tarea no hace nada salvo que la hora local del consultorio sea igual a `clinic_settings.reminder_send_hour` (por defecto 9:00). Así el valor guardado en la base se respeta sin reiniciar el servicio `beat`.
-- La aplicación Celery se configura con `timezone` igual a la zona del consultorio y `enable_utc = True`.
-- Selecciona los turnos `scheduled` cuyo `starts_at` cae en el día siguiente (en la zona del consultorio) y sin notificación `reminder` para esa fecha.
+- Celery Beat dispara `enviar_recordatorios` **cada hora**, en el minuto 0. La tarea no hace nada salvo que la hora local del consultorio sea igual a `clinic_settings.reminder_send_hour` (por defecto 9:00). Así el valor guardado en la base se respeta sin reiniciar el servicio `beat`.
+- La aplicación Celery se configura con `timezone` igual a la zona del consultorio (`CLINIC_TIMEZONE`) y `enable_utc = True`; eso solo gobierna cuándo dispara Beat. La hora y el "día siguiente" los calcula la pasada con `clinic_settings.timezone`, que lee de la base en cada ejecución (DD-99).
+- Selecciona los turnos `scheduled` de **todos** los profesionales cuyo `starts_at` cae en el día siguiente (en la zona del consultorio, de las 00:00 incluidas a las 00:00 del día posterior excluidas): cuenta el inicio, no la superposición. Incluye los de pacientes inactivos (DD-76) y los de profesionales inactivos o en conflicto por horario o licencia (DD-100). Un turno que ya tiene un `reminder` para ese horario no recibe otro.
 - El aviso sale "el día anterior", no exactamente 24 h antes (IN-01). Con Beat cada hora, pasar a una ventana de 24 h exactas es una mejora posible.
 - Un turno agendado después de la ejecución diaria recibe solo la confirmación.
+- Si Beat o el worker estaban caídos durante toda la hora configurada, ese día no salen recordatorios y las pasadas de otras horas no lo recuperan (DD-98); los pacientes conservan su confirmación.
+- Disparo manual (DD-101): desde la consola del contenedor, `celery -A app.infrastructure.tasks.celery_app call enviar_recordatorios --kwargs='{"forzar": true}'` ejecuta la pasada sin importar la hora, con las mismas reglas; repetirla no reenvía nada. Beat nunca la fuerza y no existe ninguna ruta HTTP para dispararla.
 
 ## Idempotencia y errores
 
 - `email_notifications` tiene `UNIQUE (appointment_id, kind, appointment_starts_at)`. Reejecutar la tarea no reenvía.
 - Si el envío falla se guarda `status = failed` y `error`; el lote continúa (RN-NO-04).
+- La pasada registra cada recordatorio y lo envía en el momento, uno por uno, con el mismo envío de la confirmación (DD-96). Un fallo permanente queda `failed`; uno temporal deja la fila `pending` y la levanta `reencolar_pendientes` pasados 5 minutos, con sus reintentos normales (un recordatorio puede tener así hasta 4 intentos en total).
+- Una `failed` no se reintenta nunca: no hay segunda pasada (DD-97).
+- El `reminder` se registra solo si, en ese momento, el turno sigue `scheduled` y con el mismo `starts_at` que leyó la pasada (`INSERT … SELECT … FOR SHARE ON CONFLICT DO NOTHING`): si recepción cancela o reprograma durante la pasada, no queda un `pending` con horario viejo (DD-103).
 - Reintentos (DD-89): un fallo temporal (servidor SMTP caído o sin respuesta, respuesta 4xx) se reintenta hasta 3 intentos en total, con esperas de 1 y 2 minutos, y la fila sigue `pending` mientras tanto. Un fallo permanente (5xx, destinatario o credenciales rechazados) queda `failed` al instante. En C-11 una `failed` no se reintenta; una segunda pasada diaria de `failed` queda para C-12.
 - El texto de `error` es un código corto sin datos personales: `SMTP_PERMANENT 550`, `SMTP_TEMPORARY CONNECTION`, `SMTP_TEMPORARY TIMEOUT` o `EXPIRED`; nunca el texto del servidor ni la dirección.
 - Reprogramar descarta las notificaciones `pending` de la fecha anterior y crea otras para la nueva fecha (RN-NO-05); por eso el `UNIQUE` incluye `appointment_starts_at`.
@@ -48,5 +53,5 @@ Ambos son **informativos**: el paciente no confirma ni cancela desde el email (D
 | Tarea Celery | Disparador | Resumen |
 |---|---|---|
 | `enviar_email` | Encolada por los casos de uso | Envía una notificación y registra el resultado |
-| `enviar_recordatorios` | Celery Beat (cada hora) | Solo actúa a la hora configurada: crea y envía los recordatorios de los turnos del día siguiente; registra `{ processed, sent, failed }` en el log |
+| `enviar_recordatorios` | Celery Beat (cada hora) | Solo actúa a la hora configurada: crea y envía los recordatorios de los turnos del día siguiente; registra `processed`, `sent`, `failed` y `pending` en el log (`processed = sent + failed + pending`), sin datos del paciente. Acepta `forzar` solo desde la consola (DD-101) |
 | `reencolar_pendientes` | Celery Beat (cada 10 minutos) | Reencola las notificaciones `pending` de más de 5 minutos (tope 100 por pasada); registra solo la cantidad |

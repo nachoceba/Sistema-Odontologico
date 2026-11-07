@@ -96,6 +96,8 @@ class World:
     )
 
     def __post_init__(self) -> None:
+        # El alta de recordatorios comprueba el turno por esta consulta (la base lo hace en SQL).
+        self.notifications.bind_appointments(self.appointments.get)
         self.patients = InMemoryPatientRepository(self.patient_list)
         self.accounts.add(_dentist("u-dra-a", PROF_A))
         self.accounts.add(_dentist("u-dr-b", PROF_B))

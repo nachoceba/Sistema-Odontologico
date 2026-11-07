@@ -139,6 +139,20 @@ class SqlAlchemyAppointmentRepository:
     ) -> list[Appointment]:
         return self._list(AppointmentModel.patient_id, patient_id, start, end)
 
+    def list_scheduled_starting_between(self, start: datetime, end: datetime) -> list[Appointment]:
+        require_query_range(start, end)
+        query = (
+            select(AppointmentModel)
+            .where(
+                AppointmentModel.status == AppointmentStatus.SCHEDULED,
+                AppointmentModel.starts_at >= start,
+                AppointmentModel.starts_at < end,
+            )
+            .order_by(AppointmentModel.starts_at, AppointmentModel.id)
+        )
+        with self._scope.read() as session:
+            return [_to_domain(row) for row in session.scalars(query)]
+
     # --- internos ---------------------------------------------------------------
 
     @staticmethod

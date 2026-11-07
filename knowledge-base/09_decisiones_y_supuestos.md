@@ -513,7 +513,7 @@
 **Justificación**: hace lo que dice `11_recordatorios_email.md`, no duplica tareas en camino y una sola regla cubre las acumuladas y las futuras sin tocar datos a mano.
 
 ### DD-89 — Reintentos y fallos (P-5 de C-11)
-**Decisión**: un fallo temporal (servidor caído, sin respuesta, 4xx) se reintenta hasta 3 intentos en total, con esperas de 1 y 2 minutos; la fila sigue `pending` durante los reintentos. Un fallo permanente (5xx, destinatario o credenciales rechazados) queda `failed` al instante. Una `failed` no se reintenta en C-11; la segunda pasada de `failed` la decide C-12. El texto de `error` es un código corto (`SMTP_PERMANENT 550`, `SMTP_TEMPORARY CONNECTION`, `EXPIRED`), nunca el texto del servidor ni la dirección. Corrige el Flujo 2 de `07_flujos_principales.md`: `reencolar_pendientes` reintenta solo las `pending` (coincide con `11_recordatorios_email.md`).
+**Decisión**: un fallo temporal (servidor caído, sin respuesta, 4xx) se reintenta hasta 3 intentos en total, con esperas de 1 y 2 minutos; la fila sigue `pending` durante los reintentos. Un fallo permanente (5xx, destinatario o credenciales rechazados) queda `failed` al instante. Una `failed` no se reintenta nunca: no hay segunda pasada (DD-97, C-12). El texto de `error` es un código corto (`SMTP_PERMANENT 550`, `SMTP_TEMPORARY CONNECTION`, `EXPIRED`), nunca el texto del servidor ni la dirección. Corrige el Flujo 2 de `07_flujos_principales.md`: `reencolar_pendientes` reintenta solo las `pending` (coincide con `11_recordatorios_email.md`).
 **Alternativas consideradas**: sin reintentos; reintentar también las `failed` cada 10 minutos.
 **Justificación**: un corte breve del proveedor no debería dejar a un paciente sin confirmación, no tiene sentido insistir con una dirección rechazada y reintentar `failed` gastaría el cupo diario con casillas que rebotan.
 
@@ -546,6 +546,46 @@
 **Decisión**: `ClinicSettings` suma `clinic_name`, `address`, `phone` y `reminder_send_hour`, que ya existían en la tabla y en el seed; sin fila de configuración se devuelven `Consultorio`, dirección vacía, sin teléfono y recordatorio a las 9. Las plantillas usan los datos vigentes al enviar. C-12 recibe `reminder_send_hour` ya disponible.
 **Alternativas consideradas**: leer la tabla directamente desde la tarea de envío.
 **Justificación**: el dominio sigue sin conocer la base y la batería de contrato cubre memoria y PostgreSQL.
+
+### DD-96 — La pasada envía cada recordatorio ella misma (P-1 de C-12)
+**Decisión**: la pasada `enviar_recordatorios` registra cada recordatorio y lo envía en el momento, uno por uno, con el mismo envío de C-11 (`deliver_notification`, primer intento). Un fallo permanente queda `failed`; uno temporal queda `pending` y lo levanta el reencolado a los pocos minutos con sus 3 reintentos (en el peor caso un recordatorio tiene hasta 4 intentos). El log informa `processed`, `sent`, `failed` y `pending` (con `processed = sent + failed + pending`).
+**Alternativas consideradas**: registrar solo los recordatorios y pedir una tarea `enviar_email` por cada uno, como la confirmación (el log informaría `processed`, `queued` y `not_queued`).
+**Justificación**: hace lo que dicen el Flujo 4 y US-011 y deja en el log cuántos salieron y cuántos fallaron; con unos 64 emails por día la pasada dura poco.
+
+### DD-97 — Sin segunda pasada de recordatorios `failed` (P-2 de C-12, resuelve lo que DD-89 dejó a C-12)
+**Decisión**: una notificación `failed` queda como historial y no se vuelve a intentar nunca: no hay segunda pasada.
+**Alternativas consideradas**: una segunda pasada a la hora siguiente que reintente los `SMTP_TEMPORARY` (necesita volver una `failed` a `pending`); reintentar todas las `failed` del día.
+**Justificación**: un fallo temporal ya tuvo 3 intentos (DD-89) y un rechazo permanente no se arregla insistiendo; las otras opciones suman una operación y un cambio de estado que hoy no existen, o gastarían el cupo con casillas que rebotan.
+
+### DD-98 — Una hora perdida no se recupera (P-3 de C-12)
+**Decisión**: la pasada actúa solo durante la hora local configurada. Si el programador o el worker estaban caídos toda esa hora, ese día no salen recordatorios (los pacientes ya tienen su confirmación). Se corrige el Flujo 4, que decía que "la siguiente pasada recoge los turnos pendientes". Un turno agendado después de la pasada del día anterior recibe solo la confirmación.
+**Alternativas consideradas**: actuar en cualquier hora desde la configurada hasta el fin del día (más robusto, pero cambia una regla de la KB).
+**Justificación**: es lo que pide el alcance del change y lo más simple de probar; la alternativa queda como mejora posterior.
+
+### DD-99 — Zona horaria de la pasada (P-4 de C-12)
+**Decisión**: la pasada lee `clinic_settings.timezone` y `reminder_send_hour` de la base en cada ejecución; `CLINIC_TIMEZONE` solo sirve para que Beat dispare en el minuto 0 de cada hora.
+**Alternativas consideradas**: usar `CLINIC_TIMEZONE` para todo.
+**Justificación**: emails, agenda y franjas ya usan la zona de la base (RN-GL-01); si alguien la cambia, los recordatorios siguen alineados con la agenda sin reiniciar nada.
+
+### DD-100 — Todos los turnos `scheduled` de mañana reciben recordatorio (P-5 de C-12)
+**Decisión**: reciben recordatorio todos los turnos `scheduled` que empiezan el día siguiente, incluidos los de pacientes inactivos (DD-76), los de profesionales inactivos y los que quedaron en conflicto por un cambio de horario o una licencia (DD-68).
+**Alternativas consideradas**: saltear los de profesionales inactivos y los turnos en conflicto.
+**Justificación**: el turno sigue vigente hasta que recepción lo cancele o lo mueva; un recordatorio que no llega es peor y el listado queda simple.
+
+### DD-101 — Disparo manual de la pasada (P-6 de C-12)
+**Decisión**: la tarea acepta la opción `forzar` (falso por defecto), que se usa solo desde la consola del contenedor; Beat nunca la pasa y no existe ninguna ruta HTTP. Con `forzar` se saltea solo el control de la hora; el resto de las reglas son las mismas y repetirla no reenvía nada.
+**Alternativas consideradas**: cambiar `reminder_send_hour` en la base a la hora actual; un script aparte.
+**Justificación**: una sola opción, sin ruta HTTP y sin tocar la base; sirve para la demo con Mailpit y para el smoke test de C-13.
+
+### DD-102 — Un solo change por grupos (P-7 de C-12)
+**Decisión**: C-12 es un solo change, con un punto de corte seguro tras el grupo 5 (la pasada funcionando con repositorios en memoria y PostgreSQL, sin la tarea Celery).
+**Alternativas consideradas**: partir en C-12a (repositorio y caso de uso) y C-12b (tarea, Beat y KB).
+**Justificación**: son pocas tareas y las specs y la KB se cierran juntas.
+
+### DD-103 — Listado global por inicio y alta condicionada del recordatorio (técnica, C-12)
+**Decisión**: el repositorio de turnos suma `list_scheduled_starting_between(start, end)`, que devuelve los turnos `scheduled` de todos los profesionales cuyo **inicio** cae en `[start, end)` (no por superposición, DD-66); usa el índice `(starts_at)`. El registro de notificaciones suma `add_pending_reminder(appointment_id, starts_at)`: un solo `INSERT … SELECT … FOR SHARE ON CONFLICT DO NOTHING RETURNING` que registra el `reminder` solo si el turno sigue `scheduled` con ese horario; el `FOR SHARE` espera a una reprogramación o cancelación en curso y evalúa con el dato confirmado, así nunca queda una `pending` con horario viejo.
+**Alternativas consideradas**: un listado genérico por superposición; leer el turno y registrar sin bloqueo.
+**Justificación**: el criterio por inicio es el que dice `11_recordatorios_email.md` y el bloqueo evita una `pending` que el reencolado pediría cada 10 minutos sin fin.
 
 ## Supuestos inferidos
 

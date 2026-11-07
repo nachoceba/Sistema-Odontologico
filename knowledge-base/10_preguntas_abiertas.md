@@ -6,7 +6,7 @@
 **Discovery dice**: recordatorio 24 h antes del turno.
 **Diseño dice**: una tarea diaria de Celery Beat a la hora `reminder_send_hour`.
 **Impacto**: el aviso sale "el día anterior" y no exactamente 24 h antes.
-**Resolución propuesta**: aceptar el envío diario para v1 (DD-06, SU-03). Con Celery Beat no hay límite de frecuencia, así que pasar a una tarea horaria es una mejora posible. La restricción del cron gratuito de la primera versión del stack ya no aplica.
+**Resolución propuesta**: aceptar el envío diario para v1 (DD-06, SU-03). Con Celery Beat no hay límite de frecuencia, así que pasar a una tarea horaria es una mejora posible. La restricción del cron gratuito de la primera versión del stack ya no aplica. C-12 implementó el envío del día anterior a la hora configurada (DD-96 a DD-101); la ventana de 24 h exactas sigue como mejora posterior.
 
 ### IN-02 — Email en v1 vs integraciones "ninguna en v1"
 **Discovery dice**: en un primer momento "ninguna integración en v1"; luego el email automático pasó a v1.

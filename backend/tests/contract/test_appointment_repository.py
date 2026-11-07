@@ -454,3 +454,89 @@ def test_listing_feeds_validate_appointment_which_rejects_overlap(
         existing_appointments=existing,
     )
     assert result.reason == RejectionReason.OVERLAPS_EXISTING
+
+
+# --- Turnos agendados de todos los profesionales por inicio (DD-66) ------------------
+
+
+def scheduled_starting_on(repo: AppointmentRepository, day: date) -> list[Appointment]:
+    start, end = local_day_bounds(day, BA)
+    return repo.list_scheduled_starting_between(start, end)
+
+
+def test_global_listing_returns_every_professionals_scheduled_ordered_by_start(
+    appointment_repo: AppointmentRepository, ids: Refs
+) -> None:
+    from_a = book(appointment_repo, ids, monday(10), monday(10, 30))
+    from_b = book(appointment_repo, ids, monday(9), monday(9, 30), professional=ids.dr_b)
+    cancelled = book(appointment_repo, ids, monday(11), monday(11, 30))
+    appointment_repo.change_status(cancelled.id, AppointmentStatus.CANCELLED, "motivo")
+
+    listed = scheduled_starting_on(appointment_repo, MONDAY_DATE)
+
+    assert [a.id for a in listed] == [from_b.id, from_a.id]
+
+
+def test_global_listing_counts_only_the_start_of_each_appointment(
+    appointment_repo: AppointmentRepository, ids: Refs
+) -> None:
+    book(appointment_repo, ids, local(2026, 10, 4, 23, 45), local(2026, 10, 5, 0, 15))
+    starts_monday = book(appointment_repo, ids, monday(0), monday(0, 30), professional=ids.dr_b)
+
+    listed = scheduled_starting_on(appointment_repo, MONDAY_DATE)
+
+    assert [a.id for a in listed] == [starts_monday.id]
+
+
+def test_global_listing_excludes_the_upper_bound_and_includes_the_lower_one(
+    appointment_repo: AppointmentRepository, ids: Refs
+) -> None:
+    book(appointment_repo, ids, local(2026, 10, 6, 0), local(2026, 10, 6, 0, 30))
+    on_lower_bound = book(appointment_repo, ids, monday(0), monday(0, 30))
+
+    listed = scheduled_starting_on(appointment_repo, MONDAY_DATE)
+
+    assert [a.id for a in listed] == [on_lower_bound.id]
+
+
+@pytest.mark.parametrize(
+    "status",
+    [AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW, AppointmentStatus.CANCELLED],
+)
+def test_global_listing_ignores_appointments_that_are_not_scheduled(
+    appointment_repo: AppointmentRepository, ids: Refs, status: AppointmentStatus
+) -> None:
+    booked = book(appointment_repo, ids, monday(10), monday(10, 30))
+    appointment_repo.change_status(
+        booked.id, status, "motivo" if status is AppointmentStatus.CANCELLED else None
+    )
+
+    assert scheduled_starting_on(appointment_repo, MONDAY_DATE) == []
+
+
+def test_global_listing_keeps_a_stable_order_for_the_same_start(
+    appointment_repo: AppointmentRepository, ids: Refs
+) -> None:
+    first = book(appointment_repo, ids, monday(10), monday(10, 30))
+    second = book(appointment_repo, ids, monday(10), monday(10, 30), professional=ids.dr_b)
+
+    runs = [scheduled_starting_on(appointment_repo, MONDAY_DATE) for _ in range(3)]
+
+    assert {a.id for a in runs[0]} == {first.id, second.id}
+    assert runs[0] == runs[1] == runs[2]
+
+
+@pytest.mark.parametrize(
+    ("start", "end"),
+    [
+        pytest.param(datetime(2026, 10, 5, 0, 0), monday(23), id="desde_sin_zona"),
+        pytest.param(monday(10), datetime(2026, 10, 5, 12, 0), id="hasta_sin_zona"),
+        pytest.param(monday(10), monday(10), id="desde_igual_hasta"),
+        pytest.param(monday(11), monday(10), id="desde_posterior_hasta"),
+    ],
+)
+def test_global_listing_rejects_invalid_range(
+    appointment_repo: AppointmentRepository, start: datetime, end: datetime
+) -> None:
+    with pytest.raises(ValueError):
+        appointment_repo.list_scheduled_starting_between(start, end)

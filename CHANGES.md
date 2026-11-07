@@ -215,7 +215,7 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
 - **Queda para C-05b en adelante**: `compute_slots`, zona horaria (`app/core/timezone.py`), validación de tramos y licencias, transiciones de estado, regla de paciente inactivo y puertos de repositorios (ver C-05)
 
 ### [C-05b] `calcular-slots-disponibles` (recorte de C-05, archivado)
-- **Estado**: `[x]` implementado y archivado el 2026-11-03: 41/41 tasks, 71 tests pasando (33 de C-05a + 38 nuevos). Typecheck y lint resueltos en C-01: mypy y ruff están en `pyproject.toml` y limpios; la verificación en Python 3.12 se hizo en el contenedor.
+- **Estado**: `[x]` implementado y archivado el 2026-11-03: 44/44 tasks, 71 tests pasando (33 de C-05a + 38 nuevos). Typecheck y lint resueltos en C-01: mypy y ruff están en `pyproject.toml` y limpios; la verificación en Python 3.12 se hizo en el contenedor.
 - **Scope**:
   - `compute_slots`: clasifica cada franja del día local completo de un profesional como `FREE` / `BUSY` / `OUTSIDE_HOURS`, con inicio y fin en UTC. Solo ocupan los turnos `scheduled`; la licencia sale `OUTSIDE_HOURS`; no aplica anticipación mínima (la sigue rechazando `validate_appointment`)
   - `app/core/timezone.py`: conversión UTC <-> zona del consultorio, inicio y fin del día local (RN-GL-01); se asume una zona sin horario de verano (SU-01, sin confirmar)
@@ -388,12 +388,13 @@ C-01 → C-02 → C-03 → C-07 → C-09 → C-10 → C-13*   (cadena de igual l
   - `knowledge-base/07_flujos_principales.md` §Flujo 2
   - `knowledge-base/10_preguntas_abiertas.md` (proveedor SMTP de producción SU-02, Celery DD-10; el contenido de la plantilla quedó resuelto en DD-90)
 ### [C-12] `reminders-cron` (Celery Beat)
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` implementado, verificado y archivado el 2026-11-06 (`openspec/changes/archive/2026-11-06-reminders-cron/`): 44/44 tasks; 1548 tests por defecto, 331 de integración contra PostgreSQL (más 1 omitido, igual que antes) y 380 de frontend sin cambios; `ruff`, `mypy` y `mypy --strict app/` limpios. Decisiones DD-96 a DD-103. Specs nuevas: `reminder-scheduling`; modificadas: `appointment-repository`, `notification-registration`, `notification-sending`, `notification-tasks` y `local-environment`. Sin migraciones, dependencias ni variables nuevas.
+- **Cómo forzar la pasada (para el smoke test de C-13)**: desde la consola del contenedor, `docker compose exec worker celery -A app.infrastructure.tasks.celery_app call enviar_recordatorios --kwargs='{"forzar": true}'`; el recordatorio de los turnos `scheduled` de mañana aparece en Mailpit (http://localhost:8025) y repetirla no reenvía nada. Beat nunca fuerza y no hay ruta HTTP (DD-101).
 - **Nota de C-06 (P-8, DD-76)**: los turnos `scheduled` futuros de un paciente **inactivo** SIGUEN recibiendo recordatorio mientras no se cancelen (desactivar no los toca, DD-25); C-12 no debe saltear a los pacientes inactivos. Si recepción no quiere que el paciente venga, cancela el turno y el recordatorio no sale (RN-NO-05).
 - **Scope**:
   - Tarea Celery `enviar_recordatorios` y servicio `beat` (Celery Beat) que la dispara cada hora; la tarea solo actúa cuando la hora local del consultorio es `clinic_settings.reminder_send_hour`; app Celery con `timezone` del consultorio y `enable_utc = True`; no hay endpoint HTTP
-  - Caso de uso `enviar_recordatorios`: turnos `scheduled` del día siguiente (zona del consultorio) sin `reminder`; un fallo se registra y el lote continúa (US-011); registra `{ processed, sent, failed }` en el log
-  - Reintento opcional de `failed` del mismo día (decisión a confirmar)
+  - Caso de uso `enviar_recordatorios`: turnos `scheduled` del día siguiente (zona de `clinic_settings`, DD-99) de todos los profesionales sin `reminder` para ese horario; envía cada uno en la pasada (DD-96); un fallo se registra y el lote continúa (US-011); registra `processed`, `sent`, `failed` y `pending` en el log, sin datos del paciente
+  - Sin segunda pasada de `failed` (DD-97); una hora perdida no se recupera (DD-98); todos los `scheduled` de mañana reciben recordatorio, incluidos los de profesionales inactivos y los turnos en conflicto (DD-100); opción `forzar` solo desde la consola (DD-101)
   - Tests: doble ejecución no reenvía, cancelado excluido, fallo parcial no corta el lote, borde de zona horaria, la tarea solo actúa a la hora configurada
   - Listado de turnos de todos los profesionales por rango para `enviar_recordatorios` (**no está en C-08**: P-10, DD-66; el repositorio lista por profesional o por paciente y C-12 define su filtro); datos del consultorio para los recordatorios (ver C-11)
 - **Dependencias**: `C-11`

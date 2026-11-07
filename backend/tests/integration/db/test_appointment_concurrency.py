@@ -157,6 +157,9 @@ class GatedAppointments:
     ) -> list[Appointment]:
         return self._inner.list_for_patient(patient_id, start, end)
 
+    def list_scheduled_starting_between(self, start: datetime, end: datetime) -> list[Appointment]:
+        return self._inner.list_scheduled_starting_between(start, end)
+
 
 class GatedUnitOfWork:
     """La unidad de trabajo real, con la escritura de turnos frenada por la barrera."""

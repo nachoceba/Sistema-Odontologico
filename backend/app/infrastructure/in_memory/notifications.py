@@ -10,11 +10,24 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from app.domain.appointments.types import Notification, NotificationKind, NotificationStatus
+from app.domain.appointments.types import (
+    Appointment,
+    AppointmentStatus,
+    Notification,
+    NotificationKind,
+    NotificationStatus,
+)
 
 
 class InMemoryNotificationRepository:
-    def __init__(self, clock: Callable[[], datetime] | None = None) -> None:
+    def __init__(
+        self,
+        clock: Callable[[], datetime] | None = None,
+        appointment_lookup: Callable[[str], Appointment | None] | None = None,
+    ) -> None:
+        # La base comprueba el turno en el mismo INSERT; en memoria se consulta por esta funcion.
+        # Sin ella no se puede verificar el turno y ``add_pending_reminder`` no registra nada.
+        self._appointment_lookup = appointment_lookup
         self._rows: dict[str, Notification] = {}
         self._created: dict[str, datetime] = {}
         self._clock = clock if clock is not None else lambda: datetime.now(UTC)
@@ -30,11 +43,31 @@ class InMemoryNotificationRepository:
     def add_pending_confirmation(
         self, appointment_id: str, starts_at: datetime
     ) -> Notification | None:
-        if self._exists(appointment_id, NotificationKind.CONFIRMATION, starts_at):
+        return self._add_pending(appointment_id, NotificationKind.CONFIRMATION, starts_at)
+
+    def bind_appointments(self, lookup: Callable[[str], Appointment | None]) -> None:
+        """Conecta la consulta de turnos que usa ``add_pending_reminder``."""
+        self._appointment_lookup = lookup
+
+    def add_pending_reminder(self, appointment_id: str, starts_at: datetime) -> Notification | None:
+        if self._appointment_lookup is None:
             return None
-        return self.seed(
-            appointment_id, NotificationKind.CONFIRMATION, NotificationStatus.PENDING, starts_at
-        )
+        appointment = self._appointment_lookup(appointment_id)
+        if (
+            appointment is None
+            or appointment.status is not AppointmentStatus.SCHEDULED
+            or appointment.starts_at != starts_at
+        ):
+            return None
+        return self._add_pending(appointment_id, NotificationKind.REMINDER, starts_at)
+
+    def _add_pending(
+        self, appointment_id: str, kind: NotificationKind, starts_at: datetime
+    ) -> Notification | None:
+        """Alta ``pending`` sin duplicar el turno, tipo y horario (RN-NO-03)."""
+        if self._exists(appointment_id, kind, starts_at):
+            return None
+        return self.seed(appointment_id, kind, NotificationStatus.PENDING, starts_at)
 
     def delete_pending(self, appointment_id: str, *, starts_at: datetime | None = None) -> int:
         doomed = [

@@ -65,6 +65,18 @@ Al agendar o reprogramar un turno, el servidor encola el envío de la confirmaci
 
 El adaptador SMTP se configura solo con las variables `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_USE_TLS` y `EMAIL_FROM` del `.env` local (nunca en el repositorio ni en el frontend); cambiar de servidor no requiere tocar el código. La variable opcional `EMAIL_REDIRECT_TO` manda todos los emails a una única casilla con la línea "Email de demostración"; vacía, van al email del paciente.
 
+### Recordatorios del día anterior
+
+`beat` dispara la tarea `enviar_recordatorios` cada hora en punto, pero la tarea solo actúa cuando la hora local del consultorio es la hora de recordatorio guardada en la configuración (`reminder_send_hour`, por defecto 9:00): entonces toma los turnos agendados de mañana de todos los profesionales y manda un recordatorio por turno, sin repetirlo si la tarea corre dos veces. En desarrollo el email llega a Mailpit (http://localhost:8025). Si esa hora pasa con `beat` o el `worker` caídos, ese día no salen recordatorios (los pacientes igual tienen su confirmación).
+
+Para verla sin esperar a esa hora, forzar la pasada desde la consola del contenedor (no existe ninguna ruta de la API para hacerlo):
+
+```bash
+docker compose exec worker celery -A app.infrastructure.tasks.celery_app call enviar_recordatorios --kwargs='{"forzar": true}'
+```
+
+Con un turno agendado para mañana de un paciente del seed, el recordatorio aparece en Mailpit a los pocos segundos; repetir el comando no manda otro. El resultado de cada pasada queda en el log del `worker` (`recordatorios: processed=… sent=… failed=… pending=…`), sin datos de pacientes.
+
 Tras actualizar el código: reconstruir la imagen (`docker compose build api worker beat`), aplicar la migración que agrega la antigüedad de las notificaciones (`docker compose exec api alembic upgrade head`) y reiniciar `worker` y `beat`.
 
 3. Chequeos del backend dentro del contenedor:

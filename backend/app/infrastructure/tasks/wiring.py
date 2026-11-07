@@ -8,9 +8,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from app.application.notifications import NotificationDeps, RequeueDeps
+from app.application.reminders import ReminderDeps
 from app.core.config import get_settings
 from app.infrastructure.db.repositories import (
     SqlAlchemyAgendaUnitOfWork,
+    SqlAlchemyAppointmentRepository,
     SqlAlchemyClinicSettingsRepository,
     SqlAlchemyNotificationRepository,
     SqlAlchemyPatientRepository,
@@ -47,5 +49,17 @@ def build_requeue_deps() -> RequeueDeps:
     return RequeueDeps(
         notifications=SqlAlchemyNotificationRepository(get_session_factory()),
         publish=publish_send_email,
+        clock=lambda: datetime.now(UTC),
+    )
+
+
+def build_reminder_deps() -> ReminderDeps:
+    sessions = get_session_factory()
+    notification_deps = build_notification_deps()
+    return ReminderDeps(
+        unit_of_work=lambda: SqlAlchemyAgendaUnitOfWork(sessions),
+        appointments=SqlAlchemyAppointmentRepository(sessions),
+        settings=notification_deps.settings,
+        notification_deps=notification_deps,
         clock=lambda: datetime.now(UTC),
     )

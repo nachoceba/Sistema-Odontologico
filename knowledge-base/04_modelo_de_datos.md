@@ -72,7 +72,7 @@ users 1───0..1 professionals
 - Constraints:
   - `starts_at < ends_at`
   - Exclusión `ex_appointments_no_overlap` (requiere `btree_gist`, creada en la migración de Alembic con `ExcludeConstraint`): `EXCLUDE USING gist (professional_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&) WHERE (status = 'scheduled')`
-- Índices: `(professional_id, starts_at)`, `(starts_at)` para el job de recordatorios, `(patient_id, starts_at)` y `(created_by)` (claves foráneas indexadas)
+- Índices: `(professional_id, starts_at)`, `(starts_at)` para el job de recordatorios (lo usa el listado de turnos `scheduled` que empiezan en un rango, C-12), `(patient_id, starts_at)` y `(created_by)` (claves foráneas indexadas)
 
 ### email_notifications
 - `id` uuid PK
