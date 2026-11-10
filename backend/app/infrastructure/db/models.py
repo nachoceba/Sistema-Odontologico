@@ -129,6 +129,33 @@ class TimeOffModel(Base):
     reason: Mapped[str | None] = mapped_column(Text)
 
 
+class TreatmentModel(Base):
+    """Catalogo de tratamientos (C-17). ``name_key`` lo calcula el dominio (DD-145)."""
+
+    __tablename__ = "treatments"
+    __table_args__ = (CheckConstraint("char_length(name) BETWEEN 1 AND 80", name="name_length"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    name: Mapped[str] = mapped_column(Text)
+    name_key: Mapped[str] = mapped_column(Text, unique=True)
+    active: Mapped[bool] = mapped_column(server_default=TRUE)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=NOW)
+
+
+class ProfessionalTreatmentModel(Base):
+    """Tratamientos que ofrece cada profesional (DD-141)."""
+
+    __tablename__ = "professional_treatments"
+    __table_args__ = (Index("ix_professional_treatments_treatment_id", "treatment_id"),)
+
+    professional_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("professionals.id", ondelete="RESTRICT"), primary_key=True
+    )
+    treatment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("treatments.id", ondelete="RESTRICT"), primary_key=True
+    )
+
+
 class PatientModel(Base):
     __tablename__ = "patients"
     __table_args__ = (Index("ix_patients_last_name", "last_name"),)
@@ -172,6 +199,7 @@ class AppointmentModel(Base):
         Index("ix_appointments_starts_at", "starts_at"),
         Index("ix_appointments_patient_starts_at", "patient_id", "starts_at"),
         Index("ix_appointments_created_by", "created_by"),
+        Index("ix_appointments_treatment_id", "treatment_id"),
         Index(
             "uq_appointments_confirmation_token_hash",
             "confirmation_token_hash",
@@ -196,6 +224,7 @@ class AppointmentModel(Base):
     )
     cancel_reason: Mapped[str | None] = mapped_column(Text)
     created_by: Mapped[uuid.UUID | None] = _uuid_fk("users.id", nullable=True)  # nulo: online
+    treatment_id: Mapped[uuid.UUID | None] = _uuid_fk("treatments.id", nullable=True)
     pending_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     confirmation_token_hash: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=NOW)

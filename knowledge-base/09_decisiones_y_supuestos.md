@@ -20,7 +20,7 @@
 **Decisión**: todos los turnos duran `slot_minutes` (30 por defecto).
 **Contexto**: bloquea el modelo de datos y el algoritmo de disponibilidad.
 **Alternativas consideradas**: duración por tipo de tratamiento; duración libre.
-**Justificación**: menor complejidad para el MVP y sin catálogo de prestaciones.
+**Justificación**: menor complejidad para el MVP. Aclaración (C-17): desde C-17 existe un catálogo de tratamientos, pero no define duración; todos los turnos siguen durando `slot_minutes`.
 **Trade-offs aceptados**: los tratamientos largos requieren varios turnos consecutivos.
 
 ### DD-04 — Constraint de exclusión para no superposición
@@ -521,8 +521,8 @@
 **Alternativas consideradas**: sin reintentos; reintentar también las `failed` cada 10 minutos.
 **Justificación**: un corte breve del proveedor no debería dejar a un paciente sin confirmación, no tiene sentido insistir con una dirección rechazada y reintentar `failed` gastaría el cupo diario con casillas que rebotan.
 
-### DD-90 — Contenido de los emails (P-6 de C-11)
-**Decisión**: texto plano UTF-8 con saludo con el nombre del paciente, fecha y hora en la hora del consultorio escrita completa ("lunes 9 de noviembre de 2026, 10:00 h"), profesional, nombre, dirección y teléfono del consultorio (si tiene) y la aclaración de que el email es informativo. Al reprogramar se manda el mismo texto con el horario nuevo ("Tu turno quedó agendado."). El recordatorio cambia el asunto y dice "Te recordamos tu turno.", sin "mañana". No incluye documento, teléfono ni nacimiento del paciente, ni tratamiento (el sistema no lo guarda). Los datos son los vigentes al enviar (aclara DD-73). Resuelve la pregunta del contenido de la plantilla.
+### DD-90 — Contenido de los emails (P-6 de C-11) (reemplazada en parte por DD-147)
+**Decisión**: texto plano UTF-8 con saludo con el nombre del paciente, fecha y hora en la hora del consultorio escrita completa ("lunes 9 de noviembre de 2026, 10:00 h"), profesional, nombre, dirección y teléfono del consultorio (si tiene) y la aclaración de que el email es informativo. Al reprogramar se manda el mismo texto con el horario nuevo ("Tu turno quedó agendado."). El recordatorio cambia el asunto y dice "Te recordamos tu turno.", sin "mañana". No incluye documento, teléfono ni nacimiento del paciente. La parte que decía que no llevaba tratamiento quedó reemplazada por DD-147 (C-17). Los datos son los vigentes al enviar (aclara DD-73). Resuelve la pregunta del contenido de la plantilla.
 **Alternativas consideradas**: versión HTML además del texto; texto "Tu turno fue reprogramado" al reprogramar.
 **Justificación**: el texto plano se lee en cualquier casilla, se prueba fácil y no tiene datos sensibles; distinguir la reprogramación obliga a buscar el historial del turno al enviar y queda como mejora posterior.
 
@@ -800,6 +800,61 @@
 **Decisión**: la tarea `vencer_reservas_pendientes` de Beat corre cada 5 minutos y cancela (con `FOR UPDATE SKIP LOCKED`, tope 200 por pasada) los pendientes con `pending_until <= now`, con el motivo "Reserva online no confirmada" y las columnas de confirmación en NULL. En la misma transacción registra una notificación `booking_expired` (valor nuevo de `notification_kind`, migración `0004`) que se despacha después del commit con el mecanismo de C-11: mismos reintentos y mismo reencolado. Se envía al email de la ficha, en texto plano, solo si el turno sigue cancelado por vencimiento, con el mismo inicio y sin haber empezado. Es la excepción a RN-NO-05.
 **Alternativas consideradas**: vencer "de forma perezosa" al calcular franjas (mezcla escrituras con lecturas públicas y no avisa si nadie mira la agenda); mandar el aviso directo desde la tarea (pierde la idempotencia, los reintentos y el reencolado).
 **Trade-offs aceptados**: la franja puede quedar retenida hasta 5 minutos de más; la ficha de una reserva vencida queda guardada (DD-138).
+
+### DD-141 — Catálogo global y tratamientos por profesional (P-1 de C-17)
+**Decisión**: catálogo global de tratamientos y, además, qué tratamientos ofrece cada profesional (`professional_treatments`). Un profesional sin tratamientos activos no se ofrece online ni se le agendan turnos nuevos.
+**Alternativas consideradas**: solo catálogo global (elegir primero al profesional no filtraría nada).
+**Origen**: el usuario eligió la opción A en el change C-17.
+
+### DD-142 — Tratamiento obligatorio en todo turno nuevo (P-2 de C-17)
+**Decisión**: el tratamiento es obligatorio en todo turno nuevo, de recepción y online. En la base la columna admite nulo solo por los turnos anteriores (DD-148).
+**Alternativas consideradas**: obligatorio solo online; opcional en los dos.
+**Origen**: el usuario eligió la opción A en el change C-17.
+
+### DD-143 — Solo el administrador mantiene el catálogo (P-3 de C-17)
+**Decisión**: solo el administrador crea, renombra, activa o desactiva tratamientos y cambia la asignación; recepción y odontólogo leen.
+**Alternativas consideradas**: administrador y recepción.
+**Origen**: el usuario eligió la opción A en el change C-17.
+
+### DD-144 — Un turno creado no cambia de tratamiento (P-4 de C-17)
+**Decisión**: un turno creado no cambia de tratamiento: la recepción cancela y agenda otro. Reprogramar y confirmar conservan el tratamiento sin volver a validarlo.
+**Alternativas consideradas**: endpoint y acción para cambiarlo.
+**Origen**: el usuario eligió la opción A en el change C-17.
+
+### DD-145 — El tratamiento tiene solo nombre y estado (P-5 de C-17)
+**Decisión**: el tratamiento tiene solo nombre (único sin mayúsculas ni tildes, `name_key`) y estado; no hay descripción.
+**Alternativas consideradas**: descripción interna o visible al paciente.
+**Origen**: el usuario eligió la opción A en el change C-17.
+
+### DD-146 — Nombre del tratamiento en la grilla (P-6 de C-17)
+**Decisión**: en la grilla, el nombre va después del paciente, separado por " · " y cortado con puntos suspensivos.
+**Alternativas consideradas**: solo en el detalle; abreviatura.
+**Origen**: el usuario eligió la opción A en el change C-17.
+
+### DD-147 — Línea de tratamiento en los emails (P-7 de C-17)
+**Decisión**: la línea "Tratamiento: <nombre>" va en la confirmación, el recordatorio, la verificación y el aviso de vencimiento. Reemplaza en parte DD-90.
+**Alternativas consideradas**: solo confirmación y recordatorio; ninguno.
+**Origen**: el usuario eligió la opción A en el change C-17.
+
+### DD-148 — Los turnos anteriores quedan sin tratamiento (P-8 de C-17)
+**Decisión**: los turnos anteriores a C-17 quedan sin tratamiento y se muestran "Sin tratamiento"; la migración no completa datos.
+**Alternativas consideradas**: completarlos con "Consulta".
+**Origen**: el usuario eligió la opción A en el change C-17.
+
+### DD-149 — Un solo change (P-9 de C-17)
+**Decisión**: C-17 es un solo change, sin partir.
+**Alternativas consideradas**: catálogo y turnos por separado; backend y frontend por separado.
+**Origen**: el usuario eligió la opción A en el change C-17.
+
+### DD-150 — El turno guarda solo el identificador (P-10 de C-17)
+**Decisión**: el turno guarda solo `treatment_id` y se muestra el nombre vigente, sin copia.
+**Alternativas consideradas**: columna `treatment_name` en el turno.
+**Origen**: el usuario eligió la opción A en el change C-17.
+
+### DD-151 — Seed de ejemplo de 5 tratamientos
+**Decisión**: el seed trae exactamente 5 tratamientos de ejemplo: "Consulta" (solo consulta, sin procedimiento), "Limpieza dental", "Extracción", "Arreglo de caries" y "Blanqueamiento". La Dra. Ana Alvarez ofrece los 5 y el Dr. Bruno Benitez todos menos "Blanqueamiento", para que la demo muestre el filtro por profesional.
+**Alternativas consideradas**: 7 tratamientos con conducto y ortodoncia.
+**Origen**: el usuario eligió la opción A en el change C-17.
 
 ### SU-07 — Sin refresh token en v1 (RESUELTO en C-03, DD-45)
 **Supuesto**: alcanza con un token de acceso de 30 minutos; al vencer, el usuario vuelve a iniciar sesión.

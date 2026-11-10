@@ -7,12 +7,14 @@ import {
   confirmOnlineBooking,
   getPublicSlots,
   listPublicProfessionals,
+  listPublicTreatments,
   type OnlineBookingInput,
 } from "./publicBooking";
 import { ApiError } from "./users";
 
 const DATOS: OnlineBookingInput = {
   professionalId: "p-1",
+  treatmentId: "t-1",
   startsAt: "2026-11-09T13:30:00Z",
   documentNumber: "40999888",
   firstName: "Lucía",
@@ -53,6 +55,18 @@ describe("cliente público de turnos online", () => {
     expect(headersOf(fetchMock).has("Authorization")).toBe(false);
   });
 
+  it("lista los tratamientos de un profesional con el id codificado y sin Authorization", async () => {
+    const fetchMock = mockApi({
+      "GET /public/professionals/p%201/treatments": () =>
+        jsonResponse([{ id: "t-1", name: "Consulta" }]),
+    });
+
+    const result = await listPublicTreatments("p 1");
+
+    expect(result).toEqual([{ id: "t-1", name: "Consulta" }]);
+    expect(headersOf(fetchMock).has("Authorization")).toBe(false);
+  });
+
   it("pide las franjas del día con el id y la fecha codificados, sin token", async () => {
     const fetchMock = mockApi({
       "GET /public/professionals/p%201/slots?date=2026-11-09": () =>
@@ -90,6 +104,7 @@ describe("cliente público de turnos online", () => {
     const init = (fetchMock.mock.calls[0] as [unknown, RequestInit])[1];
     expect(JSON.parse(init.body as string)).toEqual({
       professional_id: "p-1",
+      treatment_id: "t-1",
       starts_at: "2026-11-09T13:30:00Z",
       document_number: "40999888",
       first_name: "Lucía",

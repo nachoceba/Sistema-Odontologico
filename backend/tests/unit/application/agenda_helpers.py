@@ -11,6 +11,7 @@ from app.application.appointments import AgendaDeps
 from app.application.patients import PatientDeps
 from app.application.professionals import ScheduleDeps
 from app.application.public_booking import ExpiryDeps, PublicBookingDeps
+from app.application.treatments import TreatmentDeps
 from app.core.security import hash_confirmation_token
 from app.domain.appointments import (
     Appointment,
@@ -21,6 +22,7 @@ from app.domain.appointments import (
 from app.domain.auth import Principal, Role, UserAccount
 from app.domain.patients.types import Patient
 from app.domain.settings.types import ClinicSettings
+from app.domain.treatments.types import Treatment
 from app.infrastructure.in_memory import (
     InMemoryAgendaUnitOfWork,
     InMemoryAppointmentRepository,
@@ -29,6 +31,7 @@ from app.infrastructure.in_memory import (
     InMemoryPatientRepository,
     InMemoryProfessionalRepository,
     InMemoryTimeOffRepository,
+    InMemoryTreatmentRepository,
     InMemoryUserAccountRepository,
     InMemoryWorkingHoursRepository,
 )
@@ -36,6 +39,8 @@ from tests.unit.domain.appointments.helpers import DR_B_HOURS, DRA_A_HOURS, NOW
 
 PROF_A = "11111111-1111-4111-8111-111111111111"
 PROF_B = "22222222-2222-4222-8222-222222222222"
+CONSULTA_ID = "33333333-3333-4333-8333-333333333333"
+LIMPIEZA_ID = "44444444-4444-4444-8444-444444444444"
 RECEPTION = Principal(user_id="u-rec", role=Role.RECEPTIONIST)
 ADMIN = Principal(user_id="u-admin", role=Role.ADMIN)
 DENTIST_A = Principal(user_id="u-dra-a", role=Role.DENTIST, professional_id=PROF_A)
@@ -102,6 +107,7 @@ class World:
     notifications: InMemoryNotificationRepository = field(
         default_factory=InMemoryNotificationRepository
     )
+    treatments: InMemoryTreatmentRepository = field(default_factory=InMemoryTreatmentRepository)
     dispatcher: RecordingDispatcher = field(default_factory=RecordingDispatcher)
     verification: RecordingVerification = field(default_factory=RecordingVerification)
     token_counter: Iterator[int] = field(default_factory=lambda: itertools.count(1))
@@ -121,6 +127,17 @@ class World:
         self.accounts.add(_dentist("u-dr-b", PROF_B))
         self.working_hours.replace_for_professional(PROF_A, DRA_A_HOURS)
         self.working_hours.replace_for_professional(PROF_B, DR_B_HOURS)
+        # C-17: los dos profesionales ofrecen "Consulta" (y la Dra. A tambien "Limpieza dental").
+        self.consulta = Treatment(CONSULTA_ID, "Consulta", True)
+        self.limpieza = Treatment(LIMPIEZA_ID, "Limpieza dental", True)
+        self.treatments.load([self.consulta, self.limpieza])
+        self.treatments.replace_for_professional(PROF_A, [self.consulta.id, self.limpieza.id])
+        self.treatments.replace_for_professional(PROF_B, [self.consulta.id])
+
+    @property
+    def treatment_id(self) -> str:
+        """El tratamiento que ofrecen los dos profesionales (para los turnos de los tests)."""
+        return self.consulta.id
 
     def set_professional_active(self, professional_id: str, active: bool) -> None:
         professional = self.accounts.professionals[professional_id]
@@ -134,6 +151,7 @@ class World:
             appointments=self.appointments,
             patients=self.patients,
             professionals=InMemoryProfessionalRepository(self.accounts),
+            treatments=self.treatments,
             working_hours=self.working_hours,
             time_off=self.time_off,
             settings=InMemoryClinicSettingsRepository(
@@ -183,6 +201,13 @@ class World:
             clock=lambda: self.now,
         )
 
+    def treatment_deps(self) -> TreatmentDeps:
+        """Los casos de uso del catalogo de tratamientos (C-17)."""
+        return TreatmentDeps(
+            treatments=self.treatments,
+            professionals=InMemoryProfessionalRepository(self.accounts),
+        )
+
     def patient_deps(self) -> PatientDeps:
         """Los casos de uso de pacientes sobre los mismos repositorios que ``deps()``."""
         return PatientDeps(
@@ -203,6 +228,7 @@ class World:
         patient_id: str = "pac-1",
         professional_id: str = PROF_A,
         minutes: int = 30,
+        treatment_id: str | None = None,
     ) -> Appointment:
         """Un turno scheduled cargado directo en el repositorio."""
         return self.appointments.add(
@@ -212,6 +238,7 @@ class World:
                 starts_at=starts_at,
                 ends_at=starts_at + timedelta(minutes=minutes),
                 created_by="u-rec",
+                treatment_id=treatment_id,
             )
         )
 

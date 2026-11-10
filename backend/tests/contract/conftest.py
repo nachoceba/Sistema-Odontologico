@@ -30,6 +30,7 @@ from app.domain.professionals import Professional, ProfessionalRepository
 from app.domain.schedules.ports import TimeOffRepository, WorkingHoursRepository
 from app.domain.settings.ports import ClinicSettingsRepository
 from app.domain.settings.types import ClinicSettings
+from app.domain.treatments.ports import TreatmentRepository
 from app.infrastructure.db import enums
 from app.infrastructure.db.enums import UserRole
 from app.infrastructure.db.models import (
@@ -47,6 +48,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyPatientRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyTimeOffRepository,
+    SqlAlchemyTreatmentRepository,
     SqlAlchemyUserAccountRepository,
     SqlAlchemyWorkingHoursRepository,
 )
@@ -58,6 +60,7 @@ from app.infrastructure.in_memory import (
     InMemoryPatientRepository,
     InMemoryProfessionalRepository,
     InMemoryTimeOffRepository,
+    InMemoryTreatmentRepository,
     InMemoryUserAccountRepository,
     InMemoryWorkingHoursRepository,
 )
@@ -121,6 +124,8 @@ class RepositoryFactory(Protocol):
 
     def professionals(self) -> ProfessionalRepository: ...
 
+    def treatments(self) -> TreatmentRepository: ...
+
 
 class InMemoryFactory:
     """Las referencias son el propio nombre: en memoria no hay claves foraneas."""
@@ -132,6 +137,7 @@ class InMemoryFactory:
             appointment_lookup=self._appointments.get
         )
         self._patients = InMemoryPatientRepository()
+        self._treatments = InMemoryTreatmentRepository()
 
     def professional(self, name: str) -> str:
         return name
@@ -211,6 +217,9 @@ class InMemoryFactory:
 
     def professionals(self) -> ProfessionalRepository:
         return InMemoryProfessionalRepository(self._accounts)
+
+    def treatments(self) -> TreatmentRepository:
+        return self._treatments
 
 
 class PostgresFactory:
@@ -390,6 +399,9 @@ class PostgresFactory:
     def professionals(self) -> ProfessionalRepository:
         return SqlAlchemyProfessionalRepository(self._sessions)
 
+    def treatments(self) -> TreatmentRepository:
+        return SqlAlchemyTreatmentRepository(self._sessions)
+
 
 FACTORIES = [
     pytest.param("in_memory", id="in_memory"),
@@ -441,3 +453,8 @@ def working_hours_repo(factory: RepositoryFactory) -> WorkingHoursRepository:
 @pytest.fixture
 def time_off_repo(factory: RepositoryFactory) -> TimeOffRepository:
     return factory.time_off()
+
+
+@pytest.fixture
+def treatment_repo(factory: RepositoryFactory) -> TreatmentRepository:
+    return factory.treatments()

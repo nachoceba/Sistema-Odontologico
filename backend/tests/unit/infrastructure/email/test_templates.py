@@ -128,3 +128,34 @@ def test_the_reminder_never_uses_relative_words(data: EmailData) -> None:
 def test_an_unknown_kind_is_rejected_as_a_programming_error() -> None:
     with pytest.raises(ValueError, match="tipo de email"):
         render_email("newsletter", DATA)  # type: ignore[arg-type]
+
+
+# --- Tratamiento (C-17, DD-147) ------------------------------------------------------------
+
+
+@pytest.mark.parametrize("kind", [NotificationKind.CONFIRMATION, NotificationKind.REMINDER])
+def test_the_treatment_line_goes_right_after_the_professional(kind: NotificationKind) -> None:
+    _, body = render_email(kind, replace(DATA, treatment_name="Limpieza dental"))
+
+    lines = body.splitlines()
+    index = lines.index("Profesional: Dra. A")
+    assert lines[index + 1] == "Tratamiento: Limpieza dental"
+    assert lines[index + 2] == "Consultorio: Consultorio Demo"
+
+
+@pytest.mark.parametrize("kind", [NotificationKind.CONFIRMATION, NotificationKind.REMINDER])
+def test_without_treatment_there_is_no_treatment_line_nor_empty_label(
+    kind: NotificationKind,
+) -> None:
+    _, body = render_email(kind, DATA)
+
+    assert "Tratamiento" not in body
+    assert "Profesional: Dra. A\nConsultorio: Consultorio Demo" in body
+
+
+def test_the_treatment_does_not_change_the_subject() -> None:
+    plain, _ = render_email(NotificationKind.CONFIRMATION, DATA)
+    treated, _ = render_email(
+        NotificationKind.CONFIRMATION, replace(DATA, treatment_name="Extracción")
+    )
+    assert plain == treated

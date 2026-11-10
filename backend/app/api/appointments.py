@@ -42,6 +42,7 @@ class AppointmentOut(BaseModel):
     created_by: str | None  # None: reserva online (C-15)
     origin: Literal["staff", "online"]
     pending_until: datetime | None
+    treatment_id: str | None  # nulo: turno anterior a C-17 (DD-148)
 
     @classmethod
     def from_domain(cls, appointment: Appointment) -> AppointmentOut:
@@ -60,6 +61,7 @@ class AppointmentOut(BaseModel):
                 if appointment.pending_until is None
                 else appointment.pending_until.astimezone(UTC)
             ),
+            treatment_id=appointment.treatment_id,
         )
 
 
@@ -68,6 +70,7 @@ class AppointmentViewOut(AppointmentOut):
 
     patient_first_name: str
     patient_last_name: str
+    treatment_name: str | None  # nombre vigente (DD-150)
 
     @classmethod
     def from_view(cls, view: use_cases.AppointmentView) -> AppointmentViewOut:
@@ -76,6 +79,7 @@ class AppointmentViewOut(AppointmentOut):
             **base.model_dump(),
             patient_first_name=view.patient_first_name,
             patient_last_name=view.patient_last_name,
+            treatment_name=view.treatment_name,
         )
 
 
@@ -96,6 +100,7 @@ class SlotOut(BaseModel):
 class BookRequest(BaseModel):
     patient_id: EntityId
     professional_id: EntityId
+    treatment_id: EntityId
     starts_at: AwareDatetime
 
 
@@ -123,6 +128,7 @@ def book(body: BookRequest, deps: Agenda, principal: StaffUser) -> AppointmentOu
         principal,
         patient_id=body.patient_id,
         professional_id=body.professional_id,
+        treatment_id=body.treatment_id,
         starts_at=body.starts_at.astimezone(UTC),
     )
     return AppointmentOut.from_domain(saved)

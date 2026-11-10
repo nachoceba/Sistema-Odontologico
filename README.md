@@ -171,7 +171,7 @@ Todo endpoint exige JWT y rol salvo el login, `GET /api/v1/health` y los cuatro 
 
 ## Estado de los changes y decisiones abiertas
 
-Los changes C-01 a C-16 del roadmap están implementados y archivados (C-14 es la mejora de la capa visual, C-15 los turnos online con confirmación por email y C-16 el vencimiento automático de las reservas online sin confirmar; ver `CHANGES.md`); la lista de decisiones está en `knowledge-base/09_decisiones_y_supuestos.md`. Quedan abiertas, antes de usar datos reales:
+Los 17 changes del roadmap están implementados y archivados (C-17 agrega el tratamiento a cada turno, C-14 es la mejora de la capa visual, C-15 los turnos online con confirmación por email y C-16 el vencimiento automático de las reservas online sin confirmar; ver `CHANGES.md`); la lista de decisiones está en `knowledge-base/09_decisiones_y_supuestos.md`. Quedan abiertas, antes de usar datos reales:
 
 - **SU-02, SMTP de producción**: hoy los emails van a Mailpit; falta elegir un servidor SMTP y revisar su cupo (el adaptador se configura solo por variables).
 - **SU-01, zona horaria**: se asume `America/Argentina/Buenos_Aires` sin horario de verano; confirmar con el dueño.

@@ -58,6 +58,7 @@ class InMemoryAppointmentRepository:
             cancel_reason=None,
             created_by=None,
             pending_until=pending_until,
+            treatment_id=new.treatment_id,
         )
         self._store(saved)
         self._token_hashes[saved.id] = token_hash
@@ -116,6 +117,7 @@ class InMemoryAppointmentRepository:
             status=AppointmentStatus.SCHEDULED,
             cancel_reason=None,
             created_by=new.created_by,
+            treatment_id=new.treatment_id,
         )
         self._store(saved)
         return saved

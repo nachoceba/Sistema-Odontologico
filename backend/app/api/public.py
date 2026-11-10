@@ -53,6 +53,11 @@ class ProfessionalOut(BaseModel):
     display_name: str
 
 
+class PublicTreatmentOut(BaseModel):
+    id: str
+    name: str
+
+
 class PublicSlotOut(BaseModel):
     starts_at: datetime
     ends_at: datetime
@@ -62,6 +67,7 @@ class BookingRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     professional_id: EntityId
+    treatment_id: EntityId
     starts_at: AwareDatetime
     document_number: Document
     first_name: Name
@@ -76,6 +82,7 @@ class BookingOut(BaseModel):
     ends_at: datetime
     professional_display_name: str
     confirm_before: datetime
+    treatment_name: str | None
 
 
 class ConfirmationRequest(BaseModel):
@@ -88,6 +95,7 @@ class ConfirmationOut(BaseModel):
     starts_at: datetime
     ends_at: datetime
     professional_display_name: str
+    treatment_name: str | None
 
 
 @router.get("/professionals", dependencies=[_read_limit])
@@ -110,6 +118,14 @@ def slots(
     ]
 
 
+@router.get("/professionals/{professional_id}/treatments", dependencies=[_read_limit])
+def treatments(professional_id: str, deps: PublicBooking) -> list[PublicTreatmentOut]:
+    return [
+        PublicTreatmentOut(id=t.id, name=t.name)
+        for t in use_cases.list_public_treatments(deps, professional_id)
+    ]
+
+
 @router.post("/appointments", status_code=202, dependencies=[_book_limit])
 def book(body: BookingRequest, deps: PublicBooking) -> BookingOut:
     if body.website:
@@ -117,6 +133,7 @@ def book(body: BookingRequest, deps: PublicBooking) -> BookingOut:
     booked = use_cases.book_online(
         deps,
         professional_id=body.professional_id,
+        treatment_id=body.treatment_id,
         starts_at=body.starts_at.astimezone(UTC),
         document_number=body.document_number,
         first_name=body.first_name,
@@ -129,6 +146,7 @@ def book(body: BookingRequest, deps: PublicBooking) -> BookingOut:
         ends_at=booked.ends_at.astimezone(UTC),
         professional_display_name=booked.professional_display_name,
         confirm_before=booked.confirm_before.astimezone(UTC),
+        treatment_name=booked.treatment_name,
     )
 
 
@@ -139,4 +157,5 @@ def confirm(body: ConfirmationRequest, deps: PublicBooking) -> ConfirmationOut:
         starts_at=confirmed.starts_at.astimezone(UTC),
         ends_at=confirmed.ends_at.astimezone(UTC),
         professional_display_name=confirmed.professional_display_name,
+        treatment_name=confirmed.treatment_name,
     )

@@ -21,8 +21,8 @@
 
 **Pasos**:
 1. La UI pide la disponibilidad: `domain` calcula slots a partir de `working_hours`, `time_off` y turnos `scheduled`.
-2. Recepción selecciona o crea el paciente y confirma el slot.
-3. El caso de uso `agendar_turno` valida RN-TU-01 a RN-TU-04 en el dominio.
+2. Recepción selecciona o crea el paciente, elige el tratamiento (solo los activos que ofrece el profesional) y confirma el slot.
+3. El caso de uso `agendar_turno` valida RN-TU-01 a RN-TU-04 y el tratamiento (RN-TU-16) en el dominio.
 4. Inserta el turno; el constraint de exclusión protege ante concurrencia.
 5. Crea la fila `email_notifications` (`confirmation`, `pending`) y encola la tarea `enviar_email` en Redis.
 6. El worker de Celery envía el email y actualiza la notificación a `sent` o `failed`.
@@ -89,7 +89,7 @@ Worker Celery → servidor SMTP (email de confirmación)
 **Actor**: paciente (sin sesión) y sistema
 
 **Pasos**:
-1. La página pública pide `GET /api/v1/public/professionals` y las franjas libres del profesional elegido (`.../slots?date=`).
+1. La página pública pide `GET /api/v1/public/professionals`, los tratamientos del profesional elegido (`.../treatments`) y, con el tratamiento elegido, las franjas libres (`.../slots?date=`).
 2. El paciente elige una franja y completa DNI, nombre, apellido y email (teléfono opcional). El campo trampa `website` va vacío.
 3. `POST /api/v1/public/appointments` aplica el límite por IP (5 por hora) y valida los datos. El caso de uso `reservar_online` busca el DNI: si no existe crea la ficha; si existe, compara nombre y apellido con la ficha y la vincula sin modificarla.
 4. Inserta el turno como `scheduled` con `pending_until` y el hash del token, sin `created_by`; el constraint de exclusión protege ante concurrencia. La respuesta es 202 y trae solo profesional, día, hora y el plazo.

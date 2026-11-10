@@ -24,6 +24,7 @@ def book(scenario: ReminderWorld, patient_id: str, professional_id: str = PROF_A
         RECEPTION,
         patient_id=patient_id,
         professional_id=professional_id,
+        treatment_id=scenario.world.treatment_id,
         starts_at=monday(10),
     )
     return saved.id

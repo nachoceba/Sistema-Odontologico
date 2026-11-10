@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
 import type { Appointment, Slot } from '../api/appointments'
 import type { Conflict, Professional, TimeOff } from '../api/professionals'
+import type { Treatment } from '../api/treatments'
 import { BASE, jsonResponse } from '../test-utils'
 import { daySlots } from './fixtures'
 
@@ -13,8 +14,24 @@ export interface AgendaWorld {
   conflicts: Conflict[]
   /** Pacientes activos que devuelve la búsqueda (`GET /patients?q=`). */
   patients?: { id: string; first_name: string; last_name: string }[]
+  /** Catálogo de tratamientos; sin definir, `CONSULTA` y `LIMPIEZA` (C-17). */
+  treatments?: Treatment[]
+  /** Tratamientos asignados por profesional; sin definir, todos los del catálogo. */
+  assigned?: Record<string, string[]>
   /** Si devuelve una respuesta, reemplaza a la normal del pedido. */
   override?: (method: string, path: string) => Response | Promise<Response> | undefined
+}
+
+export const CONSULTA: Treatment = { id: 't-consulta', name: 'Consulta', active: true }
+export const LIMPIEZA: Treatment = { id: 't-limpieza', name: 'Limpieza dental', active: true }
+
+/** Tratamientos asignados a un profesional del mundo simulado, por nombre. */
+export function assignedTo(world: AgendaWorld, professionalId: string): Treatment[] {
+  const catalog = world.treatments ?? [CONSULTA, LIMPIEZA]
+  const ids = world.assigned?.[professionalId]
+  return catalog
+    .filter((t) => ids === undefined || ids.includes(t.id))
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'))
 }
 
 export const DRA: Professional = {
@@ -81,6 +98,10 @@ function write(
     )
     if (taken) return error(409, 'SLOT_TAKEN')
     const patient = world.patients?.find((p) => p.id === body.patient_id)
+    const offered = assignedTo(world, String(body.professional_id))
+    const treatment = offered.find((t) => t.id === body.treatment_id)
+    if (treatment === undefined) return error(409, 'TREATMENT_NOT_AVAILABLE')
+    if (!treatment.active) return error(409, 'TREATMENT_NOT_AVAILABLE')
     const created: Appointment = {
       id: `new-${String(world.appointments.length + 1)}`,
       patient_id: String(body.patient_id),
@@ -94,6 +115,8 @@ function write(
       created_by: 'u-rec',
       origin: 'staff',
       pending_until: null,
+      treatment_id: treatment.id,
+      treatment_name: treatment.name,
     }
     world.appointments.push(created)
     return jsonResponse(created, 201)
@@ -153,6 +176,9 @@ export function installAgendaApi(world: AgendaWorld): InstalledApi {
       const slotMatch = /^\/professionals\/([^/]+)\/slots$/.exec(url.pathname)
       const timeOffMatch = /^\/professionals\/([^/]+)\/time-off$/.exec(url.pathname)
       const conflictMatch = /^\/professionals\/([^/]+)\/conflicts$/.exec(url.pathname)
+      const treatmentsMatch = /^\/professionals\/([^/]+)\/treatments$/.exec(url.pathname)
+      if (method === 'GET' && treatmentsMatch?.[1] !== undefined)
+        return Promise.resolve(jsonResponse(assignedTo(world, treatmentsMatch[1])))
       if (url.pathname === '/auth/me') return Promise.resolve(jsonResponse(world.me))
       if (url.pathname === '/professionals') return Promise.resolve(jsonResponse(world.professionals))
       if (slotMatch?.[1] !== undefined)

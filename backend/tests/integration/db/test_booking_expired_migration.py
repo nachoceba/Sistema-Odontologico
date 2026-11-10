@@ -105,7 +105,7 @@ def test_downgrade_fails_and_changes_nothing_when_there_are_expiry_notices(
         total = connection.execute(text("SELECT count(*) FROM email_notifications")).scalar_one()
         version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
     assert total == 1
-    assert version.startswith("0004")
+    assert version.startswith("0005")
 
 
 def test_downgrade_without_expiry_notices_restores_the_two_original_kinds(

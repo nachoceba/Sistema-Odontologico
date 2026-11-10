@@ -24,6 +24,7 @@ C = crear, R = leer, U = actualizar, D = eliminar. "propio" = solo registros del
 | Configuración (slot) | RU | — | — |
 | Turnos pendientes de confirmación (reserva online) | Solo cancela | Solo cancela | R propio |
 | Recordatorios enviados | R | R | — |
+| Catálogo de tratamientos y asignación por profesional (C-17) | CRU (sin borrar) | R | R (propio en la asignación) |
 
 \* Los pacientes y turnos no se eliminan físicamente en el uso normal: se cancelan o se desactivan (RN-TU-05, RN-PA-03). El borrado físico es solo para el administrador.
 
@@ -32,5 +33,5 @@ Matriz confirmada por el usuario el 2026-11-03 (C-03, DD-48): solo el administra
 ## Rutas públicas
 
 - Pantalla `/login` del frontend y `POST /api/v1/auth/login` en la API.
-- Pantallas `/turnos` (reserva online) y `/turnos/confirmar` (confirmación desde el enlace del email), y los cuatro endpoints de `/api/v1/public/`: `GET /professionals`, `GET /professionals/{id}/slots`, `POST /appointments` y `POST /appointment-confirmations` (C-15). No usan sesión; llevan límite de pedidos por IP, y ninguno devuelve datos de pacientes ni modifica una ficha existente.
+- Pantallas `/turnos` (reserva online) y `/turnos/confirmar` (confirmación desde el enlace del email), y los cinco endpoints de `/api/v1/public/`: `GET /professionals`, `GET /professionals/{id}/treatments` (C-17), `GET /professionals/{id}/slots`, `POST /appointments` y `POST /appointment-confirmations` (C-15). No usan sesión; llevan límite de pedidos por IP, y ninguno devuelve datos de pacientes ni modifica una ficha existente.
 - Ninguna otra: toda pantalla y todo endpoint restante requieren sesión (JWT válido). Los pacientes no tienen cuenta.

@@ -11,6 +11,7 @@ import { slotActions } from './actions'
 import {
   BACK_LABEL,
   NO_FREE_SLOTS_MESSAGE,
+  NO_TREATMENT_LABEL,
   RESCHEDULE_SUBMIT_LABEL,
   dayAndTime,
   messageForAppointmentError,
@@ -91,6 +92,7 @@ export function RescheduleDialog({
       onClose={onClose}
       safeRef={backRef}
     >
+      <p>{`Tratamiento: ${appointment.treatment_name ?? NO_TREATMENT_LABEL}`}</p>
       <label>
         Fecha
         <input

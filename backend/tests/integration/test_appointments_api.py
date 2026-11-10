@@ -33,6 +33,7 @@ from app.infrastructure.db.models import (
     EmailNotificationModel,
     PatientModel,
     ProfessionalModel,
+    TreatmentModel,
     UserModel,
 )
 from app.infrastructure.db.repositories import (
@@ -42,6 +43,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyPatientRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyTimeOffRepository,
+    SqlAlchemyTreatmentRepository,
     SqlAlchemyUserAccountRepository,
     SqlAlchemyWorkingHoursRepository,
 )
@@ -67,6 +69,7 @@ class Scene:
     patient_ids: dict[str, str] = field(default_factory=dict)
     professional_ids: dict[str, str] = field(default_factory=dict)
     user_ids: dict[str, str] = field(default_factory=dict)
+    treatment_ids: dict[str, str] = field(default_factory=dict)
     dispatcher: RecordingDispatcher = field(default_factory=RecordingDispatcher)
 
     def deps(self, unit_of_work: Callable[[], AgendaUnitOfWork] | None = None) -> AgendaDeps:
@@ -79,6 +82,7 @@ class Scene:
             working_hours=SqlAlchemyWorkingHoursRepository(sessions),
             time_off=SqlAlchemyTimeOffRepository(sessions),
             settings=SqlAlchemyClinicSettingsRepository(sessions),
+            treatments=SqlAlchemyTreatmentRepository(sessions),
             unit_of_work=unit_of_work or (lambda: SqlAlchemyAgendaUnitOfWork(sessions)),
             dispatcher=self.dispatcher,
             clock=lambda: self.now[0],
@@ -140,6 +144,7 @@ def scene(
             for p in session.scalars(select(ProfessionalModel))
         }
         current.user_ids = {u.email: str(u.id) for u in session.scalars(select(UserModel))}
+        current.treatment_ids = {t.name: str(t.id) for t in session.scalars(select(TreatmentModel))}
     yield current
     get_settings.cache_clear()
 
@@ -152,6 +157,7 @@ def _book(
         json={
             "patient_id": scene.patient_ids[patient],
             "professional_id": scene.professional_ids["A"],
+            "treatment_id": scene.treatment_ids["Consulta"],
             "starts_at": starts_at.isoformat(),
         },
         headers=headers,
@@ -435,3 +441,37 @@ def test_a_forced_notification_failure_leaves_no_appointment_and_no_notification
     assert scene.rows() == []
     assert _notification_rows(scene) == 0
     assert scene.dispatcher.calls == []
+
+
+@pytest.mark.integration
+def test_two_receptionists_booking_one_slot_with_different_treatments_leave_one_appointment(
+    scene: Scene,
+) -> None:
+    """Regla dura 6 con C-17: el tratamiento no habilita dos turnos en el mismo horario."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    reception = scene.headers("recepcion@example.com")
+    admin = scene.headers("admin@example.com")
+
+    def book(headers: dict[str, str], patient: str, treatment: str) -> Response:
+        response: Response = scene.client.post(
+            BASE,
+            json={
+                "patient_id": scene.patient_ids[patient],
+                "professional_id": scene.professional_ids["A"],
+                "treatment_id": scene.treatment_ids[treatment],
+                "starts_at": at(10).isoformat(),
+            },
+            headers=headers,
+        )
+        return response
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(book, reception, "Perez", "Consulta")
+        second = pool.submit(book, admin, "Gomez", "Limpieza dental")
+        responses = [first.result(), second.result()]
+
+    assert sorted(r.status_code for r in responses) == [201, 409]
+    loser = next(r for r in responses if r.status_code == 409)
+    assert loser.json()["error"]["code"] == "SLOT_TAKEN"
+    assert len(scene.rows()) == 1

@@ -221,6 +221,7 @@ def test_every_free_slot_far_enough_in_the_future_can_be_booked() -> None:
             RECEPTION,
             patient_id="pac-2",
             professional_id=PROF_A,
+            treatment_id=fresh.treatment_id,
             starts_at=slot.starts_at,
         )
         assert saved.ends_at == slot.ends_at
@@ -348,3 +349,81 @@ def test_querying_views_changes_nothing() -> None:
     assert world.everything() == before
     assert world.notifications.__dict__ == notifications_before
     assert world.dispatcher.calls == []
+
+
+# --- Tratamiento en las vistas (C-17, DD-150) ----------------------------------------------
+
+
+class SpyTreatments:
+    """Anota cada lectura de tratamiento por id."""
+
+    def __init__(self, inner: object) -> None:
+        self._inner = inner
+        self.reads: list[str] = []
+
+    def get(self, treatment_id: str) -> object:
+        self.reads.append(treatment_id)
+        return self._inner.get(treatment_id)  # type: ignore[attr-defined]
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._inner, name)
+
+
+def test_the_week_comes_with_each_appointments_treatment_name() -> None:
+    world = World()
+    world.seed(monday(10), treatment_id=world.limpieza.id)
+    world.seed(monday(11), treatment_id=world.consulta.id)
+
+    views = list_appointment_views(world.deps(), RECEPTION, PROF_A, *WEEK)
+
+    assert [v.treatment_name for v in views] == ["Limpieza dental", "Consulta"]
+
+
+def test_an_appointment_without_treatment_has_no_treatment_name() -> None:
+    world = World()
+    seeded = world.seed(monday(10))
+
+    view = get_appointment_view(world.deps(), RECEPTION, seeded.id)
+
+    assert view.treatment_name is None
+    assert view.appointment.treatment_id is None
+
+
+def test_the_treatment_name_is_the_current_one_after_a_rename() -> None:
+    world = World()
+    seeded = world.seed(monday(10), treatment_id=world.limpieza.id)
+    world.treatments.update(world.limpieza.id, name="Profilaxis")
+
+    assert get_appointment_view(world.deps(), RECEPTION, seeded.id).treatment_name == "Profilaxis"
+
+
+def test_an_inactive_treatment_keeps_its_name_in_the_view() -> None:
+    world = World()
+    seeded = world.seed(monday(10), treatment_id=world.limpieza.id)
+    world.treatments.update(world.limpieza.id, active=False)
+
+    assert (
+        get_appointment_view(world.deps(), RECEPTION, seeded.id).treatment_name == "Limpieza dental"
+    )
+
+
+def test_each_distinct_treatment_is_read_once() -> None:
+    world = World()
+    for hour in (9, 10, 11):
+        world.seed(monday(hour), treatment_id=world.limpieza.id)
+    world.seed(monday(12), treatment_id=world.consulta.id)
+    world.seed(monday(13), treatment_id=None)
+    spy = SpyTreatments(world.treatments)
+    deps = replace(world.deps(), treatments=spy)  # type: ignore[arg-type]
+
+    views = list_appointment_views(deps, RECEPTION, PROF_A, *WEEK)
+
+    assert len(views) == 5
+    assert sorted(spy.reads) == sorted([world.limpieza.id, world.consulta.id])
+
+
+def test_a_missing_treatment_is_an_internal_error_not_an_empty_name() -> None:
+    world = World()
+    world.seed(monday(10), treatment_id="tratamiento-fantasma")
+    with pytest.raises(LookupError):
+        list_appointment_views(world.deps(), RECEPTION, PROF_A, *WEEK)

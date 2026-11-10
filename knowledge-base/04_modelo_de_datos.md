@@ -6,6 +6,7 @@
 - **Profesionales**: `professionals`, `working_hours`, `time_off`.
 - **Pacientes**: `patients`.
 - **Agenda**: `appointments`.
+- **Tratamientos**: `treatments`, `professional_treatments` (C-17).
 - **Notificaciones**: `email_notifications`.
 - **Configuración**: `clinic_settings`.
 
@@ -17,6 +18,9 @@ users 1───0..1 professionals
                           ┌───────────┼───────────┐
                           │ N         │ N         │ N
                    working_hours   time_off   appointments N───1 patients
+                                              │ N
+                                              │ 1  (treatment_id, nulo en turnos anteriores)
+                                          treatments 1───N professional_treatments N───1 professionals
                                                    │ 1
                                                    │ N
                                           email_notifications
@@ -62,6 +66,19 @@ users 1───0..1 professionals
 - `active` boolean NOT NULL default true
 - Índices: `document_number` (único), `last_name`
 
+### treatments
+- `id` uuid PK
+- `name` text NOT NULL (1 a 80 caracteres, sin espacios de más)
+- `name_key` text NOT NULL UNIQUE (`uq_treatments_name_key`): el nombre sin mayúsculas, tildes ni espacios repetidos; lo calcula el dominio (DD-145)
+- `active` boolean NOT NULL default true
+- `created_at` timestamptz NOT NULL default `now()`
+- Un tratamiento no se borra: se desactiva (RN-TR-01). No tiene duración (RN-TU-10).
+
+### professional_treatments
+- `professional_id` FK a `professionals.id`, `treatment_id` FK a `treatments.id`; clave primaria compuesta; ambas `ON DELETE RESTRICT`
+- Índice `ix_professional_treatments_treatment_id`
+- Dice qué tratamientos ofrece cada profesional (DD-141)
+
 ### appointments
 - `id` uuid PK
 - `patient_id` FK a `patients.id`, `professional_id` FK a `professionals.id`
@@ -71,6 +88,7 @@ users 1───0..1 professionals
 - `created_by` FK a `users.id` NULL: un valor nulo significa que el turno lo reservó el paciente online (migración `0003`, C-15)
 - `pending_until` timestamptz NULL: si tiene valor, el turno es una reserva online pendiente de confirmación (`status = 'scheduled'`); se calcula como el menor entre la reserva más `ONLINE_BOOKING_HOLD_MINUTES` y `starts_at`
 - `confirmation_token_hash` text NULL: SHA-256 en hexadecimal del token del enlace de confirmación; el token en claro nunca se guarda
+- `treatment_id` FK a `treatments.id` `ON DELETE RESTRICT` NULL (migración `0005`, C-17): obligatorio en la API y en los casos de uso para todo turno nuevo; nulo solo en los turnos anteriores a C-17 (DD-148). Índice `ix_appointments_treatment_id`. Reprogramar lo conserva (DD-144)
 - `created_at`, `updated_at`
 - Constraints:
   - `starts_at < ends_at`
@@ -100,6 +118,7 @@ users 1───0..1 professionals
 - 1 usuario de recepción. Los usuarios del seed (administrador, recepción y una cuenta `dentist` por profesional) comparten una contraseña de demo ficticia que NO está en el script: sale de la variable de entorno `SEED_DEMO_PASSWORD` y solo se guarda su hash argon2 (DD-40, regla dura 5).
 - 2 profesionales ficticios con `working_hours` de lunes a viernes.
 - `clinic_settings` con slot de 30 min.
+- 5 tratamientos activos de ejemplo (DD-151): "Consulta" (solo consulta, sin procedimiento), "Limpieza dental", "Extracción", "Arreglo de caries" y "Blanqueamiento". La Dra. Ana Alvarez ofrece los 5 y el Dr. Bruno Benitez todos menos "Blanqueamiento", para que el selector muestre el filtro por profesional. El seed los busca por nombre normalizado y carga la asignación de un profesional solo si no tiene ninguna.
 - 10 pacientes ficticios, con emails `@example.com`; en una demo con SMTP real, emails de prueba controlados por el equipo (ver SU-02).
 
 ## Integridad referencial

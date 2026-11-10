@@ -21,6 +21,7 @@ PUBLIC_ROUTES = {
     ("GET", "/api/v1/health"),
     ("GET", "/api/v1/public/professionals"),
     ("GET", "/api/v1/public/professionals/{professional_id}/slots"),
+    ("GET", "/api/v1/public/professionals/{professional_id}/treatments"),
     ("POST", "/api/v1/public/appointments"),
     ("POST", "/api/v1/public/appointment-confirmations"),
 }
@@ -95,12 +96,12 @@ def test_the_inventory_sees_the_real_routes(
     assert ("GET", "/api/v1/auth/me") in seen
 
 
-def test_public_list_is_login_health_and_the_four_public_booking_routes() -> None:
+def test_public_list_is_login_health_and_the_five_public_booking_routes() -> None:
     assert {key for key in PUBLIC_ROUTES if "/public/" not in key[1]} == {
         ("POST", "/api/v1/auth/login"),
         ("GET", "/api/v1/health"),
     }
-    assert len([key for key in PUBLIC_ROUTES if "/public/" in key[1]]) == 4
+    assert len([key for key in PUBLIC_ROUTES if "/public/" in key[1]]) == 5
 
 
 FORBIDDEN_PATH_WORDS = ("notif", "email", "recordatorio", "reminder", "task", "tarea", "celery")

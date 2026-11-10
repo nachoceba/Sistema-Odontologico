@@ -33,6 +33,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyPatientRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyTimeOffRepository,
+    SqlAlchemyTreatmentRepository,
     SqlAlchemyWorkingHoursRepository,
 )
 from app.infrastructure.notifications import NoOpNotificationDispatcher
@@ -128,6 +129,7 @@ def patient_gated_deps(sessions: sessionmaker[Session], gate: threading.Barrier)
         working_hours=SqlAlchemyWorkingHoursRepository(sessions),
         time_off=SqlAlchemyTimeOffRepository(sessions),
         settings=SqlAlchemyClinicSettingsRepository(sessions),
+        treatments=SqlAlchemyTreatmentRepository(sessions),
         unit_of_work=unit_of_work,
         dispatcher=NoOpNotificationDispatcher(),
         clock=lambda: NOW,
@@ -138,6 +140,7 @@ def online(deps: PublicBookingDeps, world: World, starts_at: datetime, document:
     return lambda: book_online(
         deps,
         professional_id=str(world.dra_a),
+        treatment_id=str(world.consulta),
         starts_at=starts_at,
         document_number=document,
         first_name="Lucia",
@@ -196,6 +199,7 @@ def test_an_online_booking_and_a_reception_booking_of_one_slot_leave_one_appoint
                 reception,
                 patient_id=str(world.juan),
                 professional_id=str(world.dra_a),
+                treatment_id=str(world.limpieza),  # otro tratamiento: el horario es uno solo
                 starts_at=at(10),
             )
         ),

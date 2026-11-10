@@ -147,6 +147,7 @@ def test_the_new_hours_apply_immediately_to_booking_and_slots() -> None:
             RECEPTION,
             patient_id="pac-1",
             professional_id=PROF_A,
+            treatment_id=world.treatment_id,
             starts_at=wednesday_nine,
         )
     replace_working_hours(
@@ -157,6 +158,7 @@ def test_the_new_hours_apply_immediately_to_booking_and_slots() -> None:
         RECEPTION,
         patient_id="pac-1",
         professional_id=PROF_A,
+        treatment_id=world.treatment_id,
         starts_at=wednesday_nine,
     )
     assert booked.starts_at == wednesday_nine
@@ -177,6 +179,7 @@ def test_changing_the_hours_does_not_allow_overlapping_appointments() -> None:
             RECEPTION,
             patient_id="pac-2",
             professional_id=PROF_A,
+            treatment_id=world.treatment_id,
             starts_at=monday(10),
         )
     assert world.everything() == [existing]

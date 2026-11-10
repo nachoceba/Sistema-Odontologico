@@ -72,3 +72,20 @@ def test_the_deadline_uses_the_local_time_of_the_clinic() -> None:
     )
 
     assert "hasta las 23:05" in body  # 02:05 UTC es 23:05 del domingo local
+
+
+def test_the_treatment_line_goes_between_the_professional_and_the_date() -> None:
+    _, body = render_verification_email(replace(DATA, treatment_name="Consulta"))
+
+    lines = body.splitlines()
+    index = lines.index("Profesional: Dra. A")
+    assert lines[index + 1] == "Tratamiento: Consulta"
+    assert lines[index + 2].startswith("Fecha y hora: ")
+
+
+def test_without_treatment_the_verification_has_no_treatment_line() -> None:
+    _, body = render_verification_email(DATA)
+
+    assert "Tratamiento" not in body
+    lines = body.splitlines()
+    assert lines[lines.index("Profesional: Dra. A") + 1].startswith("Fecha y hora: ")

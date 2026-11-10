@@ -241,3 +241,62 @@ describe('DayColumn con acciones opcionales (C-10)', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 })
+
+describe('DayColumn: tratamiento (C-17, DD-146)', () => {
+  const busy = daySlots(
+    [
+      [9, 13],
+      [14, 18],
+    ],
+    { busy: ['10:00'] },
+  )
+
+  it('muestra el tratamiento después del paciente, separado por un punto medio', () => {
+    const juan = turno(10, 0, 10, 30, { treatment_id: 't-1', treatment_name: 'Limpieza dental' })
+    render(<DayColumn column={column({ slots: busy, appointments: [juan] })} />)
+
+    expect(screen.getByText('10:00–10:30 Perez, Juan')).toBeInTheDocument()
+    expect(screen.getByText('· Limpieza dental')).toBeInTheDocument()
+    expect(document.body.textContent).toContain('10:00–10:30 Perez, Juan · Limpieza dental')
+  })
+
+  it('el nombre completo queda disponible aunque se corte con puntos suspensivos', () => {
+    const juan = turno(10, 0, 10, 30, { treatment_id: 't-1', treatment_name: 'Arreglo de caries' })
+    render(<DayColumn column={column({ slots: busy, appointments: [juan] })} />)
+
+    const treatment = screen.getByText('· Arreglo de caries')
+    expect(treatment).toHaveClass('appointment-treatment')
+    expect(treatment).toHaveAttribute('title', 'Arreglo de caries')
+  })
+
+  it('un turno sin tratamiento se ve como antes, sin texto ni etiqueta vacía', () => {
+    const juan = turno(10, 0, 10, 30)
+    const { container } = render(<DayColumn column={column({ slots: busy, appointments: [juan] })} />)
+
+    expect(container.querySelector('.appointment-treatment')).toBeNull()
+    expect(document.body.textContent).not.toContain('·')
+  })
+
+  it('un turno cancelado conserva el tratamiento dentro de la línea atenuada', () => {
+    const cancelado = turno(10, 0, 10, 30, {
+      status: 'cancelled',
+      treatment_id: 't-2',
+      treatment_name: 'Extracción',
+    })
+    const { container } = render(
+      <DayColumn column={column({ slots: busy, appointments: [cancelado] })} />,
+    )
+
+    expect(container.querySelector('.appointment--cancelled')).toHaveTextContent(
+      'Perez, Juan · Extracción',
+    )
+  })
+
+  it('en un turno suelto (fila propia) también aparece, y no hay datos de contacto', () => {
+    const suelto = turno(18, 0, 18, 30, { treatment_id: 't-3', treatment_name: 'Consulta' })
+    render(<DayColumn column={column({ appointments: [suelto] })} />)
+
+    expect(screen.getByText('· Consulta')).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/@|\d{7}/)
+  })
+})

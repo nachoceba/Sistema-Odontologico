@@ -28,6 +28,7 @@ def online(world: World, hour: int = 10) -> str:
     book_online(
         world.public_deps(),
         professional_id=PROF_A,
+        treatment_id=world.treatment_id,
         starts_at=monday(hour),
         document_number="40999888",
         first_name="Lucía",
@@ -73,7 +74,12 @@ def test_cancelling_a_pending_appointment_frees_the_slot_and_kills_the_link() ->
         confirm_online_booking(world.public_deps(), "tok-1")
     # la franja volvió a estar libre para la recepción
     book_appointment(
-        world.deps(), RECEPTION, patient_id="pac-1", professional_id=PROF_A, starts_at=monday(10)
+        world.deps(),
+        RECEPTION,
+        patient_id="pac-1",
+        professional_id=PROF_A,
+        treatment_id=world.treatment_id,
+        starts_at=monday(10),
     )
 
 
@@ -87,6 +93,7 @@ def test_reception_cannot_book_over_a_pending_appointment() -> None:
             RECEPTION,
             patient_id="pac-1",
             professional_id=PROF_A,
+            treatment_id=world.treatment_id,
             starts_at=monday(10),
         )
 
@@ -125,6 +132,7 @@ def online_second(world: World) -> str:
     book_online(
         deps,
         professional_id=PROF_A,
+        treatment_id=world.treatment_id,
         starts_at=monday(11),
         document_number="40888777",
         first_name="Rosa",

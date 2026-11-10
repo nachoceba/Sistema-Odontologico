@@ -68,6 +68,17 @@ describe('pantalla de turno registrado', () => {
     expect(main).toHaveTextContent(RELEASE)
   })
 
+  it('muestra la fila Tratamiento con el nombre que devolvió la API, sin datos de la persona', async () => {
+    renderBooking()
+
+    const main = await register(LUCIA)
+
+    expect(main).toHaveTextContent('Tratamiento')
+    expect(main).toHaveTextContent('Limpieza dental')
+    expect(main).not.toHaveTextContent('lucia@example.com')
+    expect(main).not.toHaveTextContent('40999888')
+  })
+
   it('reemplaza el formulario', async () => {
     renderBooking()
 

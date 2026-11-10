@@ -23,6 +23,8 @@ _SAFE_NAME = re.compile(r"^[A-Za-z0-9_]+$")
 APP_TABLES = (
     "email_notifications",
     "appointments",
+    "professional_treatments",
+    "treatments",
     "time_off",
     "working_hours",
     "professionals",

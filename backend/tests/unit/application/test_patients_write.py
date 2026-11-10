@@ -143,6 +143,7 @@ def test_changing_the_email_does_not_touch_the_appointment_or_its_notification()
         RECEPTION,
         patient_id="pac-1",
         professional_id=PROF_A,
+        treatment_id=world.treatment_id,
         starts_at=monday(10),
     )
     notifications_before = world.notifications.list_for_appointment(appointment.id)

@@ -90,6 +90,7 @@ def test_booking_and_confirmation_leave_no_token_document_or_email_in_any_log(
                 f"{base}/appointments",
                 json={
                     "professional_id": PROF_A,
+                    "treatment_id": world.treatment_id,
                     "starts_at": monday(10).isoformat(),
                     "document_number": "40999888",
                     "first_name": "Lucía",

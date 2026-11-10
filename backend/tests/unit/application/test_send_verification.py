@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from datetime import timedelta
 
 import pytest
@@ -32,6 +33,7 @@ class Scenario:
         book_online(
             self.world.public_deps(),
             professional_id=PROF_A,
+            treatment_id=self.world.treatment_id,
             starts_at=monday(10),
             document_number="40999888",
             first_name="Lucía",
@@ -46,6 +48,7 @@ class Scenario:
             appointments=self.world.appointments,
             patients=self.world.patients,
             professionals=InMemoryProfessionalRepository(self.world.accounts),
+            treatments=self.world.treatments,
             settings=InMemoryClinicSettingsRepository(
                 ClinicSettings(clinic_name="Consultorio Demo")
             ),
@@ -146,3 +149,26 @@ def test_the_requeue_pass_never_takes_a_verification() -> None:
 
     assert requeue_pending(deps) == 0
     assert published == []
+
+
+def test_the_verification_names_the_current_treatment() -> None:
+    scenario = Scenario()
+    scenario.world.treatments.update(scenario.world.consulta.id, name="Consulta inicial")
+
+    assert scenario.send() is DeliveryOutcome.SENT
+
+    [email] = scenario.sender.sent
+    assert "Tratamiento: Consulta inicial" in email.body
+
+
+def test_the_verification_of_a_booking_without_treatment_is_sent_without_the_line() -> None:
+    scenario = Scenario()
+    stored = scenario.world.appointments._appointments[scenario.appointment_id]  # noqa: SLF001
+    scenario.world.appointments._appointments[scenario.appointment_id] = replace(  # noqa: SLF001
+        stored, treatment_id=None
+    )
+
+    assert scenario.send() is DeliveryOutcome.SENT
+
+    [email] = scenario.sender.sent
+    assert "Tratamiento" not in email.body

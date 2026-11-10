@@ -267,6 +267,7 @@ def expiry_world(monkeypatch: pytest.MonkeyPatch) -> Iterator[World]:
     book_online(
         world.public_deps(hold_minutes=60),
         professional_id=PROF_A,
+        treatment_id=world.treatment_id,
         starts_at=monday(10),
         document_number="40999888",
         first_name="Lucía",

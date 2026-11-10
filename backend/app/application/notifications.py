@@ -27,6 +27,7 @@ from app.domain.notifications import (
 from app.domain.patients.ports import PatientRepository
 from app.domain.professionals import ProfessionalRepository
 from app.domain.settings.ports import ClinicSettingsRepository
+from app.domain.treatments.ports import TreatmentRepository
 from app.infrastructure.email.templates import EmailData, render_email
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ class NotificationDeps:
     unit_of_work: Callable[[], NotificationSendUnitOfWork]
     patients: PatientRepository
     professionals: ProfessionalRepository
+    treatments: TreatmentRepository
     settings: ClinicSettingsRepository
     sender: EmailSender
     clock: Callable[[], datetime]
@@ -60,6 +62,14 @@ def _log(notification: Notification, outcome: DeliveryOutcome) -> DeliveryOutcom
         outcome.value,
     )
     return outcome
+
+
+def _treatment_name(deps: NotificationDeps, treatment_id: str | None) -> str | None:
+    """Nombre vigente del tratamiento; sin tratamiento o ausente, la linea no va (C-17, D-8)."""
+    if treatment_id is None:
+        return None
+    treatment = deps.treatments.get(treatment_id)
+    return None if treatment is None else treatment.name
 
 
 def deliver_notification(
@@ -104,6 +114,7 @@ def deliver_notification(
                 address=clinic.address,
                 phone=clinic.phone,
                 public_app_url=deps.public_app_url,
+                treatment_name=_treatment_name(deps, appointment.treatment_id),
             ),
         )
         try:

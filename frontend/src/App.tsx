@@ -9,6 +9,7 @@ import AgendaPage from './pages/AgendaPage'
 import LoginPage from './pages/LoginPage'
 import PatientsPage from './pages/PatientsPage'
 import ProfessionalsPage from './pages/ProfessionalsPage'
+import TreatmentsPage from './pages/TreatmentsPage'
 import UsersPage from './pages/UsersPage'
 import ConfirmBookingPage from './public/ConfirmBookingPage'
 import PublicBookingPage from './public/PublicBookingPage'
@@ -33,6 +34,7 @@ function AppRoutes() {
           <Route path="/profesionales" element={<ProfessionalsPage />} />
           <Route element={<RequireRole roles={['admin']} />}>
             <Route path="/usuarios" element={<UsersPage />} />
+            <Route path="/tratamientos" element={<TreatmentsPage />} />
           </Route>
         </Route>
       </Route>

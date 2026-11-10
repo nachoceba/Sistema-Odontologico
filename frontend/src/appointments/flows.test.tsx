@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { at, turno } from '../agenda/fixtures'
-import { installAgendaApi } from '../agenda/testApi'
+import { installAgendaApi, LIMPIEZA } from '../agenda/testApi'
 import { jsonResponse } from '../test-utils'
 import { endSession, inRow, open, startSession, world } from './pageHarness'
 
@@ -16,6 +16,9 @@ async function pickPatientAndBook() {
     target: { value: 'perez' },
   })
   fireEvent.click(await screen.findByRole('button', { name: 'Perez, Juan' }))
+  const select = await screen.findByLabelText('Tratamiento')
+  await screen.findByRole('option', { name: 'Limpieza dental' })
+  fireEvent.change(select, { target: { value: LIMPIEZA.id } })
   fireEvent.click(screen.getByRole('button', { name: 'Agendar turno' }))
 }
 
@@ -29,7 +32,7 @@ describe('flujo: agendar', () => {
     expect(await screen.findByRole('heading', { name: 'Lun 09/11 14:00–14:30' })).toBeInTheDocument()
     await pickPatientAndBook()
 
-    expect(await screen.findByText('Turno agendado: Perez, Juan, Lun 09/11 14:00. Se enviará la confirmación por email al paciente.')).toBeInTheDocument()
+    expect(await screen.findByText('Turno agendado: Perez, Juan, Lun 09/11 14:00, Limpieza dental. Se enviará la confirmación por email al paciente.')).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('lucia@example.com')
     expect(document.body.textContent).not.toMatch(/@example\.com/)
     expect(await screen.findByText('14:00–14:30 Perez, Juan')).toBeInTheDocument()
@@ -38,7 +41,12 @@ describe('flujo: agendar', () => {
     expect(api.posts).toEqual([
       {
         path: '/appointments',
-        body: { patient_id: 'pac-1', professional_id: 'p-1', starts_at: at(14) },
+        body: {
+          patient_id: 'pac-1',
+          professional_id: 'p-1',
+          treatment_id: LIMPIEZA.id,
+          starts_at: at(14),
+        },
       },
     ])
   })

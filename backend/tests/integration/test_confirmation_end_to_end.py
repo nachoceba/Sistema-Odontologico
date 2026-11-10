@@ -32,6 +32,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyPatientRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyTimeOffRepository,
+    SqlAlchemyTreatmentRepository,
     SqlAlchemyWorkingHoursRepository,
 )
 from app.infrastructure.tasks import wiring
@@ -81,6 +82,7 @@ def agenda_deps(sessions: sessionmaker[Session], publish: Callable[[str], None])
         working_hours=SqlAlchemyWorkingHoursRepository(sessions),
         time_off=SqlAlchemyTimeOffRepository(sessions),
         settings=SqlAlchemyClinicSettingsRepository(sessions),
+        treatments=SqlAlchemyTreatmentRepository(sessions),
         unit_of_work=lambda: SqlAlchemyAgendaUnitOfWork(sessions),
         dispatcher=CeleryNotificationDispatcher(publish),
         clock=lambda: datetime.now(UTC),
@@ -123,6 +125,7 @@ def test_booking_reaches_mailpit_through_redis_and_a_worker_and_marks_sent(
             principal(world),
             patient_id=str(world.juan),
             professional_id=str(world.dra_a),
+            treatment_id=str(world.limpieza),
             starts_at=_next_monday_at_10(),
         )
         deadline = time.monotonic() + WAIT_SECONDS
@@ -135,6 +138,7 @@ def test_booking_reaches_mailpit_through_redis_and_a_worker_and_marks_sent(
     full = _mailpit(f"/message/{message['ID']}")
     assert "Hola, Juan Perez:" in full["Text"]
     assert "Dra. A" in full["Text"]
+    assert "Tratamiento: Limpieza dental" in full["Text"]
 
 
 def test_with_an_unreachable_redis_booking_is_fast_and_the_confirmation_stays_pending(
@@ -153,6 +157,7 @@ def test_with_an_unreachable_redis_booking_is_fast_and_the_confirmation_stays_pe
         principal(world),
         patient_id=str(world.juan),
         professional_id=str(world.dra_a),
+        treatment_id=str(world.limpieza),
         starts_at=_next_monday_at_10(),
     )
     elapsed = time.monotonic() - started
@@ -185,6 +190,7 @@ def test_with_the_worker_stopped_the_email_leaves_after_a_requeue_pass(
         principal(world),
         patient_id=str(world.juan),
         professional_id=str(world.dra_a),
+        treatment_id=str(world.limpieza),
         starts_at=_next_monday_at_10(),
     )
     assert status_of(engine, appointment.id) == ("pending", None)

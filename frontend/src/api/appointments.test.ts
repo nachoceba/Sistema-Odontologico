@@ -28,6 +28,8 @@ const TURNO: Appointment = {
   created_by: 'u-rec',
   origin: 'staff',
   pending_until: null,
+  treatment_id: 't-1',
+  treatment_name: 'Consulta',
 }
 const FRANJA: Slot = {
   starts_at: '2026-11-09T12:00:00Z',
@@ -90,6 +92,7 @@ const REGISTRO: AppointmentRecord = {
   created_by: 'u-rec',
   origin: 'staff',
   pending_until: null,
+  treatment_id: 't-1',
 }
 
 function bodyOf(fetchMock: ReturnType<typeof mockApi>): unknown {
@@ -104,6 +107,7 @@ describe('cliente de turnos (escritura)', () => {
     const result = await bookAppointment({
       patientId: 'pac-1',
       professionalId: 'p-1',
+      treatmentId: 't-1',
       startsAt: '2026-11-09T13:00:00Z',
     })
 
@@ -112,6 +116,7 @@ describe('cliente de turnos (escritura)', () => {
     expect(bodyOf(fetchMock)).toEqual({
       patient_id: 'pac-1',
       professional_id: 'p-1',
+      treatment_id: 't-1',
       starts_at: '2026-11-09T13:00:00Z',
     })
   })
@@ -165,7 +170,7 @@ describe('cliente de turnos (escritura)', () => {
     })
 
     await expect(
-      bookAppointment({ patientId: 'x', professionalId: 'p-1', startsAt: 'y' }),
+      bookAppointment({ patientId: 'x', professionalId: 'p-1', treatmentId: 't-1', startsAt: 'y' }),
     ).rejects.toMatchObject({ status: 409, code: 'SLOT_TAKEN' })
   })
 

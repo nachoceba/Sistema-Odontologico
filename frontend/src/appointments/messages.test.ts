@@ -84,11 +84,11 @@ describe('shouldReloadAfter', () => {
 
 describe('textos de éxito', () => {
   it('turno agendado con nombre, día y hora local', () => {
-    expect(bookedNotice('Perez, Juan', '2026-11-09T13:00:00Z')).toBe(
-      'Turno agendado: Perez, Juan, Lun 09/11 10:00. Se enviará la confirmación por email al paciente.',
+    expect(bookedNotice('Perez, Juan', '2026-11-09T13:00:00Z', 'Limpieza dental')).toBe(
+      'Turno agendado: Perez, Juan, Lun 09/11 10:00, Limpieza dental. Se enviará la confirmación por email al paciente.',
     )
-    expect(bookedNotice('Ruiz, Laura', '2026-11-10T14:30:00Z')).toBe(
-      'Turno agendado: Ruiz, Laura, Mar 10/11 11:30. Se enviará la confirmación por email al paciente.',
+    expect(bookedNotice('Ruiz, Laura', '2026-11-10T14:30:00Z', 'Consulta')).toBe(
+      'Turno agendado: Ruiz, Laura, Mar 10/11 11:30, Consulta. Se enviará la confirmación por email al paciente.',
     )
   })
 
@@ -102,7 +102,7 @@ describe('textos de éxito', () => {
   })
 
   it('los avisos no incluyen ningún email', () => {
-    expect(bookedNotice('Perez, Juan', '2026-11-09T13:00:00Z')).not.toContain('@')
+    expect(bookedNotice('Perez, Juan', '2026-11-09T13:00:00Z', 'Consulta')).not.toContain('@')
     expect(rescheduledNotice('2026-11-09T13:00:00Z')).not.toContain('@')
   })
 

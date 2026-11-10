@@ -27,6 +27,7 @@ from app.infrastructure.db.models import (
     PatientModel,
     ProfessionalModel,
     TimeOffModel,
+    TreatmentModel,
     UserModel,
     WorkingHoursModel,
 )
@@ -37,6 +38,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyPatientRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyTimeOffRepository,
+    SqlAlchemyTreatmentRepository,
     SqlAlchemyUserAccountRepository,
     SqlAlchemyWorkingHoursRepository,
 )
@@ -68,6 +70,7 @@ class Scene:
     patient_ids: dict[str, str] = field(default_factory=dict)
     professional_ids: dict[str, str] = field(default_factory=dict)
     user_ids: dict[str, str] = field(default_factory=dict)
+    treatment_id: str = ""
 
     def headers(self, email: str) -> dict[str, str]:
         response = self.client.post(
@@ -160,6 +163,7 @@ def scene(
         working_hours=SqlAlchemyWorkingHoursRepository(sessions),
         time_off=SqlAlchemyTimeOffRepository(sessions),
         settings=SqlAlchemyClinicSettingsRepository(sessions),
+        treatments=SqlAlchemyTreatmentRepository(sessions),
         unit_of_work=lambda: SqlAlchemyAgendaUnitOfWork(sessions),
         dispatcher=RecordingDispatcher(),
         clock=lambda: current.now,
@@ -173,6 +177,9 @@ def scene(
             for p in session.scalars(select(ProfessionalModel))
         }
         current.user_ids = {u.email: str(u.id) for u in session.scalars(select(UserModel))}
+        current.treatment_id = next(
+            str(t.id) for t in session.scalars(select(TreatmentModel)) if t.name == "Consulta"
+        )
     yield current
     get_settings.cache_clear()
 
@@ -309,6 +316,7 @@ def test_hard_rule_6_changing_the_hours_never_allows_overlapping_appointments(
         json={
             "patient_id": scene.patient_ids["Perez"],
             "professional_id": scene.professional_ids["A"],
+            "treatment_id": scene.treatment_id,
             "starts_at": at(10).isoformat(),
         },
         headers=reception,

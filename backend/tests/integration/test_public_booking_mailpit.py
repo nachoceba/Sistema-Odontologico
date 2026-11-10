@@ -32,6 +32,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyPatientRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyTimeOffRepository,
+    SqlAlchemyTreatmentRepository,
     SqlAlchemyWorkingHoursRepository,
 )
 from app.infrastructure.tasks import wiring
@@ -96,6 +97,7 @@ def _agenda(sessions: sessionmaker[Session], queue: str) -> AgendaDeps:
         working_hours=SqlAlchemyWorkingHoursRepository(sessions),
         time_off=SqlAlchemyTimeOffRepository(sessions),
         settings=SqlAlchemyClinicSettingsRepository(sessions),
+        treatments=SqlAlchemyTreatmentRepository(sessions),
         unit_of_work=lambda: SqlAlchemyAgendaUnitOfWork(sessions),
         dispatcher=CeleryNotificationDispatcher(publish),
         clock=lambda: datetime.now(UTC),
@@ -150,6 +152,7 @@ def test_the_verification_goes_to_the_email_on_file_and_confirming_sends_the_con
         booked = book_online(
             deps,
             professional_id=str(scene.world.dra_a),
+            treatment_id=str(scene.world.limpieza),
             starts_at=_tomorrow_at_10(),
             document_number=scene.document,
             first_name="Juan",
@@ -165,6 +168,7 @@ def test_the_verification_goes_to_the_email_on_file_and_confirming_sends_the_con
         assert token_match is not None
         assert body.count(get_settings().PUBLIC_APP_URL) >= 1
         assert "Dra. A" in body
+        assert "Tratamiento: Limpieza dental" in body
         assert scene.document not in body
         assert messages_to(scene.typed) == []
         assert booked.professional_display_name == "Dra. A"

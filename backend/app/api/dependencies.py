@@ -15,6 +15,7 @@ from app.application.auth import TokenConfig, resolve_principal
 from app.application.patients import PatientDeps
 from app.application.professionals import ScheduleDeps
 from app.application.public_booking import PublicBookingDeps
+from app.application.treatments import TreatmentDeps
 from app.core.config import get_settings
 from app.core.security import generate_confirmation_token, hash_confirmation_token
 from app.domain.auth import (
@@ -33,6 +34,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyPatientRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyTimeOffRepository,
+    SqlAlchemyTreatmentRepository,
     SqlAlchemyUserAccountRepository,
     SqlAlchemyWorkingHoursRepository,
 )
@@ -62,6 +64,7 @@ def get_agenda_deps(clock: Annotated[Callable[[], datetime], Depends(get_clock)]
         appointments=SqlAlchemyAppointmentRepository(sessions),
         patients=SqlAlchemyPatientRepository(sessions),
         professionals=SqlAlchemyProfessionalRepository(sessions),
+        treatments=SqlAlchemyTreatmentRepository(sessions),
         working_hours=SqlAlchemyWorkingHoursRepository(sessions),
         time_off=SqlAlchemyTimeOffRepository(sessions),
         settings=SqlAlchemyClinicSettingsRepository(sessions),
@@ -83,6 +86,15 @@ def get_schedule_deps(
         appointments=SqlAlchemyAppointmentRepository(sessions),
         settings=SqlAlchemyClinicSettingsRepository(sessions),
         clock=clock,
+    )
+
+
+def get_treatment_deps() -> TreatmentDeps:
+    """Casos de uso del catalogo de tratamientos sobre PostgreSQL; sobreescribible en tests."""
+    sessions = get_session_factory()
+    return TreatmentDeps(
+        treatments=SqlAlchemyTreatmentRepository(sessions),
+        professionals=SqlAlchemyProfessionalRepository(sessions),
     )
 
 
@@ -127,6 +139,7 @@ TokenSettings = Annotated[TokenConfig, Depends(get_token_config)]
 Agenda = Annotated[AgendaDeps, Depends(get_agenda_deps)]
 Schedule = Annotated[ScheduleDeps, Depends(get_schedule_deps)]
 Patients = Annotated[PatientDeps, Depends(get_patient_deps)]
+Treatments = Annotated[TreatmentDeps, Depends(get_treatment_deps)]
 PublicBooking = Annotated[PublicBookingDeps, Depends(get_public_booking_deps)]
 RateLimiterDep = Annotated[RateLimiter, Depends(get_rate_limiter)]
 

@@ -20,6 +20,8 @@ function setup(extra: Record<string, () => Promise<Response> | Response> = {}) {
     'GET /professionals': () => jsonResponse([DRA, DR_B]),
     'GET /professionals/p-1/working-hours': () => jsonResponse({ blocks: [] }),
     'GET /professionals/p-1/time-off': () => jsonResponse([]),
+    'GET /professionals/p-1/treatments': () => jsonResponse([]),
+    'GET /treatments': () => jsonResponse([]),
     ...extra,
   })
 }

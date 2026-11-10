@@ -37,6 +37,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyPatientRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyTimeOffRepository,
+    SqlAlchemyTreatmentRepository,
     SqlAlchemyWorkingHoursRepository,
 )
 from app.infrastructure.notifications import NoOpNotificationDispatcher
@@ -131,6 +132,7 @@ def booking_deps(
             working_hours=SqlAlchemyWorkingHoursRepository(sessions),
             time_off=SqlAlchemyTimeOffRepository(sessions),
             settings=SqlAlchemyClinicSettingsRepository(sessions),
+            treatments=SqlAlchemyTreatmentRepository(sessions),
             unit_of_work=unit_of_work or (lambda: SqlAlchemyAgendaUnitOfWork(sessions)),  # type: ignore[arg-type,return-value]
             dispatcher=NoOpNotificationDispatcher(),
             clock=lambda: now,

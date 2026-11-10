@@ -20,6 +20,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyNotificationRepository,
     SqlAlchemyPatientRepository,
     SqlAlchemyProfessionalRepository,
+    SqlAlchemyTreatmentRepository,
 )
 from app.infrastructure.db.session import get_session_factory
 from app.infrastructure.email.redirect import RedirectingEmailSender
@@ -42,6 +43,7 @@ def build_notification_deps() -> NotificationDeps:
         unit_of_work=lambda: SqlAlchemyAgendaUnitOfWork(sessions),
         patients=SqlAlchemyPatientRepository(sessions),
         professionals=SqlAlchemyProfessionalRepository(sessions),
+        treatments=SqlAlchemyTreatmentRepository(sessions),
         settings=SqlAlchemyClinicSettingsRepository(sessions),
         sender=RedirectingEmailSender(sender, settings.EMAIL_REDIRECT_TO),
         clock=lambda: datetime.now(UTC),
@@ -57,6 +59,7 @@ def build_verification_deps() -> VerificationDeps:
         appointments=SqlAlchemyAppointmentRepository(sessions),
         patients=notification_deps.patients,
         professionals=notification_deps.professionals,
+        treatments=notification_deps.treatments,
         settings=notification_deps.settings,
         sender=notification_deps.sender,
         clock=lambda: datetime.now(UTC),

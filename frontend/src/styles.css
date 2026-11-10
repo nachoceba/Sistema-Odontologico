@@ -593,9 +593,20 @@ input[type='radio'] {
   margin-top: var(--space-1);
 }
 
-.appointment--cancelled .appointment-text {
+.appointment--cancelled .appointment-text,
+.appointment--cancelled .appointment-treatment {
   color: var(--color-text-muted);
   text-decoration: line-through;
+}
+
+/* El tratamiento se corta con puntos suspensivos en vez de desbordar la columna (C-17, DD-146). */
+.appointment-treatment {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-wrap: nowrap;
+  vertical-align: bottom;
 }
 
 .status-tag,

@@ -16,6 +16,8 @@ from app.domain.appointments import (
 )
 from tests.unit.domain.appointments.helpers import monday
 
+SCHEDULED_STATUS = AppointmentStatus.SCHEDULED
+
 
 def _appointment(status: AppointmentStatus = AppointmentStatus.SCHEDULED) -> Appointment:
     return Appointment(
@@ -82,3 +84,18 @@ def test_appointment_may_be_online_and_pending() -> None:
     assert pending.pending_until == start
     assert NewAppointment("p", "d", start, start, None).created_by is None
     assert Appointment("a", "p", "d", start, start, status, None, "u").pending_until is None
+
+
+def test_treatment_id_is_optional_and_defaults_to_none() -> None:
+    new = NewAppointment("p", "d", monday(10), monday(10, 30), "u")
+    saved = Appointment("a", "p", "d", monday(10), monday(10, 30), SCHEDULED_STATUS, None, "u")
+    assert new.treatment_id is None
+    assert saved.treatment_id is None
+
+
+def test_treatment_id_is_kept_when_given() -> None:
+    new = NewAppointment("p", "d", monday(10), monday(10, 30), "u", treatment_id="t-1")
+    saved = Appointment(
+        "a", "p", "d", monday(10), monday(10, 30), SCHEDULED_STATUS, None, "u", treatment_id="t-2"
+    )
+    assert (new.treatment_id, saved.treatment_id) == ("t-1", "t-2")

@@ -15,11 +15,15 @@ export const BACK_LABEL = 'Volver'
 export const CLOSE_LABEL = 'Cerrar'
 export const COMPLETED_LABEL = 'Atendido'
 export const NO_SHOW_LABEL = 'Ausente'
+export const NO_TREATMENT_LABEL = 'Sin tratamiento'
 
 export const CANCELLED_NOTICE = 'Turno cancelado'
 export const ATTENDANCE_NOTICE = 'Asistencia registrada'
 export const REASON_REQUIRED_MESSAGE = 'Escribí el motivo de la cancelación'
 export const REASON_MAX_LENGTH = 500
+export const TREATMENTS_FAILED_MESSAGE = 'No se pudieron cargar los tratamientos'
+export const NO_ACTIVE_TREATMENTS_MESSAGE =
+  'Este profesional no tiene tratamientos activos. Pedile al administrador que se los asigne.'
 export const NO_FREE_SLOTS_MESSAGE = 'No hay horarios libres este día'
 export const ACCENT_NOTE =
   'La búsqueda distingue tildes: si el apellido lleva tilde, escribilo con tilde (por ejemplo, Pérez)'
@@ -41,6 +45,9 @@ const MESSAGE_BY_CODE: Record<string, string> = {
   NOT_STARTED_YET: 'El turno todavía no empezó: la asistencia se marca desde su hora de inicio',
   RESCHEDULE_SAME_TIME: 'El turno ya está en ese horario',
   APPOINTMENT_NOT_FOUND: 'El turno ya no existe',
+  TREATMENT_NOT_AVAILABLE:
+    'Ese tratamiento ya no está disponible para este profesional. Elegí otro.',
+  TREATMENT_NOT_FOUND: 'El tratamiento ya no existe',
   PATIENT_NOT_FOUND: 'El paciente ya no existe',
   PROFESSIONAL_NOT_FOUND: 'El profesional ya no existe',
 }
@@ -69,8 +76,12 @@ export function dayAndTime(utcInstant: string): string {
 /** El envío es posterior y lo hace el servidor: el aviso habla en futuro y no muestra el email. */
 const CONFIRMATION_NOTE = 'Se enviará la confirmación por email al paciente.'
 
-export function bookedNotice(patientName: string, startsAt: string): string {
-  return `Turno agendado: ${patientName}, ${dayAndTime(startsAt)}. ${CONFIRMATION_NOTE}`
+export function bookedNotice(
+  patientName: string,
+  startsAt: string,
+  treatmentName: string,
+): string {
+  return `Turno agendado: ${patientName}, ${dayAndTime(startsAt)}, ${treatmentName}. ${CONFIRMATION_NOTE}`
 }
 
 export function rescheduledNotice(startsAt: string): string {

@@ -36,6 +36,7 @@ Cómo se aparta este proyecto del MVP recomendado: ver DD-07, DD-08 y DD-09.
 - Validación de no superposición y de horarios de atención.
 - Email al agendar y recordatorio previo al turno.
 - Turnos online para pacientes sin login, con confirmación por email (C-15).
+- Tratamiento del turno elegido de un catálogo, por la recepción y por el paciente online (C-17).
 
 ## Fuera de alcance
 

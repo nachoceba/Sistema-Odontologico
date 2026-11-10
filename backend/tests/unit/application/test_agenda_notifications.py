@@ -48,6 +48,7 @@ def book(world: World, starts_at: datetime | None = None, patient_id: str = "pac
         RECEPTION,
         patient_id=patient_id,
         professional_id=PROF_A,
+        treatment_id=world.treatment_id,
         starts_at=starts_at or monday(10),
     ).id
 

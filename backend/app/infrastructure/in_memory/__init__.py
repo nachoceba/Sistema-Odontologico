@@ -13,6 +13,7 @@ from app.infrastructure.in_memory.schedules import (
     InMemoryWorkingHoursRepository,
 )
 from app.infrastructure.in_memory.settings import InMemoryClinicSettingsRepository
+from app.infrastructure.in_memory.treatments import InMemoryTreatmentRepository
 from app.infrastructure.in_memory.unit_of_work import InMemoryAgendaUnitOfWork
 from app.infrastructure.in_memory.users import InMemoryUserAccountRepository
 
@@ -25,6 +26,7 @@ __all__ = [
     "InMemoryProfessionalRepository",
     "InMemoryRateLimiter",
     "InMemoryTimeOffRepository",
+    "InMemoryTreatmentRepository",
     "InMemoryUserAccountRepository",
     "InMemoryWorkingHoursRepository",
 ]

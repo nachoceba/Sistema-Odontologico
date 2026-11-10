@@ -73,15 +73,45 @@ class World:
     juan: UUID
     ana: UUID
     reception: UUID
+    consulta: UUID
+    limpieza: UUID
+
+
+def insert_treatment(connection: Connection, *, name: str) -> UUID:
+    return _one(
+        connection,
+        "INSERT INTO treatments (name, name_key) VALUES (:name, lower(:name)) RETURNING id",
+        {"name": name},
+    )
+
+
+def assign_treatment(connection: Connection, professional: UUID, treatment: UUID) -> None:
+    connection.execute(
+        text(
+            "INSERT INTO professional_treatments (professional_id, treatment_id) "
+            "VALUES (:professional, :treatment)"
+        ),
+        {"professional": professional, "treatment": treatment},
+    )
 
 
 def make_world(connection: Connection) -> World:
+    """Los dos profesionales ofrecen "Consulta" y "Limpieza dental" (C-17)."""
+    dra_a = insert_professional(connection, name="Dra. A")
+    dr_b = insert_professional(connection, name="Dr. B")
+    consulta = insert_treatment(connection, name="Consulta")
+    limpieza = insert_treatment(connection, name="Limpieza dental")
+    for professional in (dra_a, dr_b):
+        assign_treatment(connection, professional, consulta)
+        assign_treatment(connection, professional, limpieza)
     return World(
-        dra_a=insert_professional(connection, name="Dra. A"),
-        dr_b=insert_professional(connection, name="Dr. B"),
+        dra_a=dra_a,
+        dr_b=dr_b,
         juan=insert_patient(connection, first="Juan", last="Perez"),
         ana=insert_patient(connection, first="Ana", last="Gomez"),
         reception=insert_user(connection, email="recepcion@example.com"),
+        consulta=consulta,
+        limpieza=limpieza,
     )
 
 

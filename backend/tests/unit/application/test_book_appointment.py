@@ -8,7 +8,7 @@ import pytest
 
 from app.application.appointments import book_appointment
 from app.core.errors import DomainError
-from app.domain.appointments import Appointment, AppointmentStatus
+from app.domain.appointments import Appointment, AppointmentStatus, NotificationKind
 from app.domain.appointments.errors import (
     InsufficientNoticeError,
     OffGridError,
@@ -21,6 +21,7 @@ from app.domain.appointments.errors import (
     ProfessionalTimeOffError,
     SlotTakenError,
 )
+from app.domain.treatments.errors import TreatmentNotAvailableError, TreatmentNotFoundError
 from tests.unit.application.agenda_helpers import PROF_A, PROF_B, RECEPTION, World
 from tests.unit.domain.appointments.helpers import monday
 
@@ -34,12 +35,14 @@ def _book(
     *,
     patient_id: str = "pac-1",
     professional_id: str = PROF_A,
+    treatment_id: str | None = None,
 ) -> Appointment:
     return book_appointment(
         world.deps(),
         RECEPTION,
         patient_id=patient_id,
         professional_id=professional_id,
+        treatment_id=treatment_id or world.treatment_id,
         starts_at=starts_at,
     )
 
@@ -51,10 +54,17 @@ def _assert_rejected(
     *,
     patient_id: str = "pac-1",
     professional_id: str = PROF_A,
+    treatment_id: str | None = None,
 ) -> None:
     before = world.everything(professional_id)
     with pytest.raises(error_class):
-        _book(world, starts_at, patient_id=patient_id, professional_id=professional_id)
+        _book(
+            world,
+            starts_at,
+            patient_id=patient_id,
+            professional_id=professional_id,
+            treatment_id=treatment_id,
+        )
     assert world.everything(professional_id) == before  # un rechazo no escribe nada
 
 
@@ -244,3 +254,81 @@ def test_the_taken_slot_wins_over_the_double_booking() -> None:
     world.seed(monday(10), patient_id="pac-1", professional_id=PROF_A)
     world.seed(monday(10), patient_id="pac-2", professional_id=PROF_B)
     _assert_rejected(world, SlotTakenError, monday(10), patient_id="pac-1", professional_id=PROF_B)
+
+
+# --- Tratamiento (C-17, DD-142) ------------------------------------------------------------
+
+
+def test_books_with_the_chosen_treatment_and_registers_the_confirmation() -> None:
+    world = World()
+
+    saved = _book(world, monday(10), treatment_id=world.limpieza.id)
+
+    assert saved.treatment_id == world.limpieza.id
+    assert world.appointments.get(saved.id) == saved
+    kinds = [n.kind for n in world.notifications.list_for_appointment(saved.id)]
+    assert kinds == [NotificationKind.CONFIRMATION]
+    assert saved.ends_at - saved.starts_at == timedelta(minutes=30)  # la duracion no cambia
+
+
+def test_two_treatments_book_consecutive_slots_of_the_same_duration() -> None:
+    world = World()
+    first = _book(world, monday(10), treatment_id=world.consulta.id)
+    second = _book(world, monday(10, 30), treatment_id=world.limpieza.id)
+    assert first.ends_at - first.starts_at == second.ends_at - second.starts_at
+    assert first.ends_at == second.starts_at
+
+
+def test_a_treatment_the_professional_does_not_offer_is_rejected() -> None:
+    world = World()
+    # "Limpieza dental" la ofrece solo la Dra. A.
+    _assert_rejected(
+        world,
+        TreatmentNotAvailableError,
+        monday(10),
+        professional_id=PROF_B,
+        treatment_id=world.limpieza.id,
+    )
+
+
+def test_an_inactive_treatment_is_rejected_even_when_assigned() -> None:
+    world = World()
+    world.treatments.update(world.limpieza.id, active=False)
+    _assert_rejected(world, TreatmentNotAvailableError, monday(10), treatment_id=world.limpieza.id)
+
+
+def test_an_unknown_treatment_is_rejected_as_not_found() -> None:
+    world = World()
+    _assert_rejected(world, TreatmentNotFoundError, monday(10), treatment_id="no-existe")
+
+
+def test_the_treatment_is_checked_before_the_schedule() -> None:
+    world = World()
+    world.treatments.update(world.limpieza.id, active=False)
+    # 10:10 esta fuera de la grilla, pero el tratamiento se chequea antes.
+    _assert_rejected(
+        world, TreatmentNotAvailableError, monday(10, 10), treatment_id=world.limpieza.id
+    )
+
+
+def test_inactive_patient_and_professional_are_rejected_before_the_treatment() -> None:
+    world = World()
+    world.set_patient_active("pac-1", False)
+    _assert_rejected(world, PatientInactiveError, monday(10), treatment_id="no-existe")
+    world.set_patient_active("pac-1", True)
+    world.set_professional_active(PROF_A, False)
+    _assert_rejected(world, ProfessionalInactiveError, monday(10), treatment_id="no-existe")
+
+
+def test_a_taken_slot_with_another_treatment_is_still_slot_taken() -> None:
+    world = World()
+    world.seed(monday(10), patient_id="pac-2", treatment_id=world.consulta.id)
+    _assert_rejected(world, SlotTakenError, monday(10), treatment_id=world.limpieza.id)
+
+
+def test_the_treatment_is_checked_before_the_patient_overlap() -> None:
+    world = World()
+    world.seed(monday(10), patient_id="pac-1", professional_id=PROF_B)
+    world.treatments.update(world.limpieza.id, active=False)
+    # pac-1 ya tiene turno a esa hora (RN-TU-06 aparte), pero el tratamiento se chequea antes.
+    _assert_rejected(world, TreatmentNotAvailableError, monday(10), treatment_id=world.limpieza.id)

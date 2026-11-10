@@ -249,3 +249,17 @@ def patients_scene(auth_app: tuple[FastAPI, TestClient]) -> PatientScene:
     auth_app[0].dependency_overrides[get_patient_deps] = world.patient_deps
     auth_app[0].dependency_overrides[get_agenda_deps] = world.deps
     return scene
+
+
+# --- Tratamientos: casos de uso en memoria (C-17) ---
+
+
+@pytest.fixture
+def treatments_world(auth_app: tuple[FastAPI, TestClient]) -> World:
+    """Catalogo en memoria con "Consulta" y "Limpieza dental"; los dos profesionales los ofrecen."""
+    from app.api.dependencies import get_agenda_deps, get_treatment_deps
+
+    world = World()
+    auth_app[0].dependency_overrides[get_treatment_deps] = world.treatment_deps
+    auth_app[0].dependency_overrides[get_agenda_deps] = world.deps
+    return world

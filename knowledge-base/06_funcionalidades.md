@@ -83,7 +83,7 @@ Organizadas por **épica** y luego por **historia de usuario** (formato US-NNN).
 
 ### US-007 — Agendar un turno
 **Como** recepcionista
-**Quiero** elegir paciente, profesional y slot libre
+**Quiero** elegir paciente, profesional, tratamiento y slot libre
 **Para** registrar el turno sin superposiciones
 
 **Criterios de aceptación**:
@@ -91,8 +91,9 @@ Organizadas por **épica** y luego por **historia de usuario** (formato US-NNN).
 - [ ] Dos recepcionistas agendando el mismo slot: uno recibe error claro.
 - [ ] Al guardar se envía el email de confirmación.
 - [ ] No se permite un inicio en el pasado.
+- [ ] El tratamiento es obligatorio y solo se ofrecen los activos que atiende el profesional elegido.
 
-**Reglas relacionadas**: RN-TU-01, RN-TU-02, RN-TU-03, RN-TU-04, RN-NO-01
+**Reglas relacionadas**: RN-TU-01, RN-TU-02, RN-TU-03, RN-TU-04, RN-TU-16, RN-NO-01
 
 ### US-008 — Cancelar un turno
 **Como** recepcionista
@@ -143,18 +144,19 @@ Organizadas por **épica** y luego por **historia de usuario** (formato US-NNN).
 
 ### US-012 — Reservar un turno online
 **Como** paciente
-**Quiero** elegir profesional y horario libre desde `/turnos`, sin iniciar sesión
+**Quiero** elegir profesional, tratamiento y horario libre desde `/turnos`, sin iniciar sesión
 **Para** reservar mi turno sin llamar al consultorio
 
 **Criterios de aceptación**:
 - [ ] La página pública lista los profesionales activos y sus franjas libres, sin mostrar datos de pacientes.
+- [ ] Después del profesional, el paciente elige uno de sus tratamientos activos; recién entonces ve días y franjas.
 - [ ] El formulario pide DNI, nombre, apellido y email; el teléfono es opcional.
 - [ ] Con un DNI nuevo se crea la ficha; con un DNI existente, nombre y apellido deben coincidir con la ficha (sin distinguir mayúsculas, tildes ni espacios) y la ficha no se modifica.
 - [ ] Cualquier rechazo por los datos del paciente muestra el mismo mensaje: "Verifique sus datos ingresados."
 - [ ] La reserva queda pendiente de confirmación y ocupa la franja; dos reservas de la misma franja dejan una sola.
 - [ ] El pedido lleva límite por IP y un campo trampa; la respuesta no devuelve email, teléfono, documento ni nombre completo de una ficha.
 
-**Reglas relacionadas**: RN-AU-01, RN-PA-01, RN-PA-05, RN-PR-02, RN-TU-01, RN-TU-13, RN-NO-06
+**Reglas relacionadas**: RN-AU-01, RN-PA-01, RN-PA-05, RN-PR-02, RN-TU-01, RN-TU-13, RN-TU-16, RN-NO-06
 
 ### US-013 — Confirmar la reserva desde el email
 **Como** paciente
@@ -169,6 +171,18 @@ Organizadas por **épica** y luego por **historia de usuario** (formato US-NNN).
 - [ ] Recepción ve la reserva como "Pendiente de confirmación" y solo puede cancelarla; una vez confirmada, la ve etiquetada "Online".
 
 **Reglas relacionadas**: RN-TU-13, RN-TU-15, RN-NO-01, RN-NO-02, RN-NO-06
+
+### US-014 — Mantener el catálogo de tratamientos
+**Como** administrador
+**Quiero** crear, renombrar, activar y desactivar tratamientos y elegir cuáles ofrece cada profesional
+**Para** que la recepción y los pacientes elijan el tratamiento al agendar
+
+**Criterios de aceptación**:
+- [ ] Solo el administrador escribe; recepción y odontólogo leen.
+- [ ] El nombre es único sin distinguir mayúsculas ni tildes; un tratamiento no se borra, se desactiva.
+- [ ] Desactivar o quitar un tratamiento no cambia los turnos ya agendados.
+
+**Reglas relacionadas**: RN-TR-01, RN-TU-16
 
 ## Backlog posterior a v1
 

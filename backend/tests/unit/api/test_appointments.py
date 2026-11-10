@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from app.domain.patients.types import PatientChanges
 from tests.unit.api.conftest import AgendaScene, bearer, login_token
-from tests.unit.application.agenda_helpers import PROF_A
+from tests.unit.application.agenda_helpers import CONSULTA_ID, LIMPIEZA_ID, PROF_A
 from tests.unit.domain.appointments.helpers import monday
 
 BASE = "/api/v1/appointments"
@@ -26,7 +26,12 @@ def _parse(value: str) -> datetime:
 
 
 def _book_body(starts_at: str, patient_id: str = "pac-1") -> dict[str, str]:
-    return {"patient_id": patient_id, "professional_id": PROF_A, "starts_at": starts_at}
+    return {
+        "patient_id": patient_id,
+        "professional_id": PROF_A,
+        "treatment_id": CONSULTA_ID,
+        "starts_at": starts_at,
+    }
 
 
 # --- Endpoints ---------------------------------------------------------------------------------
@@ -58,7 +63,9 @@ def test_booking_returns_201_with_the_created_appointment_in_utc(
         "created_by",
         "origin",
         "pending_until",
+        "treatment_id",
     }
+    assert body["treatment_id"] == CONSULTA_ID
     stored = agenda.world.appointments.get(body["id"])
     assert stored is not None
     assert stored.starts_at == monday(16)
@@ -185,10 +192,10 @@ def test_a_start_without_a_zone_is_422_and_writes_nothing(
     "body",
     [
         {},
-        {"patient_id": "", "professional_id": PROF_A, "starts_at": "2026-10-05T19:00:00Z"},
-        {"patient_id": "pac-1", "professional_id": "  ", "starts_at": "2026-10-05T19:00:00Z"},
-        {"patient_id": "pac-1", "professional_id": PROF_A, "starts_at": "no-es-una-fecha"},
-        {"patient_id": "pac-1", "professional_id": PROF_A},
+        {**_book_body("2026-10-05T19:00:00Z"), "patient_id": ""},
+        {**_book_body("2026-10-05T19:00:00Z"), "professional_id": "  "},
+        _book_body("no-es-una-fecha"),
+        {"patient_id": "pac-1", "professional_id": PROF_A, "treatment_id": CONSULTA_ID},
     ],
     ids=["empty", "blank-patient", "blank-professional", "bad-date", "missing-start"],
 )
@@ -339,6 +346,7 @@ def test_double_booking_is_409_and_reveals_nothing_about_the_other_appointment(
     body = {
         "patient_id": "pac-2",
         "professional_id": "22222222-2222-4222-8222-222222222222",
+        "treatment_id": CONSULTA_ID,
         "starts_at": monday(15).isoformat(),
     }
     agenda.world.working_hours.replace_for_professional(
@@ -364,6 +372,7 @@ def test_unknown_patient_and_professional_are_404(
         json={
             "patient_id": "pac-1",
             "professional_id": "99999999-9999-4999-8999-999999999999",
+            "treatment_id": CONSULTA_ID,
             "starts_at": monday(16).isoformat(),
         },
         headers=reception,
@@ -442,6 +451,8 @@ def test_a_failing_dispatcher_still_answers_201_and_keeps_appointment_and_notifi
 
 NAME_KEYS = {
     "id",
+    "treatment_id",
+    "treatment_name",
     "patient_id",
     "patient_first_name",
     "patient_last_name",
@@ -539,6 +550,7 @@ def _online_pending(agenda: AgendaScene) -> str:
     book_online(
         deps,
         professional_id=PROF_A,
+        treatment_id=CONSULTA_ID,
         starts_at=monday(16),
         document_number=booking()["document_number"],
         first_name="Lucía",
@@ -626,3 +638,131 @@ def test_receptionist_can_still_cancel_a_pending_appointment(
     assert response.status_code == 200
     assert response.json()["status"] == "cancelled"
     assert response.json()["pending_until"] is None
+
+
+# --- Tratamiento (C-17) ---------------------------------------------------------------------------
+
+
+def _without(body: dict[str, str], key: str) -> dict[str, str]:
+    return {k: v for k, v in body.items() if k != key}
+
+
+def test_booking_without_a_treatment_is_422_and_writes_nothing(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    before = agenda.snapshot()
+
+    response = auth_client.post(
+        BASE, json=_without(_book_body(monday(16).isoformat()), "treatment_id"), headers=reception
+    )
+
+    assert response.status_code == 422
+    assert agenda.snapshot() == before
+
+
+def test_booking_with_a_blank_or_non_text_treatment_is_422(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    before = agenda.snapshot()
+    for value in ("", "   ", 5, None):
+        body: dict[str, Any] = {**_book_body(monday(16).isoformat()), "treatment_id": value}
+        response = auth_client.post(BASE, json=body, headers=reception)
+        assert response.status_code == 422, value
+    assert agenda.snapshot() == before
+
+
+def test_booking_with_the_treatment_returns_it_and_saves_it(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    body = {**_book_body(monday(16).isoformat()), "treatment_id": LIMPIEZA_ID}
+
+    response = auth_client.post(BASE, json=body, headers=reception)
+
+    assert response.status_code == 201, response.text
+    assert response.json()["treatment_id"] == LIMPIEZA_ID
+    stored = agenda.world.appointments.get(response.json()["id"])
+    assert stored is not None and stored.treatment_id == LIMPIEZA_ID
+
+
+def test_listing_and_detail_carry_the_treatment_name_and_old_rows_have_none(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    body = {**_book_body(monday(16).isoformat()), "treatment_id": LIMPIEZA_ID}
+    created = auth_client.post(BASE, json=body, headers=reception).json()
+
+    listing = auth_client.get(
+        BASE,
+        params={
+            "professional_id": PROF_A,
+            "from": monday(0).isoformat(),
+            "to": (monday(0) + timedelta(days=1)).isoformat(),
+        },
+        headers=reception,
+    )
+    detail = auth_client.get(f"{BASE}/{created['id']}", headers=reception)
+    old = auth_client.get(f"{BASE}/{agenda.future_a}", headers=reception)
+
+    names = {r["id"]: r["treatment_name"] for r in listing.json()}
+    assert names[created["id"]] == "Limpieza dental"
+    assert names[agenda.future_a] is None
+    assert detail.json()["treatment_name"] == "Limpieza dental"
+    assert detail.json()["treatment_id"] == LIMPIEZA_ID
+    assert old.json()["treatment_name"] is None
+
+
+def test_an_inactive_treatment_is_409_not_available_and_writes_nothing(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    agenda.world.treatments.update(LIMPIEZA_ID, active=False)
+    before = agenda.snapshot()
+    body = {**_book_body(monday(16).isoformat()), "treatment_id": LIMPIEZA_ID}
+
+    response = auth_client.post(BASE, json=body, headers=reception)
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "TREATMENT_NOT_AVAILABLE"
+    assert agenda.snapshot() == before
+
+
+def test_a_treatment_the_professional_does_not_offer_is_409_not_available(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    agenda.world.treatments.replace_for_professional(PROF_A, [CONSULTA_ID])
+    body = {**_book_body(monday(16).isoformat()), "treatment_id": LIMPIEZA_ID}
+
+    response = auth_client.post(BASE, json=body, headers=reception)
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "TREATMENT_NOT_AVAILABLE"
+
+
+def test_an_unknown_treatment_is_404_not_found(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    before = agenda.snapshot()
+    body = {**_book_body(monday(16).isoformat()), "treatment_id": "no-existe"}
+
+    response = auth_client.post(BASE, json=body, headers=reception)
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "TREATMENT_NOT_FOUND"
+    assert agenda.snapshot() == before
+
+
+def test_rescheduling_ignores_a_treatment_in_the_body_and_keeps_the_original(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    created = auth_client.post(
+        BASE,
+        json={**_book_body(monday(16).isoformat()), "treatment_id": LIMPIEZA_ID},
+        headers=reception,
+    ).json()
+
+    response = auth_client.post(
+        f"{BASE}/{created['id']}/reschedule",
+        json={"starts_at": monday(17).isoformat(), "treatment_id": CONSULTA_ID},
+        headers=reception,
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["treatment_id"] == LIMPIEZA_ID

@@ -23,6 +23,8 @@ TABLES = (
     "appointments",
     "email_notifications",
     "clinic_settings",
+    "treatments",
+    "professional_treatments",
 )
 
 
@@ -221,3 +223,124 @@ def test_main_with_missing_timezone_fails_naming_the_variable(
     assert main({PASSWORD_VARIABLE: PASSWORD}, engine=engine) == 1
     assert "CLINIC_TIMEZONE" in capsys.readouterr().err
     assert counts(engine)["users"] == 0
+
+
+# --- Tratamientos de ejemplo (C-17, DD-151) -------------------------------------------------
+
+ALL_FIVE = {"Consulta", "Limpieza dental", "Extracción", "Arreglo de caries", "Blanqueamiento"}
+ANA = "Dra. Ana Alvarez"
+BRUNO = "Dr. Bruno Benitez"
+
+
+def offered_names(engine: Engine, professional: str, *, only_active: bool = True) -> set[str]:
+    sql = (
+        "SELECT t.name FROM treatments t "
+        "JOIN professional_treatments pt ON pt.treatment_id = t.id "
+        "JOIN professionals p ON p.id = pt.professional_id "
+        "WHERE p.display_name = :name"
+    )
+    if only_active:
+        sql += " AND t.active"
+    with engine.connect() as connection:
+        return {str(r[0]) for r in connection.execute(text(sql), {"name": professional})}
+
+
+def test_the_seed_loads_exactly_the_five_active_example_treatments(engine: Engine) -> None:
+    run_seed(engine, password=PASSWORD, timezone=ZONE)
+    with engine.connect() as connection:
+        rows = connection.execute(text("SELECT name, active FROM treatments")).all()
+    assert {str(r[0]) for r in rows} == ALL_FIVE
+    assert len(rows) == 5
+    assert all(r[1] for r in rows)
+
+
+def test_ana_offers_the_five_and_bruno_all_but_whitening(engine: Engine) -> None:
+    run_seed(engine, password=PASSWORD, timezone=ZONE)
+    assert offered_names(engine, ANA) == ALL_FIVE
+    assert offered_names(engine, BRUNO) == ALL_FIVE - {"Blanqueamiento"}
+
+
+def test_both_professionals_are_offered_online_with_different_public_treatments(
+    engine: Engine,
+) -> None:
+    from sqlalchemy.orm import sessionmaker
+
+    from app.infrastructure.db.repositories import SqlAlchemyTreatmentRepository
+
+    run_seed(engine, password=PASSWORD, timezone=ZONE)
+    repo = SqlAlchemyTreatmentRepository(sessionmaker(engine))
+    with engine.connect() as connection:
+        ids = {
+            str(r[0]): str(r[1])
+            for r in connection.execute(text("SELECT display_name, id FROM professionals"))
+        }
+    public = {name: {t.name for t in repo.list_offered(pid)} for name, pid in ids.items()}
+    assert public[ANA] == ALL_FIVE
+    assert public[BRUNO] == ALL_FIVE - {"Blanqueamiento"}
+    assert public[ANA] != public[BRUNO]
+
+
+def test_the_seed_creates_no_appointments_for_the_treatments(engine: Engine) -> None:
+    run_seed(engine, password=PASSWORD, timezone=ZONE)
+    assert counts(engine)["appointments"] == 0
+
+
+def test_later_treatment_changes_are_kept_on_a_second_run(engine: Engine) -> None:
+    run_seed(engine, password=PASSWORD, timezone=ZONE)
+    with engine.begin() as connection:
+        connection.execute(
+            text("UPDATE treatments SET active = false WHERE name = 'Blanqueamiento'")
+        )
+        connection.execute(
+            text(
+                "DELETE FROM professional_treatments WHERE professional_id = "
+                "(SELECT id FROM professionals WHERE display_name = :b) AND treatment_id = "
+                "(SELECT id FROM treatments WHERE name = 'Extracción')"
+            ),
+            {"b": BRUNO},
+        )
+    before = counts(engine)
+    run_seed(engine, password=PASSWORD, timezone=ZONE)
+    assert counts(engine) == before
+    with engine.connect() as connection:
+        assert (
+            scalar(connection, "SELECT active FROM treatments WHERE name = 'Blanqueamiento'")
+            is False
+        )
+    assert "Extracción" not in offered_names(engine, BRUNO)
+
+
+def test_a_renamed_treatment_keeps_its_new_name(engine: Engine) -> None:
+    run_seed(engine, password=PASSWORD, timezone=ZONE)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "UPDATE treatments SET name = 'Limpieza profunda', name_key = 'limpieza profunda' "
+                "WHERE name = 'Limpieza dental'"
+            )
+        )
+    run_seed(engine, password=PASSWORD, timezone=ZONE)
+    with engine.connect() as connection:
+        assert (
+            scalar(connection, "SELECT count(*) FROM treatments WHERE name = 'Limpieza profunda'")
+            == 1
+        )
+
+
+def test_a_database_seeded_before_c17_receives_the_treatments_and_nothing_else_changes(
+    engine: Engine,
+) -> None:
+    run_seed(engine, password=PASSWORD, timezone=ZONE)
+    with engine.begin() as connection:
+        connection.execute(text("DELETE FROM professional_treatments"))
+        connection.execute(text("DELETE FROM treatments"))
+    before = counts(engine)
+    assert before["treatments"] == 0
+    run_seed(engine, password=PASSWORD, timezone=ZONE)
+    after = counts(engine)
+    assert after["treatments"] == 5
+    assert after["professional_treatments"] == 9
+    assert {k: v for k, v in after.items() if not k.endswith("treatments")} == {
+        k: v for k, v in before.items() if not k.endswith("treatments")
+    }
+    assert offered_names(engine, ANA) == ALL_FIVE

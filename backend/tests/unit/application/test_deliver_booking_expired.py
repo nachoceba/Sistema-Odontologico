@@ -174,3 +174,29 @@ def test_a_manual_cancellation_never_yields_a_sendable_expiry_notice() -> None:
     assert row is not None
 
     assert deliver_notification(scenario.deps(), row.id) is DeliveryOutcome.EXPIRED
+
+
+def test_the_expiry_notice_names_the_treatment() -> None:
+    scenario = SendWorld(with_treatment=True)
+    scenario.world.now = FRIDAY_9
+    scenario.world.appointments.change_status(
+        scenario.appointment.id, AppointmentStatus.CANCELLED, EXPIRED_BOOKING_REASON
+    )
+    row = scenario.world.notifications.add_pending_booking_expired(
+        scenario.appointment.id, scenario.appointment.starts_at
+    )
+    assert row is not None
+
+    deliver_notification(scenario.deps(), row.id)
+
+    [email] = scenario.sender.sent
+    assert "Tratamiento: Limpieza dental" in email.body
+
+
+def test_the_expiry_notice_of_a_booking_without_treatment_has_no_line() -> None:
+    scenario, notice = expired_scenario()
+
+    deliver_notification(scenario.deps(), notice)
+
+    [email] = scenario.sender.sent
+    assert "Tratamiento" not in email.body

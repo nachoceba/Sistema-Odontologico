@@ -60,7 +60,12 @@ def test_the_old_slot_becomes_free() -> None:
     reschedule_appointment(world.deps(), original.id, monday(11))
 
     other = book_appointment(
-        world.deps(), RECEPTION, patient_id="pac-2", professional_id=PROF_A, starts_at=monday(10)
+        world.deps(),
+        RECEPTION,
+        patient_id="pac-2",
+        professional_id=PROF_A,
+        treatment_id=world.treatment_id,
+        starts_at=monday(10),
     )
 
     assert other.starts_at == monday(10)
@@ -149,3 +154,37 @@ def test_an_unknown_appointment_is_not_found() -> None:
     world = World()
     with pytest.raises(AppointmentNotFoundError):
         reschedule_appointment(world.deps(), "no-existe", monday(11))
+
+
+# --- Tratamiento (C-17, DD-144) ------------------------------------------------------------
+
+
+def test_rescheduling_keeps_the_treatment() -> None:
+    world = World()
+    original = world.seed(monday(10), treatment_id=world.limpieza.id)
+
+    moved = reschedule_appointment(world.deps(), original.id, monday(11))
+
+    assert moved.treatment_id == world.limpieza.id
+    assert world.appointments.get(original.id) == moved
+
+
+def test_rescheduling_keeps_a_treatment_that_was_deactivated_or_unassigned() -> None:
+    world = World()
+    original = world.seed(monday(10), treatment_id=world.limpieza.id)
+    world.treatments.update(world.limpieza.id, active=False)
+    world.treatments.replace_for_professional(PROF_A, [world.consulta.id])
+
+    moved = reschedule_appointment(world.deps(), original.id, monday(11))
+
+    assert moved.treatment_id == world.limpieza.id
+
+
+def test_rescheduling_an_appointment_without_treatment_keeps_it_without() -> None:
+    world = World()
+    original = world.seed(monday(10))
+
+    moved = reschedule_appointment(world.deps(), original.id, monday(11))
+
+    assert moved.treatment_id is None
+    assert (moved.starts_at, moved.ends_at) == (monday(11), monday(11, 30))

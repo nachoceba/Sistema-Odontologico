@@ -30,6 +30,7 @@ def booked(
     return book_online(
         world.public_deps(hold_minutes=60),
         professional_id=PROF_A,
+        treatment_id=world.treatment_id,
         starts_at=monday(hour),
         document_number=document,
         first_name="Lucía",

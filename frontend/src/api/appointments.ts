@@ -20,6 +20,10 @@ export interface Appointment {
   origin: AppointmentOrigin
   /** No nulo: el turno espera la confirmación del paciente hasta ese instante (UTC). */
   pending_until: string | null
+  /** null: turno anterior a los tratamientos (C-17). */
+  treatment_id: string | null
+  /** Nombre vigente del tratamiento; null si el turno no tiene. */
+  treatment_name: string | null
 }
 
 /** Turno tal como lo devuelven agendar, cancelar, reprogramar y marcar: sin nombre del paciente. */
@@ -34,6 +38,7 @@ export interface AppointmentRecord {
   created_by: string | null
   origin: AppointmentOrigin
   pending_until: string | null
+  treatment_id: string | null
 }
 
 export type AttendanceStatus = 'completed' | 'no_show'
@@ -78,11 +83,13 @@ const appointmentPath = (id: string): string => `/appointments/${encodeURICompon
 export function bookAppointment(input: {
   patientId: string
   professionalId: string
+  treatmentId: string
   startsAt: string
 }): Promise<AppointmentRecord> {
   return send('/appointments', {
     patient_id: input.patientId,
     professional_id: input.professionalId,
+    treatment_id: input.treatmentId,
     starts_at: input.startsAt,
   })
 }

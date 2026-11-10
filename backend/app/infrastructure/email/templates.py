@@ -63,6 +63,12 @@ class EmailData:
     address: str
     phone: str | None
     public_app_url: str = ""  # solo lo usa el aviso de vencimiento (C-16)
+    treatment_name: str | None = None  # C-17: sin nombre, la linea no va
+
+
+def _treatment_lines(treatment_name: str | None) -> list[str]:
+    """La linea ``Tratamiento: <nombre>`` solo si hay nombre (C-17, DD-147)."""
+    return [] if not treatment_name else [f"Tratamiento: {treatment_name}"]
 
 
 def format_local_datetime(instant: datetime, timezone_name: str) -> str:
@@ -89,6 +95,7 @@ def render_email(kind: NotificationKind, data: EmailData) -> tuple[str, str]:
         "",
         f"Fecha y hora: {when}",
         f"Profesional: {data.professional_name}",
+        *_treatment_lines(data.treatment_name),
         f"Consultorio: {data.clinic_name}",
     ]
     if data.address:
@@ -113,6 +120,7 @@ class VerificationEmailData:
     address: str
     phone: str | None
     confirm_url: str
+    treatment_name: str | None = None  # C-17
 
 
 def render_verification_email(data: VerificationEmailData) -> tuple[str, str]:
@@ -125,6 +133,7 @@ def render_verification_email(data: VerificationEmailData) -> tuple[str, str]:
         "",
         "Recibimos tu pedido de turno:",
         f"Profesional: {data.professional_name}",
+        *_treatment_lines(data.treatment_name),
         f"Fecha y hora: {when}",
         "",
         'Para dejarlo confirmado abrí este enlace y tocá "Confirmar mi turno":',
@@ -159,6 +168,7 @@ def _render_booking_expired(data: EmailData) -> tuple[str, str]:
         f"Hola, {data.patient_first_name} {data.patient_last_name}:",
         "",
         f"Profesional: {data.professional_name}",
+        *_treatment_lines(data.treatment_name),
         f"Fecha y hora: {when}",
         "",
         EXPIRED_CANCEL_LINE,

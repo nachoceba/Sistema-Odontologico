@@ -36,7 +36,14 @@ describe('marco común de las pantallas con sesión', () => {
     renderApp('/pacientes')
 
     expect(await screen.findByRole('heading', { name: 'Pacientes' })).toBeInTheDocument()
-    expect(linkNames()).toEqual(['Agenda', 'Pacientes', 'Profesionales', 'Usuarios', 'Salir'])
+    expect(linkNames()).toEqual([
+      'Agenda',
+      'Pacientes',
+      'Profesionales',
+      'Tratamientos',
+      'Usuarios',
+      'Salir',
+    ])
     expect(screen.getByRole('link', { name: 'Pacientes' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Agenda' })).not.toHaveAttribute('aria-current')
   })

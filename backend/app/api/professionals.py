@@ -12,11 +12,14 @@ from datetime import UTC, date, datetime, time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response
-from pydantic import BaseModel, BeforeValidator, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
-from app.api.dependencies import CurrentUser, Schedule, require_role
+from app.api.appointments import EntityId
+from app.api.dependencies import CurrentUser, Schedule, Treatments, require_role
+from app.api.treatments import TreatmentOut
 from app.api.validators import strip_text
 from app.application import professionals as use_cases
+from app.application import treatments as treatment_cases
 from app.domain.appointments.types import WorkingHours
 from app.domain.auth import Principal, Role
 from app.domain.professionals import UNSET, Professional
@@ -133,6 +136,14 @@ class UpdateProfessionalBody(BaseModel):
     license_number: LicenseNumber | None = None
 
 
+class ReplaceTreatmentsBody(BaseModel):
+    """El conjunto completo asignado; como mucho 100 ids (spec treatment-api)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    treatment_ids: Annotated[list[EntityId], Field(max_length=100)]
+
+
 class TimeOffBody(BaseModel):
     starts_on: date
     ends_on: date
@@ -219,3 +230,21 @@ def conflicts(professional_id: str, deps: Schedule, principal: CurrentUser) -> l
         ConflictOut.from_domain(c)
         for c in use_cases.list_conflicts(deps, principal, professional_id)
     ]
+
+
+@router.get("/{professional_id}/treatments")
+def read_treatments(
+    professional_id: str, deps: Treatments, principal: CurrentUser
+) -> list[TreatmentOut]:
+    found = treatment_cases.list_professional_treatments(deps, principal, professional_id)
+    return [TreatmentOut.from_domain(t) for t in found]
+
+
+@router.put("/{professional_id}/treatments")
+def replace_treatments(
+    professional_id: str, body: ReplaceTreatmentsBody, deps: Treatments, principal: AdminUser
+) -> list[TreatmentOut]:
+    saved = treatment_cases.replace_professional_treatments(
+        deps, principal, professional_id, body.treatment_ids
+    )
+    return [TreatmentOut.from_domain(t) for t in saved]

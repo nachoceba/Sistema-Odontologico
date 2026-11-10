@@ -30,11 +30,14 @@ from sqlalchemy.orm import Session
 from app.core.security import hash_password
 from app.domain.appointments.types import WorkingHours
 from app.domain.schedules.validation import validate_working_hours
+from app.domain.treatments.rules import treatment_name_key
 from app.infrastructure.db.enums import UserRole
 from app.infrastructure.db.models import (
     ClinicSettingsModel,
     PatientModel,
     ProfessionalModel,
+    ProfessionalTreatmentModel,
+    TreatmentModel,
     UserModel,
     WorkingHoursModel,
 )
@@ -63,6 +66,7 @@ class ProfessionalSeed:
     display_name: str
     license_number: str
     day_blocks: tuple[tuple[time, time], ...]
+    treatments: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -72,6 +76,14 @@ class PatientSeed:
     document_number: str
     phone: str
 
+
+TREATMENTS = (
+    "Consulta",  # solo consulta, sin procedimiento
+    "Limpieza dental",
+    "Extracción",
+    "Arreglo de caries",
+    "Blanqueamiento",
+)
 
 USERS = (
     UserSeed("admin@example.com", "Administrador Demo", UserRole.ADMIN),
@@ -86,8 +98,15 @@ PROFESSIONALS = (
         "Dra. Ana Alvarez",
         "MAT-0001",
         ((time(9), time(13)), (time(14), time(18))),
+        TREATMENTS,
     ),
-    ProfessionalSeed("dr.b@example.com", "Dr. Bruno Benitez", "MAT-0002", ((time(13), time(20)),)),
+    ProfessionalSeed(
+        "dr.b@example.com",
+        "Dr. Bruno Benitez",
+        "MAT-0002",
+        ((time(13), time(20)),),
+        tuple(name for name in TREATMENTS if name != "Blanqueamiento"),  # filtro por profesional
+    ),
 )
 
 PATIENTS = (
@@ -187,6 +206,45 @@ def _seed_working_hours(
     )
 
 
+def _seed_treatments(session: Session) -> dict[str, uuid.UUID]:
+    """Crea los que faltan (se buscan por nombre normalizado) y devuelve id por nombre."""
+    ids: dict[str, uuid.UUID] = {}
+    for name in TREATMENTS:
+        key = treatment_name_key(name)
+        found = session.scalar(select(TreatmentModel.id).where(TreatmentModel.name_key == key))
+        if found is None:
+            row = TreatmentModel(name=name, name_key=key)
+            session.add(row)
+            session.flush()
+            found = row.id
+        ids[name] = found
+    return ids
+
+
+def _seed_professional_treatments(session: Session, treatment_ids: dict[str, uuid.UUID]) -> None:
+    """La asignacion se carga solo si el profesional no tiene ninguna (no pisa cambios)."""
+    for seed in PROFESSIONALS:
+        user_id = _find_user_id(session, seed.user_email)
+        professional_id = session.scalar(
+            select(ProfessionalModel.id).where(ProfessionalModel.user_id == user_id)
+        )
+        if professional_id is None:  # pragma: no cover  (los profesionales se crean antes)
+            raise SeedError(f"Falta el profesional {seed.display_name}")
+        already = session.scalar(
+            select(func.count())
+            .select_from(ProfessionalTreatmentModel)
+            .where(ProfessionalTreatmentModel.professional_id == professional_id)
+        )
+        if already:
+            continue
+        session.add_all(
+            ProfessionalTreatmentModel(
+                professional_id=professional_id, treatment_id=treatment_ids[name]
+            )
+            for name in seed.treatments
+        )
+
+
 def _seed_clinic_settings(session: Session, timezone: str) -> None:
     if session.get(ClinicSettingsModel, 1) is None:
         session.add(
@@ -228,6 +286,7 @@ def run_seed(engine: Engine, *, password: str, timezone: str) -> None:
     with Session(engine) as session, session.begin():
         _seed_users(session, password)
         _seed_professionals(session)
+        _seed_professional_treatments(session, _seed_treatments(session))
         _seed_clinic_settings(session, timezone)
         _seed_patients(session)
 

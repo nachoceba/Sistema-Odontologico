@@ -33,7 +33,15 @@ function AppointmentLine({
   const origin = originLabel(item)
   const content = (
     <>
-      <span className="appointment-text">{`${range(item.startsAt, item.endsAt)} ${item.patientName}`}</span>{' '}
+      <span className="appointment-text">{`${range(item.startsAt, item.endsAt)} ${item.patientName}`}</span>
+      {item.treatmentName === null ? null : (
+        <>
+          {' '}
+          <span className="appointment-treatment" title={item.treatmentName}>
+            {`· ${item.treatmentName}`}
+          </span>
+        </>
+      )}{' '}
       <span className="status-tag">{STATUS_LABELS[item.status]}</span>
       {origin === null ? null : (
         <>

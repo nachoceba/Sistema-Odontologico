@@ -186,7 +186,17 @@ describe('buildDayColumn: turnos y sus estados', () => {
     })
     const busy = column.rows.find((r) => r.kind === 'busy')
     expect(Object.keys((busy as { appointments: object[] }).appointments[0] ?? {}).sort()).toEqual(
-      ['conflict', 'endsAt', 'id', 'origin', 'patientName', 'pendingUntil', 'startsAt', 'status'],
+      [
+        'conflict',
+        'endsAt',
+        'id',
+        'origin',
+        'patientName',
+        'pendingUntil',
+        'startsAt',
+        'status',
+        'treatmentName',
+      ],
     )
   })
 })

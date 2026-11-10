@@ -28,6 +28,7 @@ from app.infrastructure.db.models import (
     EmailNotificationModel,
     PatientModel,
     ProfessionalModel,
+    TreatmentModel,
     UserModel,
 )
 from app.infrastructure.db.repositories import (
@@ -37,6 +38,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyPatientRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyTimeOffRepository,
+    SqlAlchemyTreatmentRepository,
     SqlAlchemyUserAccountRepository,
     SqlAlchemyWorkingHoursRepository,
 )
@@ -73,6 +75,7 @@ class Scene:
     patient_ids: dict[str, str] = field(default_factory=dict)
     professional_id: str = ""
     reception_id: str = ""
+    treatment_id: str = ""
 
     def headers(self, email: str) -> dict[str, str]:
         response = self.client.post(
@@ -99,6 +102,7 @@ class Scene:
             json={
                 "patient_id": self.patient_ids[patient],
                 "professional_id": self.professional_id,
+                "treatment_id": self.treatment_id,
                 "starts_at": starts_at.isoformat(),
             },
             headers=headers,
@@ -154,6 +158,7 @@ def scene(
         working_hours=SqlAlchemyWorkingHoursRepository(sessions),
         time_off=SqlAlchemyTimeOffRepository(sessions),
         settings=SqlAlchemyClinicSettingsRepository(sessions),
+        treatments=SqlAlchemyTreatmentRepository(sessions),
         unit_of_work=lambda: SqlAlchemyAgendaUnitOfWork(sessions),
         dispatcher=RecordingDispatcher(),
         clock=lambda: current.now,
@@ -164,6 +169,9 @@ def scene(
         }
         current.professional_id = next(
             str(p.id) for p in session.scalars(select(ProfessionalModel)) if "Ana" in p.display_name
+        )
+        current.treatment_id = next(
+            str(t.id) for t in session.scalars(select(TreatmentModel)) if t.name == "Consulta"
         )
         current.reception_id = next(
             str(u.id) for u in session.scalars(select(UserModel)) if u.email == RECEPTION

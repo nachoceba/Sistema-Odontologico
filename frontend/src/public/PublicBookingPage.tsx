@@ -4,17 +4,22 @@ import {
   bookOnline,
   getPublicSlots,
   listPublicProfessionals,
+  listPublicTreatments,
   type PublicProfessional,
   type PublicSlot,
+  type PublicTreatment,
 } from '../api/publicBooking'
 import { LoadingNotice } from '../ui/Notices'
 import { longDayAndTime } from './format'
 import {
   NO_PROFESSIONALS_MESSAGE,
   NO_SLOTS_MESSAGE,
+  NO_TREATMENTS_MESSAGE,
   PROFESSIONALS_FAILED_MESSAGE,
   SLOTS_FAILED_MESSAGE,
+  TREATMENTS_FAILED_MESSAGE,
   lostTheSlot,
+  lostTheTreatment,
   messageForBooking,
 } from './messages'
 import { PublicLayout } from './PublicLayout'
@@ -42,6 +47,7 @@ const EMPTY_FORM: FormData = {
 
 interface Registered {
   professional: string
+  treatment: string | null
   startsAt: string
   confirmBefore: string
 }
@@ -62,6 +68,12 @@ function RegisteredNotice({ registered }: { registered: Registered }) {
       <dl className="detail-list">
         <dt>Profesional</dt>
         <dd>{registered.professional}</dd>
+        {registered.treatment === null ? null : (
+          <>
+            <dt>Tratamiento</dt>
+            <dd>{registered.treatment}</dd>
+          </>
+        )}
         <dt>Día y hora</dt>
         <dd>{longDayAndTime(registered.startsAt)}</dd>
       </dl>
@@ -89,6 +101,8 @@ export default function PublicBookingPage() {
   const [professionalsReload, setProfessionalsReload] = useState(0)
   const professionals = useRemote('professionals', listPublicProfessionals, professionalsReload)
   const [professional, setProfessional] = useState<PublicProfessional | null>(null)
+  const [treatmentsReload, setTreatmentsReload] = useState(0)
+  const [treatment, setTreatment] = useState<PublicTreatment | null>(null)
   const [pickedDay, setPickedDay] = useState<string | null>(null)
   const [slotsReload, setSlotsReload] = useState(0)
   const [slot, setSlot] = useState<PublicSlot | null>(null)
@@ -103,8 +117,13 @@ export default function PublicBookingPage() {
   const days = Array.from({ length: HORIZON_DAYS }, (_, index) => addDays(today, index))
   const day = pickedDay !== null && days.includes(pickedDay) ? pickedDay : today
   const professionalId = professional?.id ?? null
+  const treatments = useRemote(
+    professionalId === null ? null : professionalId,
+    () => listPublicTreatments(professionalId ?? ''),
+    treatmentsReload,
+  )
   const slots = useRemote(
-    professionalId === null ? null : `${professionalId}|${day}`,
+    professionalId === null || treatment === null ? null : `${professionalId}|${day}`,
     () => getPublicSlots(professionalId ?? '', day),
     slotsReload,
   )
@@ -119,6 +138,13 @@ export default function PublicBookingPage() {
 
   function chooseProfessional(next: PublicProfessional) {
     setProfessional(next)
+    setTreatment(null)
+    setSlot(null)
+    setError(null)
+  }
+
+  function chooseTreatment(next: PublicTreatment) {
+    setTreatment(next)
     setSlot(null)
     setError(null)
   }
@@ -135,13 +161,14 @@ export default function PublicBookingPage() {
 
   async function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (inFlight.current || professional === null || slot === null) return
+    if (inFlight.current || professional === null || treatment === null || slot === null) return
     inFlight.current = true
     setSubmitting(true)
     setError(null)
     try {
       const booked = await bookOnline({
         professionalId: professional.id,
+        treatmentId: treatment.id,
         startsAt: slot.starts_at,
         documentNumber: form.document,
         firstName: form.firstName,
@@ -152,11 +179,17 @@ export default function PublicBookingPage() {
       })
       setRegistered({
         professional: professional.display_name,
+        treatment: booked.treatment_name ?? treatment.name,
         startsAt: slot.starts_at,
         confirmBefore: booked.confirm_before,
       })
     } catch (failure) {
       setError(messageForBooking(failure))
+      if (lostTheTreatment(failure)) {
+        setTreatment(null)
+        setSlot(null)
+        setTreatmentsReload((count) => count + 1)
+      }
       if (lostTheSlot(failure)) {
         setSlot(null)
         setSlotsReload((count) => count + 1)
@@ -171,7 +204,7 @@ export default function PublicBookingPage() {
     <PublicLayout>
       <h1>Reservar un turno</h1>
       <p className="hint">
-        Elija el profesional, el día y el horario. Después le pedimos sus datos y le enviamos un
+        Elija el profesional, el tratamiento, el día y el horario. Después le pedimos sus datos y le enviamos un
         email para confirmar.
       </p>
 
@@ -207,6 +240,41 @@ export default function PublicBookingPage() {
       ) : null}
 
       {professional === null ? null : (
+        <>
+          <h2>Tratamiento</h2>
+          {treatments.status === 'loading' ? <LoadingNotice /> : null}
+          {treatments.status === 'error' ? (
+            <Retry
+              message={TREATMENTS_FAILED_MESSAGE}
+              onRetry={() => {
+                setTreatmentsReload((count) => count + 1)
+              }}
+            />
+          ) : null}
+          {treatments.status === 'ready' && treatments.data.length === 0 ? (
+            <p className="notice">{NO_TREATMENTS_MESSAGE}</p>
+          ) : null}
+          {treatments.status === 'ready' && treatments.data.length > 0 ? (
+            <ul className="slot-choices">
+              {treatments.data.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    aria-pressed={treatment?.id === item.id}
+                    onClick={() => {
+                      chooseTreatment(item)
+                    }}
+                  >
+                    {item.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </>
+      )}
+
+      {professional === null || treatment === null ? null : (
         <>
           <h2>Día y horario</h2>
           <label htmlFor="public-day">Día</label>{' '}
@@ -258,7 +326,7 @@ export default function PublicBookingPage() {
 
       {error === null ? null : <p role="alert">{error}</p>}
 
-      {slot === null || professional === null ? null : (
+      {slot === null || professional === null || treatment === null ? null : (
         <form
           className="public-form"
           onSubmit={(event) => {
@@ -266,7 +334,7 @@ export default function PublicBookingPage() {
           }}
         >
           <h2>Sus datos</h2>
-          <p className="hint">{`Turno elegido: ${professional.display_name}, ${longDayAndTime(slot.starts_at)}`}</p>
+          <p className="hint">{`Turno elegido: ${professional.display_name}, ${treatment.name}, ${longDayAndTime(slot.starts_at)}`}</p>
           <label htmlFor="public-document">DNI</label>
           <input
             id="public-document"

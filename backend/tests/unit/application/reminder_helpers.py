@@ -56,6 +56,7 @@ class ReminderWorld:
                 ),
                 patients=self.world.patients,
                 professionals=InMemoryProfessionalRepository(self.world.accounts),
+                treatments=self.world.treatments,
                 settings=settings,
                 sender=self.sender,
                 clock=lambda: self.world.now,

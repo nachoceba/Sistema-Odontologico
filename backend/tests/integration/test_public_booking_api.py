@@ -31,6 +31,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyPatientRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyTimeOffRepository,
+    SqlAlchemyTreatmentRepository,
     SqlAlchemyUserAccountRepository,
     SqlAlchemyWorkingHoursRepository,
 )
@@ -51,11 +52,13 @@ class Scene:
     engine: Engine
     verification: RecordingVerification = field(default_factory=RecordingVerification)
     professional_id: str = ""
+    treatment_id: str = ""
     patient_documents: dict[str, str] = field(default_factory=dict)
 
     def book(self, **overrides: object) -> Response:
         body: dict[str, object] = {
             "professional_id": self.professional_id,
+            "treatment_id": self.treatment_id,
             "starts_at": at(10).isoformat(),
             "document_number": "41000111",
             "first_name": "Lucia",
@@ -88,6 +91,7 @@ def scene(
             working_hours=SqlAlchemyWorkingHoursRepository(session_factory),
             time_off=SqlAlchemyTimeOffRepository(session_factory),
             settings=SqlAlchemyClinicSettingsRepository(session_factory),
+            treatments=SqlAlchemyTreatmentRepository(session_factory),
             unit_of_work=lambda: SqlAlchemyAgendaUnitOfWork(session_factory),
             dispatcher=RecordingDispatcher(),
             clock=lambda: NOW,
@@ -109,6 +113,8 @@ def scene(
     )
     listed = current.client.get(f"{PUBLIC}/professionals").json()
     current.professional_id = next(p["id"] for p in listed if "Ana" in p["display_name"])
+    offered = current.client.get(f"{PUBLIC}/professionals/{current.professional_id}/treatments")
+    current.treatment_id = next(t["id"] for t in offered.json() if t["name"] == "Consulta")
     yield current
     get_settings.cache_clear()
 

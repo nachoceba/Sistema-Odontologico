@@ -22,6 +22,7 @@ from app.domain.notifications import (
 from app.domain.patients.ports import PatientRepository
 from app.domain.professionals import ProfessionalRepository
 from app.domain.settings.ports import ClinicSettingsRepository
+from app.domain.treatments.ports import TreatmentRepository
 from app.infrastructure.email.templates import VerificationEmailData, render_verification_email
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ class VerificationDeps:
     appointments: AppointmentRepository
     patients: PatientRepository
     professionals: ProfessionalRepository
+    treatments: TreatmentRepository
     settings: ClinicSettingsRepository
     sender: EmailSender
     clock: Callable[[], datetime]
@@ -63,6 +65,9 @@ def send_verification(
     if patient is None or appointment.pending_until is None or professional is None:
         return _log(appointment_id, DeliveryOutcome.FAILED)
     clinic = deps.settings.get()
+    treatment = (
+        None if appointment.treatment_id is None else deps.treatments.get(appointment.treatment_id)
+    )
     subject, body = render_verification_email(
         VerificationEmailData(
             patient_first_name=patient.first_name,
@@ -75,6 +80,7 @@ def send_verification(
             address=clinic.address,
             phone=clinic.phone,
             confirm_url=f"{deps.public_app_url}/turnos/confirmar#token={token}",
+            treatment_name=None if treatment is None else treatment.name,
         )
     )
     try:

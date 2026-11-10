@@ -263,6 +263,9 @@ describe('barra de navegación y pedidos de la agenda', () => {
       target: { value: 'perez' },
     })
     fireEvent.click(await screen.findByRole('button', { name: 'Perez, Juan' }))
+    const select = await screen.findByLabelText('Tratamiento')
+    await screen.findByRole('option', { name: 'Consulta' })
+    fireEvent.change(select, { target: { value: 't-consulta' } })
     fireEvent.click(screen.getByRole('button', { name: 'Agendar turno' }))
 
     expect(await screen.findByText('09:00–09:30 Perez, Juan')).toBeInTheDocument()

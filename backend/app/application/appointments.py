@@ -52,6 +52,9 @@ from app.domain.public_booking.errors import PendingConfirmationError
 from app.domain.schedules import TimeOffRepository, WorkingHoursRepository
 from app.domain.settings.ports import ClinicSettingsRepository
 from app.domain.settings.types import ClinicSettings
+from app.domain.treatments.errors import TreatmentNotAvailableError, TreatmentNotFoundError
+from app.domain.treatments.ports import TreatmentRepository
+from app.domain.treatments.rules import BookingCheck, check_treatment_for_booking
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +70,7 @@ class AgendaDeps:
     appointments: AppointmentRepository
     patients: PatientRepository
     professionals: ProfessionalRepository
+    treatments: TreatmentRepository
     working_hours: WorkingHoursRepository
     time_off: TimeOffRepository
     settings: ClinicSettingsRepository
@@ -119,14 +123,20 @@ def book_appointment(
     *,
     patient_id: str,
     professional_id: str,
+    treatment_id: str,
     starts_at: datetime,
 ) -> Appointment:
-    """Agenda un turno; un unico motivo de rechazo, en el orden fijo de la spec."""
+    """Agenda un turno; un unico motivo de rechazo, en el orden fijo de la spec.
+
+    Orden: paciente y profesional existen y estan activos -> tratamiento (C-17, DD-142) ->
+    reglas de horario -> escritura.
+    """
     patient = deps.patients.get(patient_id)
     if patient is None:
         raise PatientNotFoundError
     professional = _require_professional(deps, professional_id)
     _require_active(patient, professional)
+    require_treatment_for_booking(deps, professional_id, treatment_id)
     ends_at = validated_end(deps, patient_id, professional_id, starts_at)
     with deps.unit_of_work() as uow:
         saved = uow.appointments.add(
@@ -136,11 +146,32 @@ def book_appointment(
                 starts_at=starts_at,
                 ends_at=ends_at,
                 created_by=principal.user_id,
+                treatment_id=treatment_id,
             )
         )
         confirmation = uow.notifications.add_pending_confirmation(saved.id, saved.starts_at)
     _dispatch(deps, [confirmation])
     return saved
+
+
+def check_booking_treatment(
+    deps: AgendaDeps, professional_id: str, treatment_id: str
+) -> BookingCheck:
+    """Aplica la regla pura al tratamiento y a lo que el profesional ofrece hoy."""
+    return check_treatment_for_booking(
+        deps.treatments.get(treatment_id), deps.treatments.offered_ids(professional_id)
+    )
+
+
+def require_treatment_for_booking(
+    deps: AgendaDeps, professional_id: str, treatment_id: str
+) -> None:
+    """Inexistente: TREATMENT_NOT_FOUND; inactivo o no ofrecido: TREATMENT_NOT_AVAILABLE."""
+    result = check_booking_treatment(deps, professional_id, treatment_id)
+    if result is BookingCheck.NOT_FOUND:
+        raise TreatmentNotFoundError
+    if result is not BookingCheck.OK:
+        raise TreatmentNotAvailableError
 
 
 def _require_active(patient: Patient, professional: Professional) -> None:
@@ -237,27 +268,35 @@ def list_appointments(
 
 @dataclass(frozen=True)
 class AppointmentView:
-    """Un turno con el nombre vigente del paciente (C-09, DD-79); forma de lectura."""
+    """Un turno con el nombre vigente del paciente y del tratamiento (DD-79, DD-150)."""
 
     appointment: Appointment
     patient_first_name: str
     patient_last_name: str
+    treatment_name: str | None = None  # nulo: turno anterior a C-17 (DD-148)
 
 
-def _with_patient_names(
-    deps: AgendaDeps, appointments: Sequence[Appointment]
-) -> list[AppointmentView]:
-    """Completa nombres con una lectura por paciente distinto (design D-1)."""
-    names: dict[str, tuple[str, str]] = {}
+def _with_names(deps: AgendaDeps, appointments: Sequence[Appointment]) -> list[AppointmentView]:
+    """Completa nombres con una lectura por paciente y por tratamiento distintos (design D-1)."""
+    patients: dict[str, tuple[str, str]] = {}
+    treatments: dict[str, str] = {}
     views: list[AppointmentView] = []
     for appointment in appointments:
-        if appointment.patient_id not in names:
+        if appointment.patient_id not in patients:
             patient = deps.patients.get(appointment.patient_id)
             if patient is None:
                 raise LookupError("turno con paciente inexistente")
-            names[appointment.patient_id] = (patient.first_name, patient.last_name)
-        first_name, last_name = names[appointment.patient_id]
-        views.append(AppointmentView(appointment, first_name, last_name))
+            patients[appointment.patient_id] = (patient.first_name, patient.last_name)
+        treatment_name = None
+        if appointment.treatment_id is not None:
+            if appointment.treatment_id not in treatments:
+                treatment = deps.treatments.get(appointment.treatment_id)
+                if treatment is None:
+                    raise LookupError("turno con tratamiento inexistente")
+                treatments[appointment.treatment_id] = treatment.name
+            treatment_name = treatments[appointment.treatment_id]
+        first_name, last_name = patients[appointment.patient_id]
+        views.append(AppointmentView(appointment, first_name, last_name, treatment_name))
     return views
 
 
@@ -266,7 +305,7 @@ def get_appointment_view(
 ) -> AppointmentView:
     """``get_appointment`` con el nombre del paciente; el 403 sale antes de leer pacientes."""
     appointment = get_appointment(deps, principal, appointment_id)
-    return _with_patient_names(deps, [appointment])[0]
+    return _with_names(deps, [appointment])[0]
 
 
 def list_appointment_views(
@@ -277,9 +316,7 @@ def list_appointment_views(
     end: datetime,
 ) -> list[AppointmentView]:
     """``list_appointments`` con el nombre del paciente de cada turno."""
-    return _with_patient_names(
-        deps, list_appointments(deps, principal, professional_id, start, end)
-    )
+    return _with_names(deps, list_appointments(deps, principal, professional_id, start, end))
 
 
 def day_slots(

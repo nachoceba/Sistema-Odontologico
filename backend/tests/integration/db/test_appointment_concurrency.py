@@ -36,6 +36,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyPatientRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyTimeOffRepository,
+    SqlAlchemyTreatmentRepository,
     SqlAlchemyWorkingHoursRepository,
 )
 from app.infrastructure.notifications import NoOpNotificationDispatcher
@@ -116,6 +117,7 @@ def new_appointment(
     return NewAppointment(
         patient_id=str(world.ana),
         professional_id=str(world.dra_a),
+        treatment_id=str(world.consulta),
         starts_at=starts_at,
         ends_at=starts_at + timedelta(minutes=30),
         created_by=str(world.reception),
@@ -203,6 +205,7 @@ def gated_deps(sessions: sessionmaker[Session], gate: threading.Barrier) -> Agen
         working_hours=SqlAlchemyWorkingHoursRepository(sessions),
         time_off=SqlAlchemyTimeOffRepository(sessions),
         settings=SqlAlchemyClinicSettingsRepository(sessions),
+        treatments=SqlAlchemyTreatmentRepository(sessions),
         unit_of_work=lambda: GatedUnitOfWork(SqlAlchemyAgendaUnitOfWork(sessions), gate),
         dispatcher=NoOpNotificationDispatcher(),
         clock=lambda: NOW,
@@ -263,6 +266,7 @@ def test_two_bookings_that_both_validated_leave_one_appointment_and_one_slot_tak
             principal,
             patient_id=str(patient),
             professional_id=str(world.dra_a),
+            treatment_id=str(world.consulta),
             starts_at=at(10),
         )
 
@@ -296,6 +300,7 @@ def test_rescheduling_competes_with_booking_and_exactly_one_wins(
                 principal,
                 patient_id=str(world.ana),
                 professional_id=str(world.dra_a),
+                treatment_id=str(world.consulta),
                 starts_at=at(11),
             )
         ),
@@ -330,6 +335,7 @@ def test_simultaneous_bookings_with_different_professionals_both_succeed(
             principal,
             patient_id=str(patient),
             professional_id=str(professional),
+            treatment_id=str(world.consulta),
             starts_at=at(10),
         )
 
@@ -342,3 +348,40 @@ def test_simultaneous_bookings_with_different_professionals_both_succeed(
     assert [outcome.error for _, outcome in pairs] == [None, None]
     assert scheduled_count(engine, world.dra_a) == 1
     assert scheduled_count(engine, world.dr_b) == 1
+
+
+def test_two_bookings_with_different_treatments_for_the_same_slot_leave_one(
+    engine: Engine, world: World, sessions: sessionmaker[Session]
+) -> None:
+    """Regla dura 6: el tratamiento no cambia la duracion ni deja que se superpongan (C-17)."""
+    gate = threading.Barrier(2)
+    deps = gated_deps(sessions, gate)
+    principal = principal_for(world)
+
+    def book(patient: Any, treatment: Any) -> Callable[[], Appointment]:
+        return lambda: book_appointment(
+            deps,
+            principal,
+            patient_id=str(patient),
+            professional_id=str(world.dra_a),
+            treatment_id=str(treatment),
+            starts_at=at(10),
+        )
+
+    pairs = [
+        run_in_thread(book(world.juan, world.consulta)),
+        run_in_thread(book(world.ana, world.limpieza)),
+    ]
+    finish(*pairs)
+
+    outcomes = [outcome for _, outcome in pairs]
+    errors = [o.error for o in outcomes if o.error is not None]
+    assert len(errors) == 1
+    assert isinstance(errors[0], SlotTakenError)
+    assert scheduled_count(engine, world.dra_a) == 1
+    with engine.connect() as connection:
+        durations = {
+            row[0]
+            for row in connection.execute(text("SELECT ends_at - starts_at FROM appointments"))
+        }
+    assert durations == {timedelta(minutes=30)}

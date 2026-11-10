@@ -1,18 +1,22 @@
-import { fireEvent, screen, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, saveToken } from '../auth/session'
 import {
   BASE,
+  CONSULTA_PUB,
   DRA_A,
+  LIMPIEZA_PUB,
   LUCIA,
   REGISTERED,
   SLOT_1030,
   SLOT_1100,
   SLOTS_URL,
+  TREATMENTS_URL,
   fillForm,
   jsonResponse,
   mockApi,
   pickSlot,
+  pickTreatment,
   renderBooking,
   useFixedClock,
 } from './harness'
@@ -77,7 +81,7 @@ describe('PublicBookingPage: profesional, día y franja', () => {
     })
     renderBooking()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Dra. A' }))
+    await pickTreatment()
 
     expect(await screen.findByRole('button', { name: '10:30' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '11:00' })).toBeInTheDocument()
@@ -99,7 +103,7 @@ describe('PublicBookingPage: profesional, día y franja', () => {
         jsonResponse([{ starts_at: '2026-11-10T12:00:00Z', ends_at: '2026-11-10T12:30:00Z' }]),
     })
     renderBooking()
-    fireEvent.click(await screen.findByRole('button', { name: 'Dra. A' }))
+    await pickTreatment()
     await screen.findByRole('button', { name: '10:30' })
 
     fireEvent.change(screen.getByLabelText('Día'), { target: { value: '2026-11-10' } })
@@ -112,7 +116,7 @@ describe('PublicBookingPage: profesional, día y franja', () => {
     mockApi({ ...PROFESSIONALS, [SLOTS_URL]: () => jsonResponse([]) })
     renderBooking()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Dra. A' }))
+    await pickTreatment()
 
     expect(
       await screen.findByText('No hay horarios libres para este día. Pruebe con otro.'),
@@ -130,7 +134,7 @@ describe('PublicBookingPage: profesional, día y franja', () => {
     })
     renderBooking()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Dra. A' }))
+    await pickTreatment()
 
     expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos cargar los horarios')
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
@@ -182,7 +186,7 @@ describe('PublicBookingPage: datos del paciente y envío', () => {
     expect(screen.getByLabelText('Teléfono (opcional)')).not.toBeRequired()
     expect(fetchMock.mock.calls.length).toBe(before)
     expect(
-      screen.getByText('Turno elegido: Dra. A, lunes 09/11/2026, 10:30'),
+      screen.getByText('Turno elegido: Dra. A, Limpieza dental, lunes 09/11/2026, 10:30'),
     ).toBeInTheDocument()
   })
 
@@ -216,6 +220,7 @@ describe('PublicBookingPage: datos del paciente y envío', () => {
     expect(url).toBe(`${BASE}/public/appointments`)
     expect(JSON.parse(init.body as string)).toEqual({
       professional_id: 'p-1',
+      treatment_id: 't-2',
       starts_at: SLOT_1030.starts_at,
       document_number: '40999888',
       first_name: 'Lucía',
@@ -273,7 +278,7 @@ describe('PublicBookingPage: datos del paciente y envío', () => {
       'POST /public/appointments': () => error(409, 'SLOT_TAKEN'),
     })
     renderBooking()
-    fireEvent.click(await screen.findByRole('button', { name: 'Dra. A' }))
+    await pickTreatment()
     fireEvent.click(await screen.findByRole('button', { name: '11:00' }))
     await screen.findByLabelText('DNI')
     fillForm(LUCIA)
@@ -347,5 +352,133 @@ describe('PublicBookingPage: datos del paciente y envío', () => {
     release(jsonResponse(REGISTERED, 202))
     await screen.findByRole('heading', { name: 'Turno registrado exitosamente' })
     expect(postsOf(fetchMock)).toHaveLength(1)
+  })
+})
+
+describe('PublicBookingPage: tratamiento (C-17)', () => {
+  it('después del profesional muestra sus tratamientos y todavía no el día ni las franjas', async () => {
+    const fetchMock = mockApi({ ...PROFESSIONALS, [SLOTS_URL]: () => jsonResponse([SLOT_1030]) })
+    renderBooking()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Dra. A' }))
+
+    expect(await screen.findByRole('button', { name: 'Consulta' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Limpieza dental' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Día')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '10:30' })).not.toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/slots'),
+      expect.anything(),
+    )
+  })
+
+  it('al elegir el tratamiento aparecen el día y las franjas, y el turno elegido lo incluye', async () => {
+    mockApi({ ...PROFESSIONALS, [SLOTS_URL]: () => jsonResponse([SLOT_1030]) })
+    renderBooking()
+
+    await pickSlot()
+
+    expect(screen.getByRole('button', { name: 'Limpieza dental' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(
+      screen.getByText('Turno elegido: Dra. A, Limpieza dental, lunes 09/11/2026, 10:30'),
+    ).toBeInTheDocument()
+  })
+
+  it('cambiar de tratamiento conserva el día y borra la franja', async () => {
+    mockApi({
+      ...PROFESSIONALS,
+      [SLOTS_URL]: () => jsonResponse([SLOT_1030]),
+      'GET /public/professionals/p-1/slots?date=2026-11-10': () =>
+        jsonResponse([{ starts_at: '2026-11-10T12:00:00Z', ends_at: '2026-11-10T12:30:00Z' }]),
+    })
+    renderBooking()
+    await pickTreatment()
+    fireEvent.change(await screen.findByLabelText('Día'), { target: { value: '2026-11-10' } })
+    fireEvent.click(await screen.findByRole('button', { name: '09:00' }))
+    await screen.findByLabelText('DNI')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Consulta' }))
+
+    expect(screen.getByLabelText('Día')).toHaveValue('2026-11-10')
+    expect(screen.queryByLabelText('DNI')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '09:00' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('cambiar de profesional borra el tratamiento y la franja y pide los tratamientos del nuevo', async () => {
+    const DR_B = { id: 'p-2', display_name: 'Dr. B' }
+    mockApi({
+      'GET /public/professionals': () => jsonResponse([DRA_A, DR_B]),
+      [SLOTS_URL]: () => jsonResponse([SLOT_1030]),
+      'GET /public/professionals/p-2/treatments': () => jsonResponse([CONSULTA_PUB]),
+    })
+    renderBooking()
+    await pickSlot()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dr. B' }))
+
+    expect(await screen.findByRole('button', { name: 'Consulta' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    expect(screen.queryByRole('button', { name: 'Limpieza dental' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Día')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('DNI')).not.toBeInTheDocument()
+  })
+
+  it('muestra la carga de los tratamientos y, si fallan, un aviso con reintento', async () => {
+    let calls = 0
+    mockApi({
+      ...PROFESSIONALS,
+      [TREATMENTS_URL]: () => {
+        calls += 1
+        return calls === 1 ? error(500, 'INTERNAL_ERROR') : jsonResponse([CONSULTA_PUB])
+      },
+    })
+    renderBooking()
+    fireEvent.click(await screen.findByRole('button', { name: 'Dra. A' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No pudimos cargar los tratamientos',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+
+    expect(await screen.findByRole('button', { name: 'Consulta' })).toBeInTheDocument()
+  })
+
+  it('TREATMENT_NOT_AVAILABLE avisa, vuelve a pedir la lista, borra el tratamiento y conserva los datos', async () => {
+    let calls = 0
+    mockApi({
+      ...PROFESSIONALS,
+      [SLOTS_URL]: () => jsonResponse([SLOT_1030]),
+      [TREATMENTS_URL]: () => {
+        calls += 1
+        return jsonResponse(calls === 1 ? [CONSULTA_PUB, LIMPIEZA_PUB] : [CONSULTA_PUB])
+      },
+      'POST /public/appointments': () => error(409, 'TREATMENT_NOT_AVAILABLE'),
+    })
+    renderBooking()
+    await pickSlot()
+    fillForm(LUCIA)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reservar turno' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'El tratamiento elegido ya no está disponible. Elija otro.',
+    )
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Limpieza dental' })).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: 'Consulta' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    // Elegir otro tratamiento y la franja devuelve el formulario con los datos escritos.
+    fireEvent.click(screen.getByRole('button', { name: 'Consulta' }))
+    fireEvent.click(await screen.findByRole('button', { name: '10:30' }))
+    expect(await screen.findByLabelText('DNI')).toHaveValue('40999888')
+    expect(screen.getByLabelText('Apellido')).toHaveValue('Díaz')
   })
 })

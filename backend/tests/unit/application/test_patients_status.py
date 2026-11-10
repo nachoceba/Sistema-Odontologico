@@ -78,6 +78,7 @@ def test_after_deactivating_the_patient_cannot_be_booked() -> None:
             RECEPTION,
             patient_id="pac-1",
             professional_id=PROF_A,
+            treatment_id=world.treatment_id,
             starts_at=monday(10),
         )
     assert world.everything() == before
@@ -107,6 +108,7 @@ def test_cancelling_an_appointment_of_an_inactive_patient_is_still_allowed() -> 
         RECEPTION,
         patient_id="pac-1",
         professional_id=PROF_A,
+        treatment_id=world.treatment_id,
         starts_at=monday(10),
     )
     deactivate_patient(world.patient_deps(), RECEPTION, "pac-1")
@@ -118,6 +120,7 @@ def test_cancelling_an_appointment_of_an_inactive_patient_is_still_allowed() -> 
         RECEPTION,
         patient_id="pac-2",
         professional_id=PROF_A,
+        treatment_id=world.treatment_id,
         starts_at=monday(10),
     )
     assert again.status is AppointmentStatus.SCHEDULED
@@ -169,6 +172,7 @@ def test_reactivating_lets_the_patient_receive_appointments_again() -> None:
         RECEPTION,
         patient_id="pac-2",
         professional_id=PROF_A,
+        treatment_id=world.treatment_id,
         starts_at=monday(10),
     )
     assert booked.patient_id == "pac-2"
@@ -207,6 +211,7 @@ def test_reactivating_does_not_allow_overlapping_a_scheduled_appointment() -> No
         RECEPTION,
         patient_id="pac-1",
         professional_id=PROF_A,
+        treatment_id=world.treatment_id,
         starts_at=monday(10),
     )
     reactivate_patient(world.patient_deps(), RECEPTION, "pac-2")
@@ -216,6 +221,7 @@ def test_reactivating_does_not_allow_overlapping_a_scheduled_appointment() -> No
             RECEPTION,
             patient_id="pac-2",
             professional_id=PROF_A,
+            treatment_id=world.treatment_id,
             starts_at=monday(10),
         )
     scheduled = [a for a in world.everything() if a.status is AppointmentStatus.SCHEDULED]

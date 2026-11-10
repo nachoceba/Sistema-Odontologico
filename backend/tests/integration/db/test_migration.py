@@ -72,7 +72,7 @@ def test_upgrade_creates_tables_enums_extension_and_exclusion_constraint(fresh_u
     engine = create_engine(fresh_url)
     try:
         assert own_tables(engine) == set(APP_TABLES)
-        assert len(APP_TABLES) == 8
+        assert len(APP_TABLES) == 10
         assert own_enums(engine) == ENUM_VALUES
         with engine.connect() as connection:
             extension = connection.execute(

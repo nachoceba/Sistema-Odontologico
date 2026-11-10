@@ -12,7 +12,7 @@ from kombu.exceptions import OperationalError
 from app.domain.appointments import NotificationStatus
 from app.infrastructure.tasks.dispatcher import CeleryNotificationDispatcher
 from tests.unit.api.conftest import AgendaScene, bearer, login_token
-from tests.unit.application.agenda_helpers import PROF_A
+from tests.unit.application.agenda_helpers import CONSULTA_ID, PROF_A
 from tests.unit.domain.appointments.helpers import monday
 
 BASE = "/api/v1/appointments"
@@ -44,7 +44,12 @@ def reception(auth_client: TestClient) -> dict[str, str]:
 
 
 def body(starts_at: str, patient_id: str = "pac-1") -> dict[str, str]:
-    return {"patient_id": patient_id, "professional_id": PROF_A, "starts_at": starts_at}
+    return {
+        "patient_id": patient_id,
+        "professional_id": PROF_A,
+        "treatment_id": CONSULTA_ID,
+        "starts_at": starts_at,
+    }
 
 
 def test_booking_publishes_one_task_with_the_new_confirmation_id(

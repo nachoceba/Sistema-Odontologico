@@ -43,6 +43,7 @@ C-13 deploy-and-hardening  ← C-04, C-10, C-12   [x] archivado (2026-11-07)
  └── C-14 ui-visual-refresh   [x] archivado (2026-11-07)  (+ C-04, C-06, C-07, C-09, C-10)
       └── C-15 public-patient-booking   [x] archivado (2026-11-10)  (+ C-08, C-09, C-11, C-12)
            └── C-16 online-booking-expiry   [x] archivado (2026-11-10)  (+ C-15)
+                └── C-17 appointment-treatments   [x] archivado (2026-11-10)  (+ C-07, C-08, C-10, C-11, C-15, C-16)
 ```
 
 ### Paralelismo por fase
@@ -587,6 +588,23 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
   - `openspec/changes/public-patient-booking/design.md` (D-6, D-7)
   - `knowledge-base/11_recordatorios_email.md`
 
+### [C-17] `appointment-treatments`
+- **Estado**: archivado el 2026-11-10 en `openspec/changes/archive/2026-11-10-appointment-treatments/` (`openspec validate appointment-treatments --strict` válido): 2186 tests por defecto, 446 de integración (1 omitido), 8 de smoke y 560 de frontend; `mypy --strict app/` y `ruff check` limpios. Decisiones DD-141 a DD-151. Specs principales nuevas en `openspec/specs/treatment-management/spec.md`, `openspec/specs/treatment-api/spec.md` y `openspec/specs/frontend-treatment-management/spec.md`; modificadas `openspec/specs/database-schema/spec.md`, `openspec/specs/appointment-use-cases/spec.md`, `openspec/specs/appointment-api/spec.md`, `openspec/specs/public-booking/spec.md`, `openspec/specs/public-booking-api/spec.md`, `openspec/specs/access-control/spec.md`, `openspec/specs/email-templates/spec.md`, `openspec/specs/seed-data/spec.md`, `openspec/specs/frontend-appointment-management/spec.md`, `openspec/specs/frontend-agenda/spec.md` y `openspec/specs/frontend-public-booking/spec.md`.
+- **Scope**:
+  - Catálogo de tratamientos (`treatments`) y tratamientos que ofrece cada profesional (`professional_treatments`); migración `0005_treatments`
+  - `appointments.treatment_id` nullable en la base y obligatorio en la API y los casos de uso para todo turno nuevo, de recepción o reservado online; los turnos anteriores quedan sin tratamiento
+  - Cinco endpoints internos (catálogo y asignación por profesional) y un endpoint público de solo lectura (`GET /api/v1/public/professionals/{id}/treatments`, solo id y nombre) con su excepción en la regla dura 4
+  - Códigos `TREATMENT_NOT_FOUND`, `TREATMENT_NOT_AVAILABLE` y `TREATMENT_NAME_TAKEN`
+  - Línea "Tratamiento: <nombre>" en los emails de turno; selector en el panel de agendar, paso de tratamiento en `/turnos`, pantalla `/tratamientos` del administrador y sección en la ficha del profesional
+  - Seed de demostración con 5 tratamientos ficticios
+- **Exclusiones**: duración variable por tratamiento (la duración sigue siendo `slot_minutes`; el constraint `ex_appointments_no_overlap` y `compute_slots` no cambian), cambiar el tratamiento de un turno ya creado, precios y fichas clínicas
+- **Dependencias**: `C-07`, `C-08`, `C-10`, `C-11`, `C-15` y `C-16`
+- **Governance**: ALTO (toca el esquema, el contrato de agendar y un endpoint público)
+- **Leer antes**:
+  - `openspec/changes/archive/2026-11-10-appointment-treatments/design.md`
+  - `knowledge-base/05_reglas_de_negocio.md` (RN-TU-10, RN-TU-16, RN-TR-01)
+  - `knowledge-base/09_decisiones_y_supuestos.md` (DD-141 a DD-151)
+
 ## Tabla resumen
 
 | ID | Change | Fase | Deps | Governance |
@@ -611,5 +629,6 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-14 | ui-visual-refresh (archivado `[x]`) | 6 | C-13 | MEDIO |
 | C-15 | public-patient-booking (archivado `[x]`) | 7 | C-08, C-09, C-11, C-12, C-13, C-14 | ALTO |
 | C-16 | online-booking-expiry (archivado `[x]`) | 7 | C-15 | ALTO |
+| C-17 | appointment-treatments (archivado `[x]`) | 7 | C-07, C-08, C-10, C-11, C-15, C-16 | ALTO |
 
-**Roadmap completo**: los 16 changes están archivados. C-01 a C-16 están implementados y archivados (C-16 el 2026-11-10, en `openspec/changes/archive/2026-11-10-online-booking-expiry/`; C-15 el 2026-11-10, en `openspec/changes/archive/2026-11-10-public-patient-booking/`; C-14 el 2026-11-07, en `openspec/changes/archive/2026-11-07-ui-visual-refresh/`; C-13 el 2026-11-07, en `openspec/changes/archive/2026-11-07-deploy-and-hardening/`). Siguen abiertas en `knowledge-base/10_preguntas_abiertas.md` el proveedor SMTP de producción (SU-02), endurecer sesión y login (DD-46, DD-47, DD-112) y la adopción con una recepcionista real (R-8), además de las preguntas de dominio de prioridad media.
+**Roadmap**: C-01 a C-17 están implementados y archivados (17 de 17, roadmap completo; C-17 `appointment-treatments` el 2026-11-10, en `openspec/changes/archive/2026-11-10-appointment-treatments/`; C-16 el 2026-11-10, en `openspec/changes/archive/2026-11-10-online-booking-expiry/`; C-15 el 2026-11-10, en `openspec/changes/archive/2026-11-10-public-patient-booking/`; C-14 el 2026-11-07, en `openspec/changes/archive/2026-11-07-ui-visual-refresh/`; C-13 el 2026-11-07, en `openspec/changes/archive/2026-11-07-deploy-and-hardening/`). Siguen abiertas en `knowledge-base/10_preguntas_abiertas.md` el proveedor SMTP de producción (SU-02), endurecer sesión y login (DD-46, DD-47, DD-112) y la adopción con una recepcionista real (R-8), además de las preguntas de dominio de prioridad media.

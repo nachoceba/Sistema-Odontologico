@@ -21,6 +21,7 @@ from app.api.dependencies import (
     get_public_booking_deps,
     get_rate_limiter,
     get_schedule_deps,
+    get_treatment_deps,
 )
 from app.domain.auth import Role
 from app.infrastructure.in_memory import InMemoryRateLimiter
@@ -42,6 +43,7 @@ MATRIX: dict[RouteKey, frozenset[Role] | None] = {
     # Reserva online sin cuenta (C-15, design D-10): unica excepcion publica a la regla dura 4.
     ("GET", "/api/v1/public/professionals"): None,
     ("GET", "/api/v1/public/professionals/{professional_id}/slots"): None,
+    ("GET", "/api/v1/public/professionals/{professional_id}/treatments"): None,
     ("POST", "/api/v1/public/appointments"): None,
     ("POST", "/api/v1/public/appointment-confirmations"): None,
     ("GET", "/api/v1/auth/me"): EVERYONE,
@@ -63,6 +65,12 @@ MATRIX: dict[RouteKey, frozenset[Role] | None] = {
     ("DELETE", "/api/v1/professionals/{professional_id}/time-off/{time_off_id}"): ADMIN_ONLY,
     ("GET", "/api/v1/professionals/{professional_id}/conflicts"): EVERYONE,
     ("GET", "/api/v1/professionals/{professional_id}/slots"): EVERYONE,
+    # Catalogo de tratamientos y asignacion por profesional (C-17): lectura todos, escritura admin.
+    ("GET", "/api/v1/treatments"): EVERYONE,
+    ("POST", "/api/v1/treatments"): ADMIN_ONLY,
+    ("PATCH", "/api/v1/treatments/{treatment_id}"): ADMIN_ONLY,
+    ("GET", "/api/v1/professionals/{professional_id}/treatments"): EVERYONE,
+    ("PUT", "/api/v1/professionals/{professional_id}/treatments"): ADMIN_ONLY,
     # Pacientes: lectura para todos, escritura admin y recepcion, borrado fisico solo admin.
     ("GET", "/api/v1/patients"): EVERYONE,
     ("GET", "/api/v1/patients/{patient_id}"): EVERYONE,
@@ -144,12 +152,13 @@ def test_a_new_route_without_a_row_is_named_by_the_matrix_test(
     assert compare_route_sets(set(MATRIX), registered) == (["GET /api/v1/olvidada"], [])
 
 
-def test_public_routes_in_the_matrix_are_login_health_and_the_online_booking_four() -> None:
+def test_public_routes_in_the_matrix_are_login_health_and_the_online_booking_five() -> None:
     assert set(PUBLIC_KEYS) == {
         ("POST", "/api/v1/auth/login"),
         ("GET", "/api/v1/health"),
         ("GET", "/api/v1/public/professionals"),
         ("GET", "/api/v1/public/professionals/{professional_id}/slots"),
+        ("GET", "/api/v1/public/professionals/{professional_id}/treatments"),
         ("POST", "/api/v1/public/appointments"),
         ("POST", "/api/v1/public/appointment-confirmations"),
     }
@@ -168,6 +177,7 @@ def world_client(auth_app: tuple[FastAPI, TestClient]) -> tuple[TestClient, dict
     app.dependency_overrides[get_agenda_deps] = world.deps
     app.dependency_overrides[get_schedule_deps] = world.schedule_deps
     app.dependency_overrides[get_patient_deps] = world.patient_deps
+    app.dependency_overrides[get_treatment_deps] = world.treatment_deps
     app.dependency_overrides[get_public_booking_deps] = world.public_deps
     app.dependency_overrides[get_rate_limiter] = lambda: InMemoryRateLimiter(lambda: world.now)
     if not _TOKENS:

@@ -144,3 +144,26 @@ describe('AppointmentDetail: turnos online (DD-133)', () => {
     expect(screen.queryByText(/Pendiente de confirmación/)).not.toBeInTheDocument()
   })
 })
+
+describe('AppointmentDetail: tratamiento (C-17)', () => {
+  it('muestra la fila Tratamiento con el nombre y ninguna acción para cambiarlo', () => {
+    renderDetail(turno(10, 0, 10, 30, { treatment_id: 't-1', treatment_name: 'Extracción' }), ALL)
+
+    expect(screen.getByText('Tratamiento')).toBeInTheDocument()
+    expect(screen.getByText('Extracción')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /tratamiento/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+  })
+
+  it('un turno anterior a C-17 dice Sin tratamiento', () => {
+    renderDetail(turno(10, 0, 10, 30), ALL)
+
+    expect(screen.getByText('Sin tratamiento')).toBeInTheDocument()
+  })
+
+  it('el odontólogo también lo ve, sin acciones', () => {
+    renderDetail(turno(10, 0, 10, 30, { treatment_id: 't-2', treatment_name: 'Consulta' }), NONE)
+
+    expect(screen.getByText('Consulta')).toBeInTheDocument()
+  })
+})

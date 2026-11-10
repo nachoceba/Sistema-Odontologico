@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from datetime import datetime
 
 import pytest
@@ -267,3 +268,69 @@ def test_the_logs_carry_no_email_nor_name(caplog: pytest.LogCaptureFixture) -> N
     assert "juan@example.com" not in text
     assert "Pérez" not in text
     assert "Juan" not in text
+
+
+# --- Tratamiento (C-17, DD-147) ----------------------------------------------------------------
+
+
+def test_the_confirmation_names_the_treatment_after_the_professional() -> None:
+    scenario = at(SendWorld(with_treatment=True))
+
+    deliver_notification(scenario.deps(), scenario.notification.id)
+
+    [email] = scenario.sender.sent
+    assert "Profesional: Dra. A" + chr(10) + "Tratamiento: Limpieza dental" in email.body
+
+
+def test_the_reminder_names_the_treatment_too() -> None:
+    scenario = at(SendWorld(with_treatment=True))
+    reminder = scenario.add_reminder()
+
+    deliver_notification(scenario.deps(), reminder.id)
+
+    [email] = scenario.sender.sent
+    assert "Tratamiento: Limpieza dental" in email.body
+
+
+def test_the_treatment_name_is_the_current_one_at_send_time() -> None:
+    scenario = at(SendWorld(with_treatment=True))
+    scenario.world.treatments.update(scenario.world.limpieza.id, name="Profilaxis")
+
+    deliver_notification(scenario.deps(), scenario.notification.id)
+
+    [email] = scenario.sender.sent
+    assert "Tratamiento: Profilaxis" in email.body
+    assert "Limpieza dental" not in email.body
+
+
+def test_a_deactivated_treatment_still_shows_its_name() -> None:
+    scenario = at(SendWorld(with_treatment=True))
+    scenario.world.treatments.update(scenario.world.limpieza.id, active=False)
+
+    deliver_notification(scenario.deps(), scenario.notification.id)
+
+    [email] = scenario.sender.sent
+    assert "Tratamiento: Limpieza dental" in email.body
+
+
+def test_an_appointment_without_treatment_is_sent_without_the_line() -> None:
+    scenario = at(SendWorld())
+
+    outcome = deliver_notification(scenario.deps(), scenario.notification.id)
+
+    assert outcome is DeliveryOutcome.SENT
+    [email] = scenario.sender.sent
+    assert "Tratamiento" not in email.body
+
+
+def test_a_treatment_that_cannot_be_read_does_not_fail_the_send() -> None:
+    scenario = at(SendWorld())
+    scenario.world.appointments._appointments[scenario.appointment.id] = replace(  # noqa: SLF001
+        scenario.appointment, treatment_id="tratamiento-fantasma"
+    )
+
+    outcome = deliver_notification(scenario.deps(), scenario.notification.id)
+
+    assert outcome is DeliveryOutcome.SENT
+    [email] = scenario.sender.sent
+    assert "Tratamiento" not in email.body

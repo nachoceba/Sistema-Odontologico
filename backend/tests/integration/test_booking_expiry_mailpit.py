@@ -36,6 +36,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyPatientRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyTimeOffRepository,
+    SqlAlchemyTreatmentRepository,
     SqlAlchemyWorkingHoursRepository,
 )
 from app.infrastructure.tasks import wiring
@@ -99,6 +100,7 @@ def _agenda(sessions: sessionmaker[Session], queue: str) -> AgendaDeps:
         working_hours=SqlAlchemyWorkingHoursRepository(sessions),
         time_off=SqlAlchemyTimeOffRepository(sessions),
         settings=SqlAlchemyClinicSettingsRepository(sessions),
+        treatments=SqlAlchemyTreatmentRepository(sessions),
         unit_of_work=lambda: SqlAlchemyAgendaUnitOfWork(sessions),
         dispatcher=CeleryNotificationDispatcher(publish),
         clock=lambda: datetime.now(UTC),
@@ -164,6 +166,7 @@ def test_an_expired_reservation_notifies_the_email_on_file_with_the_professional
         book_online(
             deps,
             professional_id=str(scene.world.dra_a),
+            treatment_id=str(scene.world.limpieza),
             starts_at=_tomorrow_at_10(),
             document_number=scene.document,
             first_name="Juan",
@@ -183,6 +186,7 @@ def test_an_expired_reservation_notifies_the_email_on_file_with_the_professional
     clinic = SqlAlchemyClinicSettingsRepository(session_factory).get().clinic_name
     assert notice["Subject"] == f"Tu turno en {clinic} se canceló por falta de confirmación"
     assert "Profesional: Dra. A" in body
+    assert "Tratamiento: Limpieza dental" in body
     assert "10:00" in body  # hora local del consultorio, no UTC
     assert "13:00" not in body
     assert f"{get_settings().PUBLIC_APP_URL}/turnos." in body
@@ -210,6 +214,7 @@ def test_a_reservation_cancelled_by_the_reception_gets_no_expiry_notice(
         book_online(
             deps,
             professional_id=str(scene.world.dra_a),
+            treatment_id=str(scene.world.limpieza),
             starts_at=_tomorrow_at_10(),
             document_number=scene.document,
             first_name="Juan",

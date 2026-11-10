@@ -56,6 +56,7 @@ class NewAppointment:
     starts_at: datetime
     ends_at: datetime
     created_by: str | None
+    treatment_id: str | None = None  # C-17: obligatorio en la API, nulo en turnos anteriores
 
 
 @dataclass(frozen=True)
@@ -71,6 +72,7 @@ class Appointment:
     cancel_reason: str | None
     created_by: str | None  # None: reserva online (C-15)
     pending_until: datetime | None = None  # no nulo: pendiente de confirmacion (C-15)
+    treatment_id: str | None = None  # nulo: turno anterior a C-17 (DD-148)
 
     def to_existing(self) -> ExistingAppointment:
         """Dato que consumen validate_appointment y compute_slots."""

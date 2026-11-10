@@ -13,6 +13,7 @@ import { ConflictNotice } from '../professionals/ConflictNotice'
 import { NO_FILE_MESSAGE, messageForError } from '../professionals/messages'
 import { ProfileCard } from '../professionals/ProfileCard'
 import { TimeOffPanel } from '../professionals/TimeOffPanel'
+import { TreatmentsPanel } from '../professionals/TreatmentsPanel'
 import { WeekEditor } from '../professionals/WeekEditor'
 import { LoadingNotice } from '../ui/Notices'
 
@@ -68,6 +69,7 @@ function ProfessionalDetail({
   return (
     <article aria-label={`Ficha de ${professional.display_name}`}>
       <ProfileCard professional={professional} editable={editable} onSaved={onSaved} />
+      <TreatmentsPanel professionalId={professional.id} editable={editable} />
       {detail.status === 'loading' ? <LoadingNotice /> : null}
       {detail.status === 'error' ? <p role="alert">{detail.message}</p> : null}
       {detail.status === 'ready' ? (

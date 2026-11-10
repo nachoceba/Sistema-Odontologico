@@ -55,6 +55,25 @@ class Flow:
     slots: list[datetime] = field(default_factory=list)
     patients: dict[str, dict[str, str]] = field(default_factory=dict)
     appointments: dict[str, str] = field(default_factory=dict)
+    treatments: dict[str, str] = field(default_factory=dict)  # nombre -> id (C-17)
+
+    def treatment_id(self, name: str) -> str:
+        """Id de un tratamiento del catalogo; los dos profesionales del seed ofrecen estos dos."""
+        if not self.treatments:
+            catalog = self.call("receptionist", "GET", "/treatments")
+            assert catalog.status_code == 200, f"catalogo de tratamientos: {catalog.status_code}"
+            self.treatments = {t["name"]: t["id"] for t in catalog.json()}
+        assert name in self.treatments, f"el seed no trae el tratamiento {name}"
+        return self.treatments[name]
+
+    def mail_text(self, prefix: str, when: str) -> str:
+        """Cuerpo del primer email del tipo y horario dados en los buzones de los pacientes."""
+        recipients = {self.recipient(label) for label in self.patients}
+        for address in recipients:
+            for message in messages_to(address):
+                if message["Subject"].startswith(prefix) and when in message["Subject"]:
+                    return str(mailpit(f"/message/{message['ID']}")["Text"])
+        return ""
 
     @property
     def tomorrow(self) -> date:
@@ -225,6 +244,7 @@ def book(flow: Flow, label: str, slot_index: int, *, role: str = "receptionist")
         json={
             "patient_id": flow.patients[label]["id"],
             "professional_id": flow.professional_id,
+            "treatment_id": flow.treatment_id("Limpieza dental"),
             "starts_at": flow.slots[slot_index].isoformat(),
         },
     )
@@ -267,6 +287,7 @@ def test_step_3_the_confirmation_of_appointment_a_reaches_mailpit(flow: Flow) ->
         lambda: flow.mail_count(CONFIRMATION, flow.when(0)) >= 1,
         "la confirmacion del turno A en Mailpit",
     )
+    assert "Tratamiento: Limpieza dental" in flow.mail_text(CONFIRMATION, flow.when(0))
 
 
 def test_step_4_cancelling_appointment_a_frees_its_slot(flow: Flow) -> None:
@@ -347,10 +368,15 @@ def test_step_7_an_online_booking_is_confirmed_from_the_email_link(flow: Flow) -
     listed = public.get("/public/professionals")
     assert listed.status_code == 200
     assert flow.professional_id in {p["id"] for p in listed.json()}
+    offered = public.get(f"/public/professionals/{flow.professional_id}/treatments")
+    assert offered.status_code == 200
+    consulta = next(t["id"] for t in offered.json() if t["name"] == "Consulta")
+    assert all(set(t) == {"id", "name"} for t in offered.json())
     booked = public.post(
         "/public/appointments",
         json={
             "professional_id": flow.professional_id,
+            "treatment_id": consulta,
             "starts_at": flow.slots[0].isoformat(),
             "document_number": document,
             "first_name": "SmokeOnline",
@@ -388,6 +414,7 @@ def test_step_7_an_online_booking_is_confirmed_from_the_email_link(flow: Flow) -
     body = mailpit(f"/message/{message_id}")["Text"]
     match = TOKEN_IN_LINK.search(body)
     assert match is not None, "el email no trae el enlace de confirmacion"
+    assert "Tratamiento: Consulta" in body
 
     confirmed = public.post("/public/appointment-confirmations", json={"token": match.group(1)})
     assert confirmed.status_code == 200, confirmed.text
@@ -439,6 +466,7 @@ def test_step_8_an_unconfirmed_online_booking_expires_frees_its_slot_and_notifie
         "/public/appointments",
         json={
             "professional_id": flow.professional_id,
+            "treatment_id": flow.treatment_id("Consulta"),
             "starts_at": flow.slots[1].isoformat(),
             "document_number": document,
             "first_name": "SmokeVence",

@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tests.unit.api.conftest import AgendaScene, bearer, login_token
-from tests.unit.application.agenda_helpers import PROF_A, PROF_B
+from tests.unit.application.agenda_helpers import CONSULTA_ID, PROF_A, PROF_B
 from tests.unit.domain.appointments.helpers import monday
 
 ADMIN = "admin@example.com"
@@ -34,6 +34,7 @@ def _book(professional_id: str, hour: int, minute: int) -> Callable[[AgendaScene
         {
             "patient_id": "pac-2",
             "professional_id": professional_id,
+            "treatment_id": CONSULTA_ID,
             "starts_at": monday(hour, minute).isoformat(),
         },
     )

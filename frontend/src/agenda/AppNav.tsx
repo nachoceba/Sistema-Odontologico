@@ -20,6 +20,7 @@ export function AppNav() {
         <NavLink to="/agenda">Agenda</NavLink>
         <NavLink to="/pacientes">Pacientes</NavLink>
         <NavLink to="/profesionales">Profesionales</NavLink>
+        {user.role === 'admin' ? <NavLink to="/tratamientos">Tratamientos</NavLink> : null}
         {user.role === 'admin' ? <NavLink to="/usuarios">Usuarios</NavLink> : null}
         <button type="button" onClick={logout}>
           Salir

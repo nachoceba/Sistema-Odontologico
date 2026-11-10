@@ -91,6 +91,12 @@ export default function ConfirmBookingPage() {
           <dl className="detail-list">
             <dt>Profesional</dt>
             <dd>{view.booking.professional_display_name}</dd>
+            {view.booking.treatment_name === null ? null : (
+              <>
+                <dt>Tratamiento</dt>
+                <dd>{view.booking.treatment_name}</dd>
+              </>
+            )}
             <dt>Día y hora</dt>
             <dd>{longDayAndTime(view.booking.starts_at)}</dd>
           </dl>

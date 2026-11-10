@@ -32,6 +32,8 @@ function setup(
     'GET /professionals': () => jsonResponse([DRA]),
     'GET /professionals/p-1/working-hours': () => jsonResponse({ blocks: initial }),
     'GET /professionals/p-1/time-off': () => jsonResponse([]),
+    'GET /professionals/p-1/treatments': () => jsonResponse([]),
+    'GET /treatments': () => jsonResponse([]),
     'PUT /professionals/p-1/working-hours': put,
   })
 }

@@ -60,6 +60,8 @@ export function turno(
     created_by: 'u-rec',
     origin: 'staff',
     pending_until: null,
+    treatment_id: null,
+    treatment_name: null,
     ...overrides,
   }
 }

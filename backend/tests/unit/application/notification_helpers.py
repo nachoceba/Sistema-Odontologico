@@ -34,11 +34,13 @@ class SendWorld:
 
     world: World = field(default_factory=World)
     sender: FakeEmailSender = field(default_factory=FakeEmailSender)
+    with_treatment: bool = False  # el turno lleva "Limpieza dental" (C-17)
 
     def __post_init__(self) -> None:
         professional = self.world.accounts.professionals[PROF_A]
         self.world.accounts.professionals[PROF_A] = replace(professional, display_name="Dra. A")
-        self.appointment: Appointment = self.world.seed(monday(10))
+        treatment_id = self.world.limpieza.id if self.with_treatment else None
+        self.appointment: Appointment = self.world.seed(monday(10), treatment_id=treatment_id)
         pending = self.world.notifications.add_pending_confirmation(
             self.appointment.id, self.appointment.starts_at
         )
@@ -52,6 +54,7 @@ class SendWorld:
             ),
             patients=self.world.patients,
             professionals=InMemoryProfessionalRepository(self.world.accounts),
+            treatments=self.world.treatments,
             settings=InMemoryClinicSettingsRepository(CLINIC),
             sender=self.sender,
             clock=lambda: self.world.now,

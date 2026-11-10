@@ -6,13 +6,13 @@ Integración central de v1 (extra al conjunto canónico). Usa Redis y Celery par
 
 | Tipo (`kind`) | Cuándo | Contenido mínimo |
 |---|---|---|
-| `confirmation` | Inmediatamente al agendar o reprogramar | Paciente, profesional, fecha y hora, dirección del consultorio |
+| `confirmation` | Inmediatamente al agendar o reprogramar | Paciente, profesional, línea "Tratamiento: <nombre>" (si el turno lo tiene), fecha y hora, dirección del consultorio |
 | `reminder` | Una vez, antes del turno (ver "Programación") | Igual que la confirmación, con aviso de que es un recordatorio |
-| `booking_expired` | Una vez, cuando una reserva online vence sin confirmarse (C-16) | Paciente, profesional, fecha y hora local, aviso de cancelación por falta de confirmación y enlace a `/turnos` para volver a reservar; texto plano, sin documento |
+| `booking_expired` | Una vez, cuando una reserva online vence sin confirmarse (C-16) | Paciente, profesional, línea de tratamiento, fecha y hora local, aviso de cancelación por falta de confirmación y enlace a `/turnos` para volver a reservar; texto plano, sin documento |
 
 Ambos son **informativos**: el paciente no confirma ni cancela desde el email (DD-06). Para cambios debe contactar al consultorio.
 
-Además, la reserva online (C-15) envía un **email de verificación** con el enlace de confirmación. No es una fila de `email_notifications`: el token en claro no se guarda, así que la tarea `enviar_verificacion_reserva` lo recibe por la cola. Va siempre al email de la ficha y su plantilla es propia (RN-NO-06, DD-131). El aviso `booking_expired` es la única notificación de un turno cancelado (excepción a RN-NO-05): se registra en la misma transacción que la cancelación por vencimiento, va al email de la ficha y solo se envía si el turno sigue cancelado con el motivo "Reserva online no confirmada", con el mismo inicio y sin haber empezado; si no, queda `failed` con `EXPIRED`. Usa los mismos reintentos y el mismo reencolado que los demás avisos (DD-140). Los recordatorios son solo de turnos confirmados: una reserva pendiente no recibe ni confirmación ni recordatorio hasta que se confirma (RN-TU-13).
+Además, la reserva online (C-15) envía un **email de verificación** con el enlace de confirmación. No es una fila de `email_notifications`: el token en claro no se guarda, así que la tarea `enviar_verificacion_reserva` lo recibe por la cola. Va siempre al email de la ficha, lleva también la línea de tratamiento y su plantilla es propia (RN-NO-06, DD-131, DD-147). El aviso `booking_expired` es la única notificación de un turno cancelado (excepción a RN-NO-05): se registra en la misma transacción que la cancelación por vencimiento, va al email de la ficha y solo se envía si el turno sigue cancelado con el motivo "Reserva online no confirmada", con el mismo inicio y sin haber empezado; si no, queda `failed` con `EXPIRED`. Usa los mismos reintentos y el mismo reencolado que los demás avisos (DD-140). Los recordatorios son solo de turnos confirmados: una reserva pendiente no recibe ni confirmación ni recordatorio hasta que se confirma (RN-TU-13).
 
 ## Envío asincrónico
 

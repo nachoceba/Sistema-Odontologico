@@ -321,8 +321,8 @@ export default function AgendaPage() {
           slot={panel.slot}
           professionalId={professionalId}
           professionalName={professionalName}
-          onBooked={(patientName, startsAt) => {
-            succeed(bookedNotice(patientName, startsAt))
+          onBooked={(patientName, startsAt, treatmentName) => {
+            succeed(bookedNotice(patientName, startsAt, treatmentName))
           }}
           onRejected={reloadAgenda}
           onClose={() => {

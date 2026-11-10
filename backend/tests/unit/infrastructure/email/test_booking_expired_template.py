@@ -109,3 +109,18 @@ def test_the_demo_line_is_added_by_the_redirecting_sender_not_by_the_template() 
     _, body = render()
 
     assert DEMO_LINE not in body
+
+
+def test_the_expiry_notice_has_the_treatment_line_after_the_professional() -> None:
+    _, body = render(replace(DATA, treatment_name="Limpieza dental"))
+
+    lines = body.splitlines()
+    index = lines.index("Profesional: Dra. A")
+    assert lines[index + 1] == "Tratamiento: Limpieza dental"
+    assert lines[index + 2].startswith("Fecha y hora: ")
+
+
+def test_the_expiry_notice_without_treatment_has_no_treatment_line() -> None:
+    _, body = render()
+
+    assert "Tratamiento" not in body

@@ -35,7 +35,12 @@ def test_the_cancelled_slot_can_be_booked_again() -> None:
     cancel_appointment(world.deps(), scheduled.id, REASON)
 
     again = book_appointment(
-        world.deps(), RECEPTION, patient_id="pac-2", professional_id=PROF_A, starts_at=monday(10)
+        world.deps(),
+        RECEPTION,
+        patient_id="pac-2",
+        professional_id=PROF_A,
+        treatment_id=world.treatment_id,
+        starts_at=monday(10),
     )
 
     assert again.id != scheduled.id

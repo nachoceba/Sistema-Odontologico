@@ -16,6 +16,7 @@ from datetime import date, datetime, timedelta
 from app.application.appointments import (
     AgendaDeps,
     _dispatch,
+    check_booking_treatment,
     slots_for_day,
     validated_end,
 )
@@ -53,6 +54,8 @@ from app.domain.public_booking.errors import (
 )
 from app.domain.public_booking.ports import VerificationDispatcher
 from app.domain.public_booking.rules import pending_until_for
+from app.domain.treatments.errors import TreatmentNotAvailableError
+from app.domain.treatments.rules import BookingCheck
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +89,14 @@ class PublicProfessional:
 
 
 @dataclass(frozen=True)
+class PublicTreatment:
+    """De un tratamiento ofrecido, solo identificador y nombre (C-17)."""
+
+    id: str
+    name: str
+
+
+@dataclass(frozen=True)
 class OnlineBooking:
     """Respuesta de una reserva: la misma para un DNI nuevo y para uno existente."""
 
@@ -93,6 +104,7 @@ class OnlineBooking:
     ends_at: datetime
     professional_display_name: str
     confirm_before: datetime
+    treatment_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -100,15 +112,16 @@ class OnlineConfirmation:
     starts_at: datetime
     ends_at: datetime
     professional_display_name: str
+    treatment_name: str | None = None
 
 
 def list_public_professionals(deps: PublicBookingDeps) -> list[PublicProfessional]:
-    """Profesionales activos con al menos un tramo de horario, por nombre visible (P-4)."""
+    """Profesionales activos con horario y con algun tratamiento activo asignado (P-4, C-17)."""
     agenda = deps.agenda
     return [
         PublicProfessional(p.id, p.display_name)
         for p in agenda.professionals.list(only_active=True)
-        if agenda.working_hours.list_for_professional(p.id)
+        if agenda.working_hours.list_for_professional(p.id) and agenda.treatments.offered_ids(p.id)
     ]
 
 
@@ -119,9 +132,18 @@ def _require_offered(deps: PublicBookingDeps, professional_id: str) -> Professio
         professional is None
         or not professional.active
         or not agenda.working_hours.list_for_professional(professional_id)
+        or not agenda.treatments.offered_ids(professional_id)
     ):
         raise ProfessionalNotFoundError
     return professional
+
+
+def list_public_treatments(deps: PublicBookingDeps, professional_id: str) -> list[PublicTreatment]:
+    """Tratamientos asignados y activos de un profesional ofrecido, por nombre (C-17)."""
+    _require_offered(deps, professional_id)
+    return [
+        PublicTreatment(t.id, t.name) for t in deps.agenda.treatments.list_offered(professional_id)
+    ]
 
 
 def _inside_horizon(agenda: AgendaDeps, day: date) -> bool:
@@ -147,6 +169,7 @@ def book_online(
     deps: PublicBookingDeps,
     *,
     professional_id: str,
+    treatment_id: str,
     starts_at: datetime,
     document_number: str,
     first_name: str,
@@ -160,6 +183,7 @@ def book_online(
     first, last, mail = clean_name(first_name), clean_name(last_name), clean_email(email)
     phone_number = None if phone is None else clean_phone(phone)
     professional = _require_offered(deps, professional_id)
+    treatment_name = _require_offered_treatment(agenda, professional_id, treatment_id)
     ends_at = _validated_online_end(agenda, professional_id, starts_at)
     now = agenda.clock()
     token = deps.new_token()
@@ -178,6 +202,7 @@ def book_online(
                     starts_at=starts_at,
                     ends_at=ends_at,
                     created_by=None,
+                    treatment_id=treatment_id,
                 ),
                 deps.hash_token(token),
                 pending_until,
@@ -185,7 +210,18 @@ def book_online(
     except (DocumentTakenError, PatientDoubleBookedError):
         raise BookingNotPossibleError from None
     _request_verification(deps, saved.id, token)
-    return OnlineBooking(saved.starts_at, saved.ends_at, professional.display_name, pending_until)
+    return OnlineBooking(
+        saved.starts_at, saved.ends_at, professional.display_name, pending_until, treatment_name
+    )
+
+
+def _require_offered_treatment(agenda: AgendaDeps, professional_id: str, treatment_id: str) -> str:
+    """Los tres motivos de rechazo dan el mismo TREATMENT_NOT_AVAILABLE (C-17, D-5)."""
+    if check_booking_treatment(agenda, professional_id, treatment_id) is not BookingCheck.OK:
+        raise TreatmentNotAvailableError
+    treatment = agenda.treatments.get(treatment_id)
+    assert treatment is not None
+    return treatment.name
 
 
 def _validated_online_end(
@@ -246,7 +282,15 @@ def confirm_online_booking(deps: PublicBookingDeps, token: str) -> OnlineConfirm
     _dispatch(agenda, [confirmation])
     professional = agenda.professionals.get_by_id(confirmed.professional_id)
     name = "" if professional is None else professional.display_name
-    return OnlineConfirmation(confirmed.starts_at, confirmed.ends_at, name)
+    treatment = (
+        None if confirmed.treatment_id is None else agenda.treatments.get(confirmed.treatment_id)
+    )
+    return OnlineConfirmation(
+        confirmed.starts_at,
+        confirmed.ends_at,
+        name,
+        None if treatment is None else treatment.name,
+    )
 
 
 EXPIRY_BATCH_LIMIT = 200

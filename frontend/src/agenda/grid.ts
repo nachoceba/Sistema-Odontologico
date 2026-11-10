@@ -18,6 +18,8 @@ export interface AppointmentItem {
   origin: AppointmentOrigin
   /** Instante UTC hasta el que espera la confirmación del paciente, o null. */
   pendingUntil: string | null
+  /** Nombre del tratamiento (C-17); null en los turnos anteriores. */
+  treatmentName: string | null
 }
 
 /**
@@ -77,6 +79,7 @@ function toItem(
     conflict: appointment.status === 'scheduled' ? (conflictById.get(appointment.id) ?? null) : null,
     origin: appointment.origin,
     pendingUntil: appointment.status === 'scheduled' ? appointment.pending_until : null,
+    treatmentName: appointment.treatment_name,
   }
 }
 

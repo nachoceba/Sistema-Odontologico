@@ -12,11 +12,17 @@ from app.application.public_booking import (
     book_online,
     confirm_online_booking,
     list_public_professionals,
+    list_public_treatments,
     public_day_slots,
 )
 from app.core.errors import DomainError
 from app.core.security import hash_confirmation_token
-from app.domain.appointments import AppointmentStatus, SlotStatus, WorkingHours
+from app.domain.appointments import (
+    AppointmentStatus,
+    NewAppointment,
+    SlotStatus,
+    WorkingHours,
+)
 from app.domain.appointments.errors import ProfessionalNotFoundError, SlotTakenError
 from app.domain.patients.errors import DocumentTakenError
 from app.domain.patients.types import NewPatient
@@ -25,6 +31,8 @@ from app.domain.public_booking.errors import (
     ConfirmationLinkInvalidError,
     SlotUnavailableError,
 )
+from app.domain.treatments.errors import TreatmentNotAvailableError
+from app.domain.treatments.types import NewTreatment
 from tests.unit.application.agenda_helpers import PROF_A, PROF_B, RECEPTION, World
 from tests.unit.domain.appointments.helpers import local, monday
 
@@ -50,10 +58,12 @@ def book(
     phone: str | None = None,
     professional: str = PROF_A,
     hold: int = 60,
+    treatment: str | None = None,
 ) -> OnlineBooking:
     return book_online(
         world.public_deps(hold_minutes=hold),
         professional_id=professional,
+        treatment_id=treatment or world.treatment_id,
         starts_at=monday(10) if starts_at is None else starts_at,
         document_number=document,
         first_name=first,
@@ -518,3 +528,194 @@ def test_a_started_appointment_cannot_be_confirmed() -> None:
 
     with pytest.raises(ConfirmationLinkInvalidError):
         confirm(world)
+
+
+# --- Tratamiento (C-17, DD-141, DD-142) ----------------------------------------------------
+
+
+def test_a_professional_without_active_treatments_is_not_offered() -> None:
+    world = make_world()
+    world.treatments.replace_for_professional(PROF_B, [])
+
+    assert [p.id for p in list_public_professionals(world.public_deps())] == [PROF_A]
+
+
+def test_a_professional_whose_only_treatment_is_inactive_is_not_offered() -> None:
+    world = make_world()
+    world.treatments.replace_for_professional(PROF_B, [world.consulta.id])
+    world.treatments.update(world.consulta.id, active=False)
+
+    assert [p.id for p in list_public_professionals(world.public_deps())] == [PROF_A]
+
+
+def test_slots_and_treatments_of_a_professional_without_active_treatments_are_not_found() -> None:
+    world = make_world()
+    world.treatments.replace_for_professional(PROF_A, [])
+
+    with pytest.raises(ProfessionalNotFoundError):
+        public_day_slots(world.public_deps(), PROF_A, MONDAY_DATE)
+    with pytest.raises(ProfessionalNotFoundError):
+        list_public_treatments(world.public_deps(), PROF_A)
+
+
+def test_public_treatments_are_the_assigned_active_ones_ordered_by_name() -> None:
+    world = make_world()
+    blanqueamiento = world.treatments.add(NewTreatment("Blanqueamiento"))
+    world.treatments.replace_for_professional(
+        PROF_A, [world.limpieza.id, world.consulta.id, blanqueamiento.id]
+    )
+    world.treatments.update(blanqueamiento.id, active=False)
+
+    offered = list_public_treatments(world.public_deps(), PROF_A)
+
+    assert [(t.id, t.name) for t in offered] == [
+        (world.consulta.id, "Consulta"),
+        (world.limpieza.id, "Limpieza dental"),
+    ]
+    assert set(vars(offered[0])) == {"id", "name"}
+
+
+def test_each_professional_gets_only_their_own_treatments() -> None:
+    world = make_world()
+    assert [t.name for t in list_public_treatments(world.public_deps(), PROF_B)] == ["Consulta"]
+    assert [t.name for t in list_public_treatments(world.public_deps(), PROF_A)] == [
+        "Consulta",
+        "Limpieza dental",
+    ]
+
+
+def test_public_treatments_of_a_professional_not_offered_are_rejected() -> None:
+    world = make_world()
+    world.set_professional_active(PROF_A, False)
+    with pytest.raises(ProfessionalNotFoundError):
+        list_public_treatments(world.public_deps(), PROF_A)
+
+
+def test_booking_with_a_treatment_saves_it_and_answers_with_its_name() -> None:
+    world = make_world()
+
+    result = book(world, monday(10), treatment=world.limpieza.id)
+
+    [saved] = [a for a in world.everything() if a.created_by is None]
+    assert saved.treatment_id == world.limpieza.id
+    assert result.treatment_name == "Limpieza dental"
+    assert (result.starts_at, result.ends_at) == (monday(10), monday(10, 30))
+
+
+def test_new_and_existing_documents_get_the_same_treatment_name() -> None:
+    new_world, existing_world = make_world(), make_world()
+
+    first = book(new_world, monday(10), treatment=new_world.limpieza.id)
+    second = book(
+        existing_world,
+        monday(10),
+        document=JUAN_DOC,
+        first="Juan",
+        last="Perez",
+        email="j@x.com",
+        treatment=existing_world.limpieza.id,
+    )
+
+    assert first.treatment_name == second.treatment_name == "Limpieza dental"
+
+
+def test_an_unknown_treatment_is_not_available_and_creates_nothing() -> None:
+    world = make_world()
+    assert_rejected(world, TreatmentNotAvailableError, treatment="no-existe")
+    assert world.patients.get_by_document("40999888") is None
+
+
+def test_an_inactive_treatment_is_not_available_and_creates_nothing() -> None:
+    world = make_world()
+    world.treatments.update(world.limpieza.id, active=False)
+    assert_rejected(world, TreatmentNotAvailableError, treatment=world.limpieza.id)
+    assert world.patients.get_by_document("40999888") is None
+
+
+def test_a_treatment_of_another_professional_is_not_available_even_for_an_existing_patient() -> (
+    None
+):
+    world = make_world()
+    # El Dr. B no ofrece "Limpieza dental": mismo error que con un DNI nuevo (DD-129).
+    assert_rejected(
+        world,
+        TreatmentNotAvailableError,
+        professional=PROF_B,
+        treatment=world.limpieza.id,
+        document=JUAN_DOC,
+        first="Juan",
+        last="Perez",
+    )
+
+
+def test_the_treatment_is_checked_before_the_slot() -> None:
+    world = make_world()
+    world.treatments.update(world.limpieza.id, active=False)
+    # 10:15 no es una franja reservable, pero el tratamiento se chequea antes.
+    assert_rejected(
+        world, TreatmentNotAvailableError, starts_at=monday(10, 15), treatment=world.limpieza.id
+    )
+
+
+def test_a_professional_not_offered_wins_over_a_bad_treatment() -> None:
+    world = make_world()
+    world.set_professional_active(PROF_A, False)
+    assert_rejected(world, ProfessionalNotFoundError, treatment="no-existe")
+
+
+def test_the_treatment_does_not_change_the_duration_or_the_free_slots() -> None:
+    world = make_world()
+    book(world, monday(10), treatment=world.consulta.id)
+    book(
+        world,
+        monday(10, 30),
+        document="40111000",
+        email="otra@example.com",
+        treatment=world.limpieza.id,
+    )
+
+    assert monday(10) not in slot_starts(world)
+    assert monday(10, 30) not in slot_starts(world)
+    assert monday(11) in slot_starts(world)
+    assert {a.ends_at - a.starts_at for a in world.everything()} == {timedelta(minutes=30)}
+
+
+def test_confirming_answers_with_the_treatment_name() -> None:
+    world = make_world()
+    world.now = local(2026, 10, 3, 12)
+    book(world, monday(10), treatment=world.limpieza.id)
+    world.now = local(2026, 10, 3, 12, 20)
+
+    result = confirm(world)
+
+    assert result.treatment_name == "Limpieza dental"  # type: ignore[attr-defined]
+
+
+def test_confirming_still_works_after_the_treatment_was_deactivated() -> None:
+    world = make_world()
+    world.now = local(2026, 10, 3, 12)
+    book(world, monday(10), treatment=world.limpieza.id)
+    world.treatments.update(world.limpieza.id, active=False)
+    world.treatments.replace_for_professional(PROF_A, [world.consulta.id])
+    world.now = local(2026, 10, 3, 12, 20)
+
+    result = confirm(world)
+
+    assert result.treatment_name == "Limpieza dental"  # type: ignore[attr-defined]
+    [saved] = [a for a in world.everything() if a.created_by is None]
+    assert saved.pending_until is None
+
+
+def test_confirming_an_old_reservation_without_treatment_has_no_treatment_name() -> None:
+    world = make_world()
+    world.now = local(2026, 10, 3, 12)
+    old = world.appointments.add_pending(
+        NewAppointment("pac-1", PROF_A, monday(10), monday(10, 30), None),
+        hash_confirmation_token("tok-viejo"),
+        local(2026, 10, 3, 13),
+    )
+    assert old.treatment_id is None
+
+    result = confirm(world, "tok-viejo")
+
+    assert result.treatment_name is None  # type: ignore[attr-defined]

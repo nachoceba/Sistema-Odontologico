@@ -38,6 +38,7 @@ def _to_domain(row: AppointmentModel) -> Appointment:
         cancel_reason=row.cancel_reason,
         created_by=None if row.created_by is None else str(row.created_by),
         pending_until=None if row.pending_until is None else row.pending_until.astimezone(UTC),
+        treatment_id=None if row.treatment_id is None else str(row.treatment_id),
     )
 
 
@@ -46,6 +47,10 @@ def _required_uuid(value: str, what: str) -> uuid.UUID:
     if key is None:
         raise ValueError(f"identificador de {what} invalido")
     return key
+
+
+def _optional_uuid(value: str | None) -> uuid.UUID | None:
+    return None if value is None else _required_uuid(value, "tratamiento")
 
 
 def _flush_or_slot_taken(session: Session, row: AppointmentModel) -> None:
@@ -95,6 +100,7 @@ class SqlAlchemyAppointmentRepository:
             ends_at=new.ends_at,
             status=AppointmentStatus.SCHEDULED,
             created_by=_required_uuid(new.created_by, "usuario"),
+            treatment_id=_optional_uuid(new.treatment_id),
         )
         with self._scope.write() as session:
             session.add(row)
@@ -116,6 +122,7 @@ class SqlAlchemyAppointmentRepository:
             created_by=None,
             pending_until=pending_until,
             confirmation_token_hash=token_hash,
+            treatment_id=_optional_uuid(new.treatment_id),
         )
         with self._scope.write() as session:
             session.add(row)

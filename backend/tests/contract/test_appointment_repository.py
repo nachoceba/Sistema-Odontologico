@@ -17,6 +17,8 @@ from app.domain.appointments import (
     SlotTakenError,
     validate_appointment,
 )
+from app.domain.treatments.ports import TreatmentRepository
+from app.domain.treatments.types import NewTreatment
 from tests.contract.conftest import Refs
 from tests.unit.domain.appointments.helpers import (
     DRA_A_HOURS,
@@ -540,3 +542,101 @@ def test_global_listing_rejects_invalid_range(
 ) -> None:
     with pytest.raises(ValueError):
         appointment_repo.list_scheduled_starting_between(start, end)
+
+
+# --- Tratamiento del turno (C-17) ---------------------------------------------------
+
+
+def _treated(
+    repo: AppointmentRepository,
+    ids: Refs,
+    treatment_id: str | None,
+    start: datetime,
+    end: datetime,
+) -> Appointment:
+    return repo.add(
+        NewAppointment(
+            patient_id=ids.pac_1,
+            professional_id=ids.dra_a,
+            starts_at=start,
+            ends_at=end,
+            created_by=ids.rec_1,
+            treatment_id=treatment_id,
+        )
+    )
+
+
+def test_add_stores_and_returns_the_treatment_id(
+    appointment_repo: AppointmentRepository, treatment_repo: TreatmentRepository, ids: Refs
+) -> None:
+    limpieza = treatment_repo.add(NewTreatment(name="Limpieza dental"))
+    saved = _treated(appointment_repo, ids, limpieza.id, monday(10), monday(10, 30))
+    assert saved.treatment_id == limpieza.id
+    found = appointment_repo.get(saved.id)
+    assert found is not None
+    assert found.treatment_id == limpieza.id
+
+
+def test_add_without_treatment_keeps_it_null(
+    appointment_repo: AppointmentRepository, ids: Refs
+) -> None:
+    saved = _treated(appointment_repo, ids, None, monday(10), monday(10, 30))
+    assert saved.treatment_id is None
+    found = appointment_repo.get(saved.id)
+    assert found is not None
+    assert found.treatment_id is None
+
+
+def test_add_pending_stores_the_treatment_id(
+    appointment_repo: AppointmentRepository, treatment_repo: TreatmentRepository, ids: Refs
+) -> None:
+    consulta = treatment_repo.add(NewTreatment(name="Consulta"))
+    pending = appointment_repo.add_pending(
+        NewAppointment(
+            patient_id=ids.pac_1,
+            professional_id=ids.dra_a,
+            starts_at=monday(11),
+            ends_at=monday(11, 30),
+            created_by=None,
+            treatment_id=consulta.id,
+        ),
+        "hash-1",
+        monday(12),
+    )
+    assert pending.treatment_id == consulta.id
+    found = appointment_repo.find_pending_by_token_hash("hash-1", monday(9))
+    assert found is not None
+    assert found.treatment_id == consulta.id
+    confirmed = appointment_repo.confirm_by_token_hash("hash-1", monday(9))
+    assert confirmed is not None
+    assert confirmed.treatment_id == consulta.id
+
+
+def test_list_for_professional_returns_each_treatment_id(
+    appointment_repo: AppointmentRepository, treatment_repo: TreatmentRepository, ids: Refs
+) -> None:
+    consulta = treatment_repo.add(NewTreatment(name="Consulta"))
+    extraccion = treatment_repo.add(NewTreatment(name="Extracción"))
+    _treated(appointment_repo, ids, consulta.id, monday(10), monday(10, 30))
+    _treated(appointment_repo, ids, extraccion.id, monday(10, 30), monday(11))
+    _treated(appointment_repo, ids, None, monday(11), monday(11, 30))
+    found = day_of(appointment_repo, ids.dra_a, MONDAY_DATE)
+    assert [a.treatment_id for a in found] == [consulta.id, extraccion.id, None]
+
+
+def test_reschedule_keeps_the_treatment_id(
+    appointment_repo: AppointmentRepository, treatment_repo: TreatmentRepository, ids: Refs
+) -> None:
+    consulta = treatment_repo.add(NewTreatment(name="Consulta"))
+    saved = _treated(appointment_repo, ids, consulta.id, monday(10), monday(10, 30))
+    moved = appointment_repo.reschedule(saved.id, monday(14), monday(14, 30))
+    assert moved.treatment_id == consulta.id
+    cancelled = appointment_repo.change_status(saved.id, AppointmentStatus.CANCELLED, "motivo")
+    assert cancelled.treatment_id == consulta.id
+
+
+def test_reschedule_keeps_a_null_treatment_null(
+    appointment_repo: AppointmentRepository, ids: Refs
+) -> None:
+    saved = _treated(appointment_repo, ids, None, monday(10), monday(10, 30))
+    assert appointment_repo.reschedule(saved.id, monday(14), monday(14, 30)).treatment_id is None

@@ -18,7 +18,7 @@ from app.api.dependencies import get_public_booking_deps, get_rate_limiter
 from app.domain.patients.errors import DocumentTakenError
 from app.domain.patients.types import NewPatient
 from app.infrastructure.in_memory import InMemoryRateLimiter
-from tests.unit.application.agenda_helpers import PROF_A, World
+from tests.unit.application.agenda_helpers import CONSULTA_ID, LIMPIEZA_ID, PROF_A, World
 from tests.unit.domain.appointments.helpers import monday
 
 JUAN_DOC = "30111222"
@@ -55,6 +55,7 @@ def scene(make_scene: Callable[[], Scene]) -> Scene:
 def booking(**overrides: Any) -> dict[str, Any]:
     data: dict[str, Any] = {
         "professional_id": PROF_A,
+        "treatment_id": CONSULTA_ID,
         "starts_at": monday(10).isoformat(),
         "document_number": "40999888",
         "first_name": "Lucía",
@@ -143,7 +144,14 @@ def test_booking_without_a_session_answers_202_with_the_minimum(scene: Scene) ->
 
     assert response.status_code == 202
     body = response.json()
-    assert set(body) == {"starts_at", "ends_at", "professional_display_name", "confirm_before"}
+    assert set(body) == {
+        "starts_at",
+        "ends_at",
+        "professional_display_name",
+        "confirm_before",
+        "treatment_name",
+    }
+    assert body["treatment_name"] == "Consulta"
     assert body["starts_at"].startswith("2026-10-05T13:00:00")
     assert body["confirm_before"].startswith("2026-10-03T14:00:00")  # ahora + 60 minutos
 
@@ -287,7 +295,13 @@ def test_confirming_without_a_session_answers_200(scene: Scene) -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == {"starts_at", "ends_at", "professional_display_name"}
+    assert set(body) == {
+        "starts_at",
+        "ends_at",
+        "professional_display_name",
+        "treatment_name",
+    }
+    assert body["treatment_name"] == "Consulta"
     assert body["starts_at"].startswith("2026-10-05T13:00:00")
 
 
@@ -416,3 +430,119 @@ def test_the_internal_routes_still_require_a_session(scene: Scene) -> None:
     assert (
         scene.client.get(f"/api/v1/professionals/{PROF_A}/slots?date=2026-10-05").status_code == 401
     )
+
+
+# --- Tratamiento (C-17) ---------------------------------------------------------------------------
+
+
+def treatments_url(professional: str = PROF_A) -> str:
+    return f"{BASE}/professionals/{professional}/treatments"
+
+
+def test_treatments_are_listed_without_a_session_with_only_id_and_name(scene: Scene) -> None:
+    response = scene.client.get(treatments_url())
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {"id": CONSULTA_ID, "name": "Consulta"},
+        {"id": LIMPIEZA_ID, "name": "Limpieza dental"},
+    ]
+
+
+def test_only_active_assigned_treatments_are_listed(scene: Scene) -> None:
+    scene.world.treatments.update(LIMPIEZA_ID, active=False)
+
+    assert scene.client.get(treatments_url()).json() == [{"id": CONSULTA_ID, "name": "Consulta"}]
+
+
+def test_treatments_of_a_professional_not_offered_are_404(scene: Scene) -> None:
+    scene.world.treatments.replace_for_professional(PROF_A, [])
+
+    response = scene.client.get(treatments_url())
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "PROFESSIONAL_NOT_FOUND"
+
+
+def test_treatments_of_an_unknown_professional_are_404(scene: Scene) -> None:
+    response = scene.client.get(treatments_url("99999999-9999-4999-8999-999999999999"))
+
+    assert response.status_code == 404
+
+
+def test_a_junk_session_token_is_ignored_on_the_treatments_endpoint(scene: Scene) -> None:
+    response = scene.client.get(treatments_url(), headers={"Authorization": "Bearer basura"})
+
+    assert response.status_code == 200
+
+
+def test_the_61st_read_mixing_professionals_treatments_and_slots_is_429(scene: Scene) -> None:
+    urls = [
+        f"{BASE}/professionals",
+        treatments_url(),
+        f"{BASE}/professionals/{PROF_A}/slots?date=2026-10-05",
+    ]
+    statuses = [scene.client.get(urls[i % 3]).status_code for i in range(61)]
+
+    assert statuses == [200] * 60 + [429]
+    blocked = scene.client.get(treatments_url())
+    assert blocked.status_code == 429
+    assert int(blocked.headers["Retry-After"]) > 0
+
+
+def test_the_other_groups_stay_free_when_the_reads_are_exhausted(scene: Scene) -> None:
+    for _ in range(61):
+        scene.client.get(treatments_url())
+
+    assert post_booking(scene).status_code == 202
+
+
+def test_booking_without_a_treatment_is_422_and_writes_nothing(scene: Scene) -> None:
+    body = booking()
+    del body["treatment_id"]
+
+    response = scene.client.post(f"{BASE}/appointments", json=body)
+
+    assert response.status_code == 422
+    assert scene.world.patients.get_by_document("40999888") is None
+    assert scene.world.everything() == []
+
+
+@pytest.mark.parametrize("value", ["", "   ", 7, None])
+def test_a_blank_or_non_text_treatment_is_422(scene: Scene, value: Any) -> None:
+    assert post_booking(scene, treatment_id=value).status_code == 422
+
+
+def test_unknown_inactive_and_unoffered_treatments_get_the_same_409(
+    make_scene: Callable[[], Scene],
+) -> None:
+    unknown = post_booking(make_scene(), treatment_id="no-existe")
+
+    inactive_scene = make_scene()
+    inactive_scene.world.treatments.update(LIMPIEZA_ID, active=False)
+    inactive = post_booking(inactive_scene, treatment_id=LIMPIEZA_ID)
+
+    unoffered_scene = make_scene()
+    unoffered_scene.world.treatments.replace_for_professional(PROF_A, [CONSULTA_ID])
+    unoffered = post_booking(unoffered_scene, treatment_id=LIMPIEZA_ID)
+
+    for response in (unknown, inactive, unoffered):
+        assert response.status_code == 409
+        assert response.content == unknown.content
+        assert response.json()["error"]["code"] == "TREATMENT_NOT_AVAILABLE"
+
+
+def test_a_rejected_treatment_creates_no_patient_and_no_appointment(scene: Scene) -> None:
+    post_booking(scene, treatment_id="no-existe")
+
+    assert scene.world.patients.get_by_document("40999888") is None
+    assert scene.world.everything() == []
+
+
+def test_booking_with_another_offered_treatment_answers_with_its_name(scene: Scene) -> None:
+    response = post_booking(scene, treatment_id=LIMPIEZA_ID)
+
+    assert response.status_code == 202
+    assert response.json()["treatment_name"] == "Limpieza dental"
+    [saved] = scene.world.everything()
+    assert saved.treatment_id == LIMPIEZA_ID

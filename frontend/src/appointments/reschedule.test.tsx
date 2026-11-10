@@ -197,3 +197,41 @@ describe('RescheduleDialog: enviar', () => {
     expect(handlers.onDone).not.toHaveBeenCalled()
   })
 })
+
+describe('RescheduleDialog: tratamiento fijo (C-17)', () => {
+  it('muestra el tratamiento del turno como dato y no ofrece cambiarlo', async () => {
+    api()
+    const target = { ...TARGET, treatment_id: 't-1', treatment_name: 'Extracción' }
+    render(
+      <RescheduleDialog
+        appointment={target}
+        role="receptionist"
+        onDone={vi.fn()}
+        onRejected={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+
+    expect(await screen.findByText('Tratamiento: Extracción')).toBeInTheDocument()
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+  })
+
+  it('un turno sin tratamiento dice Sin tratamiento y reprogramar no envía treatment_id', async () => {
+    const fetchMock = api({
+      [`POST /appointments/${TARGET.id}/reschedule`]: () => jsonResponse(RECORD),
+    })
+    const handlers = setup()
+    expect(await screen.findByText('Tratamiento: Sin tratamiento')).toBeInTheDocument()
+
+    fireEvent.click(await slotButton('09:00–09:30'))
+    fireEvent.click(screen.getByRole('button', { name: 'Reprogramar turno' }))
+
+    await waitFor(() => {
+      expect(handlers.onDone).toHaveBeenCalledTimes(1)
+    })
+    const post = fetchMock.mock.calls.find(
+      (c) => (c[1] as RequestInit | undefined)?.method === 'POST',
+    )
+    expect(JSON.parse((post?.[1] as RequestInit).body as string)).not.toHaveProperty('treatment_id')
+  })
+})

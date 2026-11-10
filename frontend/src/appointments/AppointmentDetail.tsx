@@ -7,6 +7,7 @@ import {
   CANCEL_LABEL,
   COMPLETED_LABEL,
   NO_SHOW_LABEL,
+  NO_TREATMENT_LABEL,
   RESCHEDULE_LABEL,
   dayAndTime,
 } from './messages'
@@ -40,6 +41,8 @@ export function AppointmentDetail({
         <dd>{`${appointment.patient_last_name}, ${appointment.patient_first_name}`}</dd>
         <dt>Profesional</dt>
         <dd>{professionalName}</dd>
+        <dt>Tratamiento</dt>
+        <dd>{appointment.treatment_name ?? NO_TREATMENT_LABEL}</dd>
         <dt>Estado</dt>
         <dd>
           <span className="status-tag">{STATUS_LABELS[appointment.status]}</span>

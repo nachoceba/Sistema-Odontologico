@@ -9,6 +9,7 @@ const CONFIRMED = {
   starts_at: '2026-11-09T13:30:00Z',
   ends_at: '2026-11-09T14:00:00Z',
   professional_display_name: 'Dra. A',
+  treatment_name: 'Limpieza dental',
 }
 const URL_POST = 'POST /public/appointment-confirmations'
 const error = (status: number, code: string) =>
@@ -68,6 +69,22 @@ describe('ConfirmBookingPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('location').textContent).toBe('/turnos/confirmar')
     })
+  })
+
+  it('muestra la fila Tratamiento cuando la API devuelve el nombre y la omite si es nulo', async () => {
+    mockApi({ [URL_POST]: () => jsonResponse(CONFIRMED) })
+    const first = renderAt('/turnos/confirmar#token=abc')
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar mi turno' }))
+    await screen.findByRole('heading', { name: 'Turno confirmado' })
+    expect(screen.getByRole('main')).toHaveTextContent('Tratamiento')
+    expect(screen.getByRole('main')).toHaveTextContent('Limpieza dental')
+    first.unmount()
+
+    mockApi({ [URL_POST]: () => jsonResponse({ ...CONFIRMED, treatment_name: null }) })
+    renderAt('/turnos/confirmar#token=abc')
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar mi turno' }))
+    await screen.findByRole('heading', { name: 'Turno confirmado' })
+    expect(screen.getByRole('main')).not.toHaveTextContent('Tratamiento')
   })
 
   it('un doble clic envía un solo pedido', () => {
