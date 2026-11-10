@@ -18,7 +18,7 @@ from app.domain.appointments.types import (
     AppointmentStatus,
     NewAppointment,
 )
-from app.domain.public_booking.rules import can_confirm
+from app.domain.public_booking.rules import EXPIRED_BOOKING_REASON, can_confirm
 
 
 def _touches_range(appointment: Appointment, start: datetime, end: datetime | None) -> bool:
@@ -81,6 +81,29 @@ class InMemoryAppointmentRepository:
         self._appointments[appointment_id] = confirmed
         del self._token_hashes[appointment_id]
         return confirmed
+
+    def expire_pending(self, now: datetime, limit: int = 200) -> list[Appointment]:
+        due = sorted(
+            (
+                a
+                for a in self._appointments.values()
+                if a.status is AppointmentStatus.SCHEDULED
+                and a.pending_until is not None
+                and a.pending_until <= now
+            ),
+            key=lambda a: (a.pending_until, a.id),
+        )
+        expired: list[Appointment] = []
+        for current in due[:limit]:
+            self._appointments[current.id] = replace(
+                current,
+                status=AppointmentStatus.CANCELLED,
+                cancel_reason=EXPIRED_BOOKING_REASON,
+                pending_until=None,
+            )
+            self._token_hashes.pop(current.id, None)
+            expired.append(current)
+        return expired
 
     def add(self, new: NewAppointment) -> Appointment:
         require_range(new.starts_at, new.ends_at)

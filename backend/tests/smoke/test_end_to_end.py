@@ -22,6 +22,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
+from sqlalchemy import create_engine, text
 
 from app.infrastructure.email.templates import format_local_datetime
 from app.infrastructure.tasks.celery_app import celery_app
@@ -396,4 +397,97 @@ def test_step_7_an_online_booking_is_confirmed_from_the_email_link(flow: Flow) -
         lambda: flow.mail_count(CONFIRMATION, flow.when(0)) >= 1,
         "la confirmacion normal del turno online en Mailpit",
     )
+    public.close()
+
+
+EXPIRED_SUBJECT = "se canceló por falta de confirmación"
+
+
+def _expired_ids(mailbox: str) -> set[str]:
+    return {m["ID"] for m in messages_to(mailbox) if EXPIRED_SUBJECT in m["Subject"]}
+
+
+def _force_deadline_in_the_past(appointment_id: str) -> None:
+    """Vence el plazo de la reserva sin esperar los 60 minutos reales (solo el smoke lo hace)."""
+    engine = create_engine(os.environ["DATABASE_URL"])
+    try:
+        with engine.begin() as connection:
+            updated = connection.execute(
+                text(
+                    "UPDATE appointments SET pending_until = now() - interval '1 minute' "
+                    "WHERE id = :id AND pending_until IS NOT NULL"
+                ),
+                {"id": appointment_id},
+            )
+        assert updated.rowcount == 1, "la reserva ya no estaba pendiente"
+    finally:
+        engine.dispose()
+
+
+def test_step_8_an_unconfirmed_online_booking_expires_frees_its_slot_and_notifies(
+    flow: Flow,
+) -> None:
+    require_previous(flow, "C", "el paso 8")
+    suffix = uuid.uuid4().hex[:10]
+    document = f"SX{int(suffix, 16) % 10**10:010d}"
+    typed_email = f"smoke-vence-{suffix}@example.com"
+    mailbox = os.environ.get("EMAIL_REDIRECT_TO") or typed_email
+    known = _expired_ids(mailbox)
+    public = httpx.Client(base_url=API_URL, timeout=15)
+
+    booked = public.post(
+        "/public/appointments",
+        json={
+            "professional_id": flow.professional_id,
+            "starts_at": flow.slots[1].isoformat(),
+            "document_number": document,
+            "first_name": "SmokeVence",
+            "last_name": "Prueba",
+            "email": typed_email,
+        },
+    )
+    assert booked.status_code == 202, booked.text
+    found = flow.call("receptionist", "GET", "/patients", params={"q": document}).json()["items"]
+    assert len(found) == 1
+    flow.patients["D"] = {"id": found[0]["id"], "email": typed_email}
+    day = flow.tomorrow
+    listing = flow.call(
+        "receptionist",
+        "GET",
+        "/appointments",
+        params={
+            "professional_id": flow.professional_id,
+            "from": datetime.combine(day, datetime.min.time(), flow.timezone).isoformat(),
+            "to": datetime.combine(
+                day + timedelta(days=1), datetime.min.time(), flow.timezone
+            ).isoformat(),
+        },
+    ).json()
+    [pending] = [a for a in listing if a["patient_id"] == found[0]["id"]]
+    flow.appointments["D"] = pending["id"]
+    assert pending["pending_until"] is not None
+
+    _force_deadline_in_the_past(pending["id"])
+    celery_app.send_task("vencer_reservas_pendientes")
+
+    wait_until(
+        lambda: bool(_expired_ids(mailbox) - known),
+        "el aviso de cancelacion por falta de confirmacion en Mailpit",
+    )
+    [message_id] = _expired_ids(mailbox) - known
+    message = mailpit(f"/message/{message_id}")
+    local = flow.slots[1].astimezone(flow.timezone)
+    assert f"{local:%d/%m/%Y %H:%M}" in message["Text"]
+    assert "/turnos." in message["Text"]
+    assert document not in message["Text"]
+    detail = flow.call("receptionist", "GET", f"/appointments/{pending['id']}").json()
+    assert detail["status"] == "cancelled"
+    assert detail["cancel_reason"] == "Reserva online no confirmada"
+    time.sleep(SETTLE_SECONDS)
+    assert len(_expired_ids(mailbox) - known) == 1  # un solo aviso aunque Beat vuelva a pasar
+    free = public.get(
+        f"/public/professionals/{flow.professional_id}/slots", params={"date": day.isoformat()}
+    )
+    assert free.status_code == 200
+    assert flow.slots[1] in [datetime.fromisoformat(s["starts_at"]) for s in free.json()]
     public.close()

@@ -45,6 +45,11 @@ class InMemoryNotificationRepository:
     ) -> Notification | None:
         return self._add_pending(appointment_id, NotificationKind.CONFIRMATION, starts_at)
 
+    def add_pending_booking_expired(
+        self, appointment_id: str, starts_at: datetime
+    ) -> Notification | None:
+        return self._add_pending(appointment_id, NotificationKind.BOOKING_EXPIRED, starts_at)
+
     def bind_appointments(self, lookup: Callable[[str], Appointment | None]) -> None:
         """Conecta la consulta de turnos que usa ``add_pending_reminder``."""
         self._appointment_lookup = lookup

@@ -26,6 +26,10 @@ PUBLIC_ROUTES = {
 }
 
 
+def route_paths(app: FastAPI) -> list[str]:
+    return [path for context in api_routes(app) for _, path in route_keys(context)]
+
+
 def depends_on_current_user(dependant: Dependant) -> bool:
     return any(
         child.call is current_user or depends_on_current_user(child)
@@ -112,3 +116,15 @@ def test_there_is_no_http_route_to_trigger_notifications_reminders_or_tasks(
     assert paths, "el OpenAPI no lista ninguna ruta"
     offenders = [p for p in paths if any(word in p.lower() for word in FORBIDDEN_PATH_WORDS)]
     assert offenders == []
+
+
+def test_no_http_route_triggers_the_booking_expiry(
+    make_client: Callable[[], tuple[FastAPI, TestClient]],
+) -> None:
+    """C-16: el vencimiento lo dispara solo Celery Beat; la API no suma rutas (DD-132)."""
+    app, test_client = make_client()
+
+    paths = test_client.get("/openapi.json").json()["paths"]
+
+    assert not [p for p in paths if re.search(r"venc|expir", p, re.IGNORECASE)]
+    assert not [p for p in route_paths(app) if re.search(r"venc|expir", p, re.IGNORECASE)]

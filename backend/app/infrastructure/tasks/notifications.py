@@ -14,6 +14,7 @@ from typing import Any
 from celery import shared_task
 
 from app.application.notifications import MAX_ATTEMPTS, deliver_notification, requeue_pending
+from app.application.public_booking import expire_pending_bookings
 from app.application.reminders import send_reminders
 from app.application.verification import MAX_ATTEMPTS as VERIFICATION_ATTEMPTS
 from app.application.verification import send_verification
@@ -77,3 +78,18 @@ def enviar_recordatorios(forzar: bool = False) -> dict[str, int]:
         "failed": summary.failed,
         "pending": summary.pending,
     }
+
+
+@shared_task(name="vencer_reservas_pendientes", max_retries=0)  # type: ignore[untyped-decorator]
+def vencer_reservas_pendientes() -> int:
+    """Cancela las reservas online vencidas y registra su aviso (C-16, DD-132); lo dispara Beat.
+
+    Sin reintentos: si la base no responde se registra la clase del error, nunca datos del
+    paciente, y la proxima pasada (5 minutos) retoma lo pendiente. Devuelve cuantas vencio.
+    """
+    try:
+        return expire_pending_bookings(wiring.build_expiry_deps())
+    except Exception as error:
+        # Solo la clase del error, sin traza ni mensaje (TRY400: no se usa ``exception``).
+        logger.error("vencimiento de reservas: la pasada fallo: %s", type(error).__name__)  # noqa: TRY400
+        raise

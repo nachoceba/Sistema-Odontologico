@@ -82,7 +82,7 @@ users 1───0..1 professionals
 ### email_notifications
 - `id` uuid PK
 - `appointment_id` FK a `appointments.id`
-- `kind` enum (`confirmation`, `reminder`) NOT NULL
+- `kind` enum (`confirmation`, `reminder`, `booking_expired`) NOT NULL (`booking_expired` lo agrega la migración `0004`; su reversión falla si hay avisos de ese tipo, C-16)
 - `status` enum (`pending`, `sent`, `failed`) NOT NULL default `pending`
 - `sent_at` timestamptz NULL, `error` text NULL
 - `appointment_starts_at` timestamptz NOT NULL (copia de `appointments.starts_at` al crear la notificación; permite una notificación nueva si el turno se reprograma)

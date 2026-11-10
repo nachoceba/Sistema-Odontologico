@@ -1,9 +1,11 @@
 """Aplicacion Celery (D-4): broker Redis, zona del consultorio y tareas de notificaciones.
 
 Todo lo de Celery vive en esta carpeta; si la herramienta cambia, no se toca el
-dominio ni la API. Las tareas propias son ``enviar_email`` y ``reencolar_pendientes`` (C-11) y
-``enviar_recordatorios`` (C-12). Beat dispara la ultima cada hora en punto (``crontab(minute=0)``,
-evaluado en la zona de ``CLINIC_TIMEZONE``); la propia tarea decide si es la hora configurada.
+dominio ni la API. Las tareas propias son ``enviar_email`` y ``reencolar_pendientes`` (C-11),
+``enviar_recordatorios`` (C-12) y ``vencer_reservas_pendientes`` (C-16). Beat dispara
+``enviar_recordatorios`` cada hora en punto (``crontab(minute=0)``, evaluado en la zona de
+``CLINIC_TIMEZONE``; la propia tarea decide si es la hora configurada) y el vencimiento de
+reservas cada 5 minutos.
 """
 
 from __future__ import annotations
@@ -22,6 +24,8 @@ celery_app.conf.update(
     task_serializer="json",
     beat_schedule={
         "reencolar-pendientes": {"task": "reencolar_pendientes", "schedule": 600.0},
+        # Libera las franjas de las reservas online sin confirmar (C-16, DD-132).
+        "vencer-reservas-pendientes": {"task": "vencer_reservas_pendientes", "schedule": 300.0},
         # Sin argumentos: Beat nunca fuerza la pasada (solo la consola, design D-5).
         "enviar-recordatorios": {"task": "enviar_recordatorios", "schedule": crontab(minute=0)},
     },

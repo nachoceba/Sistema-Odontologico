@@ -55,6 +55,7 @@ class SendWorld:
             settings=InMemoryClinicSettingsRepository(CLINIC),
             sender=self.sender,
             clock=lambda: self.world.now,
+            public_app_url="https://turnos.example.test",
         )
 
     def add_reminder(self) -> Notification:

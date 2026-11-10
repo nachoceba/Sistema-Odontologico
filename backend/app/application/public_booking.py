@@ -20,7 +20,13 @@ from app.application.appointments import (
     validated_end,
 )
 from app.core.timezone import to_local
-from app.domain.appointments import NewAppointment, Slot, SlotStatus
+from app.domain.appointments import (
+    AgendaUnitOfWork,
+    NewAppointment,
+    NotificationDispatcher,
+    Slot,
+    SlotStatus,
+)
 from app.domain.appointments.errors import (
     InsufficientNoticeError,
     OffGridError,
@@ -241,3 +247,43 @@ def confirm_online_booking(deps: PublicBookingDeps, token: str) -> OnlineConfirm
     professional = agenda.professionals.get_by_id(confirmed.professional_id)
     name = "" if professional is None else professional.display_name
     return OnlineConfirmation(confirmed.starts_at, confirmed.ends_at, name)
+
+
+EXPIRY_BATCH_LIMIT = 200
+
+
+@dataclass(frozen=True)
+class ExpiryDeps:
+    """Lo que necesita el vencimiento: la transaccion y el aviso posterior al commit."""
+
+    unit_of_work: Callable[[], AgendaUnitOfWork]
+    dispatcher: NotificationDispatcher
+    clock: Callable[[], datetime]
+
+
+def expire_pending_bookings(deps: ExpiryDeps) -> int:
+    """Cancela las reservas online vencidas y registra el aviso de cada una (C-16, DD-132/140).
+
+    La cancelacion y el registro de ``booking_expired`` van en la misma transaccion; el envio se
+    pide despues del commit y un fallo del despachador nunca la deshace (RN-NO-04): la fila queda
+    ``pending`` y la levanta ``reencolar_pendientes``. Devuelve cuantas se vencieron; el registro
+    lleva solo esa cantidad, nunca datos de pacientes.
+    """
+    with deps.unit_of_work() as uow:
+        expired = uow.appointments.expire_pending(deps.clock(), EXPIRY_BATCH_LIMIT)
+        notices = [
+            uow.notifications.add_pending_booking_expired(appointment.id, appointment.starts_at)
+            for appointment in expired
+        ]
+    registered = [notice for notice in notices if notice is not None]
+    if registered:
+        try:
+            deps.dispatcher.dispatch(registered)
+        except Exception as error:  # noqa: BLE001  (nada de la cola debe deshacer el vencimiento)
+            logger.warning(
+                "no se pudo pedir el aviso de vencimiento (%d reservas): %s",
+                len(registered),
+                type(error).__name__,
+            )
+    logger.info("vencimiento de reservas: expired=%d", len(expired))
+    return len(expired)

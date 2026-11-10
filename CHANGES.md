@@ -42,7 +42,7 @@ C-01 foundation-setup     [x] archivado (2026-11-03)
 C-13 deploy-and-hardening  ← C-04, C-10, C-12   [x] archivado (2026-11-07)
  └── C-14 ui-visual-refresh   [x] archivado (2026-11-07)  (+ C-04, C-06, C-07, C-09, C-10)
       └── C-15 public-patient-booking   [x] archivado (2026-11-10)  (+ C-08, C-09, C-11, C-12)
-           └── C-16 online-booking-expiry   [ ] pendiente
+           └── C-16 online-booking-expiry   [x] archivado (2026-11-10)  (+ C-15)
 ```
 
 ### Paralelismo por fase
@@ -573,7 +573,8 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
   - Dado un enlace ya usado, cuando se confirma de nuevo, entonces la respuesta es 410 `CONFIRMATION_LINK_INVALID`
 
 ### [C-16] `online-booking-expiry`
-- **Estado**: `[ ]` pendiente (propuesto en `openspec/changes/online-booking-expiry/`; depende de C-15).
+- **Estado**: `[x]` implementado, verificado y archivado el 2026-11-10 (`openspec/changes/archive/2026-11-10-online-booking-expiry/`; `openspec validate --specs --strict` válido): 1958 tests por defecto, 400 de integración (1 omitido), 8 de smoke y 508 de frontend sin cambios; `mypy --strict app/` y `ruff check` limpios. Decisión DD-140.
+- **Specs principales**: nueva `openspec/specs/online-booking-expiry/spec.md`; modificadas `openspec/specs/database-schema/spec.md`, `openspec/specs/email-templates/spec.md`, `openspec/specs/notification-sending/spec.md` y `openspec/specs/notification-tasks/spec.md`.
 - **Scope**:
   - Tarea de Beat cada 5 minutos que cancela las reservas pendientes vencidas con `FOR UPDATE SKIP LOCKED` y el motivo "Reserva online no confirmada" (RN-TU-14)
   - Tests de la carrera entre confirmar y vencer
@@ -582,7 +583,7 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 - **Dependencias**: `C-15`
 - **Governance**: ALTO (cancela turnos sin intervención humana y agrega un tipo de notificación)
 - **Leer antes**:
-  - `openspec/changes/online-booking-expiry/design.md`
+  - `openspec/changes/archive/2026-11-10-online-booking-expiry/design.md`
   - `openspec/changes/public-patient-booking/design.md` (D-6, D-7)
   - `knowledge-base/11_recordatorios_email.md`
 
@@ -609,6 +610,6 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-13 | deploy-and-hardening (archivado `[x]`) | 5 | C-04, C-10, C-12 | MEDIO |
 | C-14 | ui-visual-refresh (archivado `[x]`) | 6 | C-13 | MEDIO |
 | C-15 | public-patient-booking (archivado `[x]`) | 7 | C-08, C-09, C-11, C-12, C-13, C-14 | ALTO |
-| C-16 | online-booking-expiry (pendiente `[ ]`) | 7 | C-15 | ALTO |
+| C-16 | online-booking-expiry (archivado `[x]`) | 7 | C-15 | ALTO |
 
-**Siguientes changes habilitados**: sigue C-16 (`online-booking-expiry`). C-01 a C-15 están implementados y archivados (C-15 el 2026-11-10, en `openspec/changes/archive/2026-11-10-public-patient-booking/`; C-14 el 2026-11-07, en `openspec/changes/archive/2026-11-07-ui-visual-refresh/`; C-13 el 2026-11-07, en `openspec/changes/archive/2026-11-07-deploy-and-hardening/`). Siguen abiertas en `knowledge-base/10_preguntas_abiertas.md` el proveedor SMTP de producción (SU-02), endurecer sesión y login (DD-46, DD-47, DD-112) y la adopción con una recepcionista real (R-8), además de las preguntas de dominio de prioridad media.
+**Roadmap completo**: los 16 changes están archivados. C-01 a C-16 están implementados y archivados (C-16 el 2026-11-10, en `openspec/changes/archive/2026-11-10-online-booking-expiry/`; C-15 el 2026-11-10, en `openspec/changes/archive/2026-11-10-public-patient-booking/`; C-14 el 2026-11-07, en `openspec/changes/archive/2026-11-07-ui-visual-refresh/`; C-13 el 2026-11-07, en `openspec/changes/archive/2026-11-07-deploy-and-hardening/`). Siguen abiertas en `knowledge-base/10_preguntas_abiertas.md` el proveedor SMTP de producción (SU-02), endurecer sesión y login (DD-46, DD-47, DD-112) y la adopción con una recepcionista real (R-8), además de las preguntas de dominio de prioridad media.

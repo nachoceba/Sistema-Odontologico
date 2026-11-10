@@ -54,6 +54,18 @@ class AppointmentRepository(Protocol):
         """El turno pendiente con ese hash si todavia se puede confirmar; sin cambiar nada."""
         ...
 
+    def expire_pending(self, now: datetime, limit: int = 200) -> list[Appointment]:
+        """Cancela los turnos ``scheduled`` pendientes cuyo ``pending_until`` es ``<= now``.
+
+        Cada uno queda ``cancelled`` con el motivo ``EXPIRED_BOOKING_REASON`` y sin
+        ``pending_until`` ni hash. Atiende hasta ``limit`` por llamada, del vencimiento mas
+        antiguo al mas nuevo. En PostgreSQL toma las filas con ``FOR UPDATE SKIP LOCKED``: una
+        fila que otro proceso tiene tomada (por ejemplo una confirmacion en curso) se saltea.
+        Devuelve los turnos cancelados, tal como eran al vencer (inicio incluido). Nunca toca
+        turnos confirmados ni de la recepcion (C-16, DD-132).
+        """
+        ...
+
     def get(self, appointment_id: str) -> Appointment | None: ...
 
     def change_status(
@@ -99,6 +111,16 @@ class NotificationRepository(Protocol):
         """Registra una ``confirmation`` ``pending`` para el turno y su horario.
 
         Devuelve ``None`` si ya existia una con ese turno, tipo y horario (RN-NO-03).
+        """
+        ...
+
+    def add_pending_booking_expired(
+        self, appointment_id: str, starts_at: datetime
+    ) -> Notification | None:
+        """Registra un ``booking_expired`` ``pending`` para el turno y su horario (C-16, DD-140).
+
+        Devuelve ``None`` si ya existia uno con ese turno, tipo y horario (RN-NO-03). Se llama
+        en la misma unidad de trabajo que la cancelacion por vencimiento.
         """
         ...
 

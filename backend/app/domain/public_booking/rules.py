@@ -6,6 +6,10 @@ from datetime import datetime, timedelta
 
 from app.domain.appointments.types import Appointment, AppointmentStatus
 
+# Motivo con el que el sistema cancela una reserva online que no se confirmo a tiempo (DD-132).
+# Tambien es lo que reconoce el envio del aviso de vencimiento (DD-140).
+EXPIRED_BOOKING_REASON = "Reserva online no confirmada"
+
 
 def pending_until_for(now: datetime, starts_at: datetime, hold_minutes: int) -> datetime:
     """Hasta cuando se puede confirmar: el menor entre ``now + hold`` y el inicio del turno."""

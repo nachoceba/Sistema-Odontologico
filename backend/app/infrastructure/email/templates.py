@@ -62,6 +62,7 @@ class EmailData:
     clinic_name: str
     address: str
     phone: str | None
+    public_app_url: str = ""  # solo lo usa el aviso de vencimiento (C-16)
 
 
 def format_local_datetime(instant: datetime, timezone_name: str) -> str:
@@ -75,6 +76,8 @@ def format_local_datetime(instant: datetime, timezone_name: str) -> str:
 
 def render_email(kind: NotificationKind, data: EmailData) -> tuple[str, str]:
     """Asunto y cuerpo del email del tipo pedido; un tipo desconocido es un error de codigo."""
+    if kind is NotificationKind.BOOKING_EXPIRED:
+        return _render_booking_expired(data)
     if kind not in _HEADLINE:
         raise ValueError("tipo de email desconocido")
     when = format_local_datetime(data.starts_at, data.timezone)
@@ -138,3 +141,34 @@ def render_verification_email(data: VerificationEmailData) -> tuple[str, str]:
     if data.phone:
         lines.append(f"Teléfono: {data.phone}")
     return f"Confirmá tu turno en {data.clinic_name}", "\n".join(lines) + "\n"
+
+
+EXPIRED_CANCEL_LINE = (
+    "Su turno se canceló porque no fue confirmado a tiempo con el enlace que le enviamos."
+)
+
+
+def _render_booking_expired(data: EmailData) -> tuple[str, str]:
+    """Aviso de cancelacion por falta de confirmacion (C-16, DD-140): texto plano.
+
+    Sin documento, motivo de consulta ni datos de otras personas; la hora sale de ``to_local``.
+    """
+    start = to_local(data.starts_at, data.timezone)
+    when = f"{_WEEKDAYS[start.weekday()]} {start:%d/%m/%Y %H:%M}"
+    lines = [
+        f"Hola, {data.patient_first_name} {data.patient_last_name}:",
+        "",
+        f"Profesional: {data.professional_name}",
+        f"Fecha y hora: {when}",
+        "",
+        EXPIRED_CANCEL_LINE,
+        f"Si todavía lo necesita, puede volver a reservar en {data.public_app_url}/turnos.",
+        "",
+        f"Consultorio: {data.clinic_name}",
+    ]
+    if data.address:
+        lines.append(f"Dirección: {data.address}")
+    if data.phone:
+        lines.append(f"Teléfono: {data.phone}")
+    subject = f"Tu turno en {data.clinic_name} se canceló por falta de confirmación"
+    return subject, "\n".join(lines) + "\n"

@@ -44,7 +44,7 @@ def test_timezone_follows_clinic_and_utc_internally(celery_conf: Any) -> None:
     assert celery_conf.conf.enable_utc is True
 
 
-def test_the_only_own_tasks_are_the_emails_the_requeue_and_the_reminders(
+def test_the_only_own_tasks_are_the_emails_the_requeue_the_reminders_and_the_expiry(
     celery_conf: Any,
 ) -> None:
     own = sorted(name for name in celery_conf.tasks if not name.startswith("celery."))
@@ -53,14 +53,24 @@ def test_the_only_own_tasks_are_the_emails_the_requeue_and_the_reminders(
         "enviar_recordatorios",
         "enviar_verificacion_reserva",
         "reencolar_pendientes",
+        "vencer_reservas_pendientes",
     ]
 
 
-def test_beat_has_exactly_two_own_entries(celery_conf: Any) -> None:
+def test_beat_has_exactly_three_own_entries(celery_conf: Any) -> None:
     assert sorted(celery_conf.conf.beat_schedule) == [
         "enviar-recordatorios",
         "reencolar-pendientes",
+        "vencer-reservas-pendientes",
     ]
+
+
+def test_expiry_runs_every_five_minutes_without_arguments(celery_conf: Any) -> None:
+    entry = celery_conf.conf.beat_schedule["vencer-reservas-pendientes"]
+    assert entry["task"] == "vencer_reservas_pendientes"
+    assert entry["schedule"] == 300.0
+    assert not entry.get("args")
+    assert not entry.get("kwargs")
 
 
 def test_requeue_runs_every_ten_minutes(celery_conf: Any) -> None:

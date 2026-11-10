@@ -48,6 +48,7 @@ class NotificationDeps:
     settings: ClinicSettingsRepository
     sender: EmailSender
     clock: Callable[[], datetime]
+    public_app_url: str = ""  # enlace del aviso de vencimiento (C-16)
 
 
 def _log(notification: Notification, outcome: DeliveryOutcome) -> DeliveryOutcome:
@@ -102,6 +103,7 @@ def deliver_notification(
                 clinic_name=clinic.clinic_name,
                 address=clinic.address,
                 phone=clinic.phone,
+                public_app_url=deps.public_app_url,
             ),
         )
         try:

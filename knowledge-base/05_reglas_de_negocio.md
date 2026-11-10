@@ -35,6 +35,7 @@ Cada regla tiene un código único `RN-{DOMINIO}-{NN}` para trazabilidad.
 - **RN-TU-11** (sobreturnos): no se permiten. La regla de no superposición (RN-TU-01) no tiene excepciones en v1, y el constraint de la base lo garantiza.
 - **RN-TU-12** (anticipación mínima): un turno solo se puede crear si empieza al menos `min_notice_hours` (6 por defecto, configurable en `clinic_settings`) después del momento actual; un inicio exactamente igual a ese límite se acepta. Reemplaza en la práctica a RN-TU-04 (DD-14).
 - **RN-TU-13**: Una reserva online queda pendiente de confirmación y ocupa su franja como un turno `scheduled`; no recibe confirmación ni recordatorio hasta que se confirma desde el enlace enviado al email de la ficha.
+- **RN-TU-14**: Una reserva pendiente que no se confirma dentro de `ONLINE_BOOKING_HOLD_MINUTES` (o antes de su inicio) se cancela sola con el motivo "Reserva online no confirmada", libera la franja y genera un único aviso por email (RN-NO-05, DD-132, DD-140). La tarea corre cada 5 minutos y un vencimiento exacto se cancela. Si la confirmación y el vencimiento coinciden, gana quien toma primero la fila: o queda confirmado, o queda cancelado y el enlace da 410.
 - **RN-TU-15**: Un turno pendiente solo se puede cancelar: no se reprograma ni se marca atendido o ausente.
 
 ## Dominio: Notificaciones (RN-NO)
@@ -42,8 +43,8 @@ Cada regla tiene un código único `RN-{DOMINIO}-{NN}` para trazabilidad.
 - **RN-NO-02**: Antes del turno se envía un recordatorio, solo para turnos `scheduled` (detalle en `11_recordatorios_email.md`).
 - **RN-NO-03**: Se envía como máximo un email por tipo, turno y fecha del turno (constraint `UNIQUE (appointment_id, kind, appointment_starts_at)`).
 - **RN-NO-04**: Un fallo de envío se registra (`status = failed`) y nunca impide agendar, cancelar ni reprogramar.
-- **RN-NO-05**: Un turno reprogramado genera notificaciones nuevas para la nueva fecha; las `pending` de la fecha anterior se descartan. Uno cancelado no genera ninguna.
-- **RN-NO-06**: La reserva online envía un email de verificación con un enlace de un solo uso; el enlace vence con la reserva.
+- **RN-NO-05**: Un turno reprogramado genera notificaciones nuevas para la nueva fecha; las `pending` de la fecha anterior se descartan. Uno cancelado no genera ninguna, salvo el aviso único de cancelación por falta de confirmación de una reserva online (`booking_expired`, RN-TU-14, DD-140): ni la cancelación de la recepción ni la confirmación lo registran.
+- **RN-NO-06**: La reserva online envía un email de verificación con un enlace de un solo uso; el enlace vence con la reserva. Si vence sin confirmarse, el sistema cancela el turno y avisa por email al paciente con un mensaje de texto plano (profesional, fecha y hora local y cómo volver a reservar), sin documento ni datos de tratamiento (RN-TU-14, DD-140).
 
 ## Dominio: Datos y privacidad (RN-PR)
 - **RN-PR-01**: En este proyecto solo se usan datos de pacientes ficticios.

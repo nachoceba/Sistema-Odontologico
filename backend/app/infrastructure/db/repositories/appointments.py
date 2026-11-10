@@ -20,7 +20,7 @@ from sqlalchemy.orm import InstrumentedAttribute, Session, sessionmaker
 from app.domain.appointments.errors import AppointmentNotFoundError, SlotTakenError
 from app.domain.appointments.ranges import require_query_range, require_range
 from app.domain.appointments.types import Appointment, AppointmentStatus, NewAppointment
-from app.domain.public_booking.rules import can_confirm
+from app.domain.public_booking.rules import EXPIRED_BOOKING_REASON, can_confirm
 from app.infrastructure.db.models import AppointmentModel
 from app.infrastructure.db.repositories._ids import parse_uuid
 from app.infrastructure.db.scope import SessionScope
@@ -147,6 +147,31 @@ class SqlAlchemyAppointmentRepository:
             row.confirmation_token_hash = None
             session.flush()
             return _to_domain(row)
+
+    def expire_pending(self, now: datetime, limit: int = 200) -> list[Appointment]:
+        # SKIP LOCKED: una confirmacion en curso (que tiene la fila con FOR UPDATE) no se espera,
+        # y dos pasadas simultaneas se reparten las filas sin pisarse (design D-1).
+        query = (
+            select(AppointmentModel)
+            .where(
+                AppointmentModel.status == AppointmentStatus.SCHEDULED,
+                AppointmentModel.pending_until.is_not(None),
+                AppointmentModel.pending_until <= now,
+            )
+            .order_by(AppointmentModel.pending_until, AppointmentModel.id)
+            .limit(limit)
+            .with_for_update(skip_locked=True)
+        )
+        with self._scope.write() as session:
+            expired: list[Appointment] = []
+            for row in session.scalars(query):
+                expired.append(_to_domain(row))
+                row.status = AppointmentStatus.CANCELLED
+                row.cancel_reason = EXPIRED_BOOKING_REASON
+                row.pending_until = None
+                row.confirmation_token_hash = None
+            session.flush()
+            return expired
 
     def get(self, appointment_id: str) -> Appointment | None:
         key = parse_uuid(appointment_id)

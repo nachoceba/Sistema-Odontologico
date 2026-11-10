@@ -96,6 +96,7 @@ Worker Celery → servidor SMTP (email de confirmación)
 5. Después del commit se encola `enviar_verificacion_reserva`, que manda al email de la ficha el enlace `PUBLIC_APP_URL/turnos/confirmar#token=…`.
 6. El paciente abre el enlace y toca el botón; la página hace `POST /api/v1/public/appointment-confirmations` con el token (10 por hora por IP).
 7. En una transacción se busca el turno por el hash con `FOR UPDATE`, se comprueba que siga `scheduled`, que `pending_until` no haya pasado y que el turno no haya empezado, y se limpian `pending_until` y el hash. Se registra la notificación `confirmation` y se envía el email de confirmación normal (C-11). Desde ahí el turno recibe el recordatorio como cualquier otro.
+8. **Rama "vence"**: si el paciente no confirma a tiempo, la tarea `vencer_reservas_pendientes` (Beat, cada 5 minutos) toma con `FOR UPDATE SKIP LOCKED` los pendientes con `pending_until` vencido, los cancela con el motivo "Reserva online no confirmada", limpia `pending_until` y el hash (la franja vuelve a estar libre) y registra en la misma transacción una notificación `booking_expired`. Después del commit se encola `enviar_email`, que manda al email de la ficha el aviso de cancelación con el enlace a `/turnos` para volver a reservar (RN-TU-14, DD-140).
 
 **Casos de error**:
 - Franja ocupada o fuera de horario → `SLOT_TAKEN` o `SLOT_UNAVAILABLE`, sin crear la ficha de un DNI nuevo.
@@ -103,4 +104,5 @@ Worker Celery → servidor SMTP (email de confirmación)
 - Campo trampa completo → `BOOKING_REJECTED`. Límite excedido → `TOO_MANY_REQUESTS` con `Retry-After`.
 - Enlace usado, inexistente o de una reserva vencida o cancelada → `CONFIRMATION_LINK_INVALID` (410), con la pantalla "Enlace no válido".
 - Redis caído al encolar la verificación → la reserva queda pendiente sin email; el paciente puede volver a reservar.
-- Mientras no exista el vencimiento automático (C-16), una reserva pendiente vencida sigue ocupando la franja hasta que la recepción la cancele.
+- Confirmar y vencer a la vez: gana quien toma primero la fila. Si confirma primero, el turno queda confirmado y la tarea lo saltea; si vence primero, el enlace da `CONFIRMATION_LINK_INVALID` (410) y no se registra confirmación.
+- Redis caído al despachar el aviso de vencimiento → la cancelación queda hecha y la notificación `pending` la levanta `reencolar_pendientes`.

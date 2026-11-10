@@ -60,11 +60,21 @@ class SqlAlchemyNotificationRepository:
     def add_pending_confirmation(
         self, appointment_id: str, starts_at: datetime
     ) -> Notification | None:
+        return self._add_pending(appointment_id, enums.NotificationKind.CONFIRMATION, starts_at)
+
+    def add_pending_booking_expired(
+        self, appointment_id: str, starts_at: datetime
+    ) -> Notification | None:
+        return self._add_pending(appointment_id, enums.NotificationKind.BOOKING_EXPIRED, starts_at)
+
+    def _add_pending(
+        self, appointment_id: str, kind: enums.NotificationKind, starts_at: datetime
+    ) -> Notification | None:
         statement = (
             pg_insert(EmailNotificationModel)
             .values(
                 appointment_id=_required_uuid(appointment_id),
-                kind=enums.NotificationKind.CONFIRMATION,
+                kind=kind,
                 status=enums.NotificationStatus.PENDING,
                 appointment_starts_at=starts_at,
             )

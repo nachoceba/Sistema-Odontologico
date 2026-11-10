@@ -111,7 +111,22 @@ def _clear_online_appointments(url: URL) -> None:
         engine.dispose()
 
 
+def _clear_expiry_notices(url: URL) -> None:
+    """La migracion 0004 no se revierte con avisos ``booking_expired``: se borran en pruebas."""
+    engine = create_engine(url)
+    try:
+        if not inspect(engine).has_table("email_notifications"):
+            return
+        with engine.begin() as connection:
+            connection.execute(
+                text("DELETE FROM email_notifications WHERE kind::text = 'booking_expired'")
+            )
+    finally:
+        engine.dispose()
+
+
 def downgrade_base(url: URL) -> None:
     require_test_database(url.database)
+    _clear_expiry_notices(url)
     _clear_online_appointments(url)
     command.downgrade(alembic_config(url), "base")

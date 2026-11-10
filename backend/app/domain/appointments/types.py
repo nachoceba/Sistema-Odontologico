@@ -119,6 +119,7 @@ class NotificationKind(Enum):
 
     CONFIRMATION = "confirmation"
     REMINDER = "reminder"
+    BOOKING_EXPIRED = "booking_expired"
 
 
 class NotificationStatus(Enum):

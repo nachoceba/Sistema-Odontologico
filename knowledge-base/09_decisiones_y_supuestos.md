@@ -733,7 +733,7 @@
 
 ### DD-132 — Plazo en C-15 y vencimiento automático en C-16
 **Decisión**: C-15 calcula `pending_until` y la confirmación rechaza un pendiente vencido. El vencimiento automático (tarea de Beat, carrera entre confirmar y vencer y aviso por email) lo trae C-16 `online-booking-expiry`.
-**Trade-offs aceptados**: hasta C-16, un pendiente vencido sigue ocupando su franja hasta que la recepción lo cancela, y no se envía ningún email de cancelación.
+**Trade-offs aceptados** (resueltos en C-16, DD-140): hasta C-16, un pendiente vencido sigue ocupando su franja hasta que la recepción lo cancela, y no se envía ningún email de cancelación.
 
 ### DD-133 — Lo que ve la recepción (C-15)
 **Decisión**: la API suma `origin` y `pending_until`. La grilla, la semana y el detalle muestran "Pendiente de confirmación" (con "hasta las HH:MM" en el detalle) u "Online". Sobre un pendiente solo se puede cancelar; reprogramar y marcar atención dan `PENDING_CONFIRMATION` (409).
@@ -795,6 +795,11 @@
 **Supuesto**: recepción solo consulta horarios.
 **Resolución**: confirmado por el usuario el 2026-11-03 al aprobar la matriz RBAC de C-03 (DD-48).
 **Riesgo si es falso**: cambiar la matriz RBAC.
+
+### DD-140 — Vencimiento automático cada 5 minutos y aviso `booking_expired` (C-16)
+**Decisión**: la tarea `vencer_reservas_pendientes` de Beat corre cada 5 minutos y cancela (con `FOR UPDATE SKIP LOCKED`, tope 200 por pasada) los pendientes con `pending_until <= now`, con el motivo "Reserva online no confirmada" y las columnas de confirmación en NULL. En la misma transacción registra una notificación `booking_expired` (valor nuevo de `notification_kind`, migración `0004`) que se despacha después del commit con el mecanismo de C-11: mismos reintentos y mismo reencolado. Se envía al email de la ficha, en texto plano, solo si el turno sigue cancelado por vencimiento, con el mismo inicio y sin haber empezado. Es la excepción a RN-NO-05.
+**Alternativas consideradas**: vencer "de forma perezosa" al calcular franjas (mezcla escrituras con lecturas públicas y no avisa si nadie mira la agenda); mandar el aviso directo desde la tarea (pierde la idempotencia, los reintentos y el reencolado).
+**Trade-offs aceptados**: la franja puede quedar retenida hasta 5 minutos de más; la ficha de una reserva vencida queda guardada (DD-138).
 
 ### SU-07 — Sin refresh token en v1 (RESUELTO en C-03, DD-45)
 **Supuesto**: alcanza con un token de acceso de 30 minutos; al vencer, el usuario vuelve a iniciar sesión.

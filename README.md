@@ -100,7 +100,7 @@ docker compose exec worker celery -A app.infrastructure.tasks.celery_app call en
 
 ## Reserva online de turnos (C-15)
 
-Los pacientes reservan sin iniciar sesión en `/turnos`: eligen profesional y franja libre y completan DNI, nombre, apellido y email (el teléfono es opcional). La reserva queda pendiente de confirmación y ocupa la franja; el sistema envía un email con un enlace a `/turnos/confirmar`, y el turno queda firme cuando el paciente toca el botón de esa página. Recepción ve la reserva como "Pendiente de confirmación" (solo puede cancelarla) y, ya confirmada, como "Online". En desarrollo y demo el email se lee en Mailpit (http://localhost:8025). El plazo se ajusta con `ONLINE_BOOKING_HOLD_MINUTES` y el enlace se arma con `PUBLIC_APP_URL` (ver la tabla de variables). El vencimiento automático de las reservas sin confirmar es el change C-16.
+Los pacientes reservan sin iniciar sesión en `/turnos`: eligen profesional y franja libre y completan DNI, nombre, apellido y email (el teléfono es opcional). La reserva queda pendiente de confirmación y ocupa la franja; el sistema envía un email con un enlace a `/turnos/confirmar`, y el turno queda firme cuando el paciente toca el botón de esa página. Recepción ve la reserva como "Pendiente de confirmación" (solo puede cancelarla) y, ya confirmada, como "Online". En desarrollo y demo el email se lee en Mailpit (http://localhost:8025). El plazo se ajusta con `ONLINE_BOOKING_HOLD_MINUTES` y el enlace se arma con `PUBLIC_APP_URL` (ver la tabla de variables). Las reservas sin confirmar vencen solas: una tarea cada 5 minutos las cancela y avisa al paciente por email (change C-16).
 
 ## Servicios
 
@@ -111,7 +111,7 @@ Los pacientes reservan sin iniciar sesión en `/turnos`: eligen profesional y fr
 | `migrate` | Una sola vez por `up`: `alembic upgrade head` y seed ficticio idempotente |
 | `api` | FastAPI en el puerto 8000 (en desarrollo con recarga automática) |
 | `worker` | Celery: envía los emails de confirmación y de recordatorio |
-| `beat` | Celery Beat: dispara `enviar_recordatorios` cada hora en punto (solo actúa a la hora configurada) y `reencolar_pendientes` cada 10 minutos |
+| `beat` | Celery Beat: dispara `enviar_recordatorios` cada hora en punto (solo actúa a la hora configurada) `reencolar_pendientes` cada 10 minutos y `vencer_reservas_pendientes` cada 5 minutos (cancela las reservas online sin confirmar y avisa al paciente) |
 | `frontend` | Vite en el 5173 (desarrollo) o nginx en el 8080 (demo) |
 | `mailpit` | Servidor SMTP y bandeja web de desarrollo; no sale ningún email real |
 
@@ -171,7 +171,7 @@ Todo endpoint exige JWT y rol salvo el login, `GET /api/v1/health` y los cuatro 
 
 ## Estado de los changes y decisiones abiertas
 
-Los changes C-01 a C-15 del roadmap están implementados y archivados (C-14 es la mejora de la capa visual y C-15 los turnos online con confirmación por email), y queda C-16 (vencimiento automático de las reservas online sin confirmar) pendiente (ver `CHANGES.md`); la lista de decisiones está en `knowledge-base/09_decisiones_y_supuestos.md`. Quedan abiertas, antes de usar datos reales:
+Los changes C-01 a C-16 del roadmap están implementados y archivados (C-14 es la mejora de la capa visual, C-15 los turnos online con confirmación por email y C-16 el vencimiento automático de las reservas online sin confirmar; ver `CHANGES.md`); la lista de decisiones está en `knowledge-base/09_decisiones_y_supuestos.md`. Quedan abiertas, antes de usar datos reales:
 
 - **SU-02, SMTP de producción**: hoy los emails van a Mailpit; falta elegir un servidor SMTP y revisar su cupo (el adaptador se configura solo por variables).
 - **SU-01, zona horaria**: se asume `America/Argentina/Buenos_Aires` sin horario de verano; confirmar con el dueño.

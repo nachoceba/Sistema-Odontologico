@@ -8,10 +8,11 @@ Integración central de v1 (extra al conjunto canónico). Usa Redis y Celery par
 |---|---|---|
 | `confirmation` | Inmediatamente al agendar o reprogramar | Paciente, profesional, fecha y hora, dirección del consultorio |
 | `reminder` | Una vez, antes del turno (ver "Programación") | Igual que la confirmación, con aviso de que es un recordatorio |
+| `booking_expired` | Una vez, cuando una reserva online vence sin confirmarse (C-16) | Paciente, profesional, fecha y hora local, aviso de cancelación por falta de confirmación y enlace a `/turnos` para volver a reservar; texto plano, sin documento |
 
 Ambos son **informativos**: el paciente no confirma ni cancela desde el email (DD-06). Para cambios debe contactar al consultorio.
 
-Además, la reserva online (C-15) envía un **email de verificación** con el enlace de confirmación. No es una fila de `email_notifications`: el token en claro no se guarda, así que la tarea `enviar_verificacion_reserva` lo recibe por la cola. Va siempre al email de la ficha y su plantilla es propia (RN-NO-06, DD-131). Los recordatorios son solo de turnos confirmados: una reserva pendiente no recibe ni confirmación ni recordatorio hasta que se confirma (RN-TU-13).
+Además, la reserva online (C-15) envía un **email de verificación** con el enlace de confirmación. No es una fila de `email_notifications`: el token en claro no se guarda, así que la tarea `enviar_verificacion_reserva` lo recibe por la cola. Va siempre al email de la ficha y su plantilla es propia (RN-NO-06, DD-131). El aviso `booking_expired` es la única notificación de un turno cancelado (excepción a RN-NO-05): se registra en la misma transacción que la cancelación por vencimiento, va al email de la ficha y solo se envía si el turno sigue cancelado con el motivo "Reserva online no confirmada", con el mismo inicio y sin haber empezado; si no, queda `failed` con `EXPIRED`. Usa los mismos reintentos y el mismo reencolado que los demás avisos (DD-140). Los recordatorios son solo de turnos confirmados: una reserva pendiente no recibe ni confirmación ni recordatorio hasta que se confirma (RN-TU-13).
 
 ## Envío asincrónico
 
@@ -58,4 +59,5 @@ Además, la reserva online (C-15) envía un **email de verificación** con el en
 | `enviar_email` | Encolada por los casos de uso | Envía una notificación y registra el resultado |
 | `enviar_recordatorios` | Celery Beat (cada hora) | Solo actúa a la hora configurada: crea y envía los recordatorios de los turnos del día siguiente; registra `processed`, `sent`, `failed` y `pending` en el log (`processed = sent + failed + pending`), sin datos del paciente. Acepta `forzar` solo desde la consola (DD-101) |
 | `enviar_verificacion_reserva` | Encolada por la reserva online | Envía el email de verificación con el enlace de un solo uso; antes de enviar comprueba que el turno siga pendiente y que el hash del token coincida |
+| `vencer_reservas_pendientes` | Celery Beat (cada 5 minutos) | Cancela las reservas online pendientes vencidas (`FOR UPDATE SKIP LOCKED`, tope 200 por pasada), libera la franja y registra el `booking_expired`; registra solo `expired=N`. No tiene ruta HTTP |
 | `reencolar_pendientes` | Celery Beat (cada 10 minutos) | Reencola las notificaciones `pending` de más de 5 minutos (tope 100 por pasada); registra solo la cantidad |

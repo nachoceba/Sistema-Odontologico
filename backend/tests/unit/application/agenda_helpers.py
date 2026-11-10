@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 from app.application.appointments import AgendaDeps
 from app.application.patients import PatientDeps
 from app.application.professionals import ScheduleDeps
-from app.application.public_booking import PublicBookingDeps
+from app.application.public_booking import ExpiryDeps, PublicBookingDeps
 from app.core.security import hash_confirmation_token
 from app.domain.appointments import (
     Appointment,
@@ -156,6 +156,16 @@ class World:
             hash_token=hash_confirmation_token,
             hold_minutes=hold_minutes,
             verification=self.verification,
+        )
+
+    def expiry_deps(self) -> ExpiryDeps:
+        """El vencimiento de reservas sobre los mismos repositorios (C-16)."""
+        return ExpiryDeps(
+            unit_of_work=lambda: InMemoryAgendaUnitOfWork(
+                self.appointments, self.notifications, self.patients
+            ),
+            dispatcher=self.dispatcher,
+            clock=lambda: self.now,
         )
 
     def schedule_deps(self) -> ScheduleDeps:

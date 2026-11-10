@@ -20,7 +20,7 @@ from tests.db_support import (
 ENUM_VALUES = {
     "user_role": ["admin", "receptionist", "dentist"],
     "appointment_status": ["scheduled", "cancelled", "completed", "no_show"],
-    "notification_kind": ["confirmation", "reminder"],
+    "notification_kind": ["confirmation", "reminder", "booking_expired"],
     "notification_status": ["pending", "sent", "failed"],
 }
 

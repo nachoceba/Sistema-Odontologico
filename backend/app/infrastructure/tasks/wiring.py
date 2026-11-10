@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from app.application.notifications import NotificationDeps, RequeueDeps
+from app.application.public_booking import ExpiryDeps
 from app.application.reminders import ReminderDeps
 from app.application.verification import VerificationDeps
 from app.core.config import get_settings
@@ -23,7 +24,7 @@ from app.infrastructure.db.repositories import (
 from app.infrastructure.db.session import get_session_factory
 from app.infrastructure.email.redirect import RedirectingEmailSender
 from app.infrastructure.email.smtp import SmtpEmailSender
-from app.infrastructure.tasks.dispatcher import publish_send_email
+from app.infrastructure.tasks.dispatcher import build_dispatcher, publish_send_email
 
 
 def build_notification_deps() -> NotificationDeps:
@@ -44,6 +45,7 @@ def build_notification_deps() -> NotificationDeps:
         settings=SqlAlchemyClinicSettingsRepository(sessions),
         sender=RedirectingEmailSender(sender, settings.EMAIL_REDIRECT_TO),
         clock=lambda: datetime.now(UTC),
+        public_app_url=settings.PUBLIC_APP_URL,
     )
 
 
@@ -67,6 +69,15 @@ def build_requeue_deps() -> RequeueDeps:
     return RequeueDeps(
         notifications=SqlAlchemyNotificationRepository(get_session_factory()),
         publish=publish_send_email,
+        clock=lambda: datetime.now(UTC),
+    )
+
+
+def build_expiry_deps() -> ExpiryDeps:
+    sessions = get_session_factory()
+    return ExpiryDeps(
+        unit_of_work=lambda: SqlAlchemyAgendaUnitOfWork(sessions),
+        dispatcher=build_dispatcher(),
         clock=lambda: datetime.now(UTC),
     )
 

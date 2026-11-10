@@ -14,6 +14,7 @@ from kombu.connection import Connection
 from sqlalchemy.exc import OperationalError
 
 from app.application.notifications import RequeueDeps
+from app.application.public_booking import ExpiryDeps, book_online
 from app.application.reminders import ReminderDeps
 from app.domain.appointments import NotificationKind, NotificationStatus
 from app.domain.settings.types import ClinicSettings
@@ -22,7 +23,9 @@ from app.infrastructure.tasks.notifications import (
     enviar_email,
     enviar_recordatorios,
     reencolar_pendientes,
+    vencer_reservas_pendientes,
 )
+from tests.unit.application.agenda_helpers import PROF_A, World
 from tests.unit.application.notification_helpers import SendWorld
 from tests.unit.application.reminder_helpers import ReminderWorld
 from tests.unit.domain.appointments.helpers import local, monday
@@ -252,3 +255,86 @@ def test_the_verification_task_retries_a_temporary_failure(
 
     assert result.get() == "SENT"
     assert scenario.sender.attempts == 2
+
+
+# --- Vencimiento de reservas online (C-16) ---
+
+
+@pytest.fixture
+def expiry_world(monkeypatch: pytest.MonkeyPatch) -> Iterator[World]:
+    world = World()
+    world.now = local(2026, 10, 3, 10)
+    book_online(
+        world.public_deps(hold_minutes=60),
+        professional_id=PROF_A,
+        starts_at=monday(10),
+        document_number="40999888",
+        first_name="Lucía",
+        last_name="Díaz",
+        email="lucia@example.com",
+        phone=None,
+    )
+    world.now = local(2026, 10, 3, 12, 30)
+    monkeypatch.setattr(wiring, "build_expiry_deps", lambda: world.expiry_deps())
+    yield world
+
+
+def test_the_expiry_task_cancels_the_expired_reservation_and_returns_the_count(
+    expiry_world: World,
+) -> None:
+    result = vencer_reservas_pendientes.apply(throw=True).get()
+
+    assert result == 1
+    [saved] = [a for a in expiry_world.everything() if a.created_by is None]
+    assert saved.cancel_reason == "Reserva online no confirmada"
+    [row] = expiry_world.notifications.list_for_appointment(saved.id)
+    assert row.kind is NotificationKind.BOOKING_EXPIRED
+    assert expiry_world.dispatcher.calls == [[row]]
+
+
+def test_running_the_expiry_task_twice_changes_nothing_the_second_time(
+    expiry_world: World,
+) -> None:
+    first = vencer_reservas_pendientes.apply(throw=True).get()
+    second = vencer_reservas_pendientes.apply(throw=True).get()
+
+    assert (first, second) == (1, 0)
+    assert len(expiry_world.dispatcher.calls) == 1
+
+
+def test_the_expiry_task_logs_only_the_count_never_patient_data(
+    expiry_world: World, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.INFO):
+        vencer_reservas_pendientes.apply(throw=True).get()
+
+    assert "expired=1" in caplog.text
+    for personal in ("lucia@example.com", "Lucía", "Díaz", "40999888"):
+        assert personal not in caplog.text
+
+
+def test_a_database_error_ends_the_expiry_task_logged_without_patient_data(
+    expiry_world: World, caplog: pytest.LogCaptureFixture
+) -> None:
+    class BrokenUnitOfWork:
+        def __enter__(self) -> object:
+            raise OperationalError("SELECT 1", {}, Exception("la base no responde"))
+
+        def __exit__(self, *_: object) -> None:
+            return None
+
+    with pytest.MonkeyPatch.context() as patch, caplog.at_level(logging.ERROR):
+        patch.setattr(
+            wiring,
+            "build_expiry_deps",
+            lambda: ExpiryDeps(
+                unit_of_work=BrokenUnitOfWork,  # type: ignore[arg-type]
+                dispatcher=expiry_world.dispatcher,
+                clock=lambda: expiry_world.now,
+            ),
+        )
+        result = vencer_reservas_pendientes.apply(throw=False)
+
+    assert result.failed()
+    assert "OperationalError" in caplog.text
+    assert "lucia@example.com" not in caplog.text

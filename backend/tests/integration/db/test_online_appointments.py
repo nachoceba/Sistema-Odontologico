@@ -19,6 +19,7 @@ from tests.integration.db.helpers import World, at, insert_appointment, make_wor
 
 HASH_A = "a" * 64
 HASH_B = "b" * 64
+BEFORE_ONLINE = "0002_notifications_created_at"  # 0004 y 0003 se revierten juntas
 
 
 def _insert_online(
@@ -160,7 +161,7 @@ def test_downgrade_fails_when_there_are_online_appointments(
         _insert_online(connection, world, at(10), at(10, 30))
 
     with pytest.raises(DBAPIError):
-        command.downgrade(alembic_config(fresh_url), "-1")
+        command.downgrade(alembic_config(fresh_url), BEFORE_ONLINE)
 
     with migrated.connect() as connection:
         columns = {
@@ -182,7 +183,7 @@ def test_downgrade_fails_when_there_are_online_appointments(
 def test_downgrade_without_online_appointments_restores_the_previous_schema(
     migrated: Engine, fresh_url: URL
 ) -> None:
-    command.downgrade(alembic_config(fresh_url), "-1")
+    command.downgrade(alembic_config(fresh_url), BEFORE_ONLINE)
     with migrated.connect() as connection:
         columns = {
             row[0]: row[1]
