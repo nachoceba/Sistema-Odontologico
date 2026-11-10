@@ -11,6 +11,7 @@ comparten estado: si uno falla, los siguientes fallan avisando cual fue.
 from __future__ import annotations
 
 import os
+import re
 import time
 import uuid
 from collections.abc import Callable, Iterator
@@ -323,3 +324,76 @@ def test_step_6_a_forced_pass_sends_one_reminder_for_b_and_a_second_adds_none(fl
     time.sleep(SETTLE_SECONDS)
 
     assert flow.mail_count(REMINDER, flow.when(2)) == before[2] + 1
+
+
+VERIFICATION = "Confirmá tu turno"
+TOKEN_IN_LINK = re.compile(r"/turnos/confirmar#token=([\w-]+)")
+
+
+def _verification_ids(mailbox: str) -> set[str]:
+    return {m["ID"] for m in messages_to(mailbox) if m["Subject"].startswith(VERIFICATION)}
+
+
+def test_step_7_an_online_booking_is_confirmed_from_the_email_link(flow: Flow) -> None:
+    require_previous(flow, "B", "el paso 7")
+    suffix = uuid.uuid4().hex[:10]
+    document = f"SO{int(suffix, 16) % 10**10:010d}"
+    typed_email = f"smoke-online-{suffix}@example.com"
+    mailbox = os.environ.get("EMAIL_REDIRECT_TO") or typed_email
+    known = _verification_ids(mailbox)
+    public = httpx.Client(base_url=API_URL, timeout=15)
+
+    listed = public.get("/public/professionals")
+    assert listed.status_code == 200
+    assert flow.professional_id in {p["id"] for p in listed.json()}
+    booked = public.post(
+        "/public/appointments",
+        json={
+            "professional_id": flow.professional_id,
+            "starts_at": flow.slots[0].isoformat(),
+            "document_number": document,
+            "first_name": "SmokeOnline",
+            "last_name": "Prueba",
+            "email": typed_email,
+        },
+    )
+    assert booked.status_code == 202, booked.text
+    found = flow.call("receptionist", "GET", "/patients", params={"q": document}).json()["items"]
+    assert len(found) == 1, "la reserva online debio crear la ficha"
+    flow.patients["C"] = {"id": found[0]["id"], "email": typed_email}
+    day = flow.tomorrow
+    listing = flow.call(
+        "receptionist",
+        "GET",
+        "/appointments",
+        params={
+            "professional_id": flow.professional_id,
+            "from": datetime.combine(day, datetime.min.time(), flow.timezone).isoformat(),
+            "to": datetime.combine(
+                day + timedelta(days=1), datetime.min.time(), flow.timezone
+            ).isoformat(),
+        },
+    ).json()
+    pending = [a for a in listing if a["patient_id"] == found[0]["id"]]
+    assert len(pending) == 1
+    assert (pending[0]["origin"], pending[0]["pending_until"] is not None) == ("online", True)
+    flow.appointments["C"] = pending[0]["id"]
+
+    def new_message() -> bool:
+        return bool(_verification_ids(mailbox) - known)
+
+    wait_until(new_message, "el email de verificacion en Mailpit")
+    [message_id] = _verification_ids(mailbox) - known
+    body = mailpit(f"/message/{message_id}")["Text"]
+    match = TOKEN_IN_LINK.search(body)
+    assert match is not None, "el email no trae el enlace de confirmacion"
+
+    confirmed = public.post("/public/appointment-confirmations", json={"token": match.group(1)})
+    assert confirmed.status_code == 200, confirmed.text
+    again = public.post("/public/appointment-confirmations", json={"token": match.group(1)})
+    assert again.status_code == 410
+    wait_until(
+        lambda: flow.mail_count(CONFIRMATION, flow.when(0)) >= 1,
+        "la confirmacion normal del turno online en Mailpit",
+    )
+    public.close()

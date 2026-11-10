@@ -27,6 +27,8 @@ const RECORD = {
   status: 'scheduled',
   cancel_reason: null,
   created_by: 'u-rec',
+  origin: 'staff',
+  pending_until: null,
 }
 const ACCENT =
   'La búsqueda distingue tildes: si el apellido lleva tilde, escribilo con tilde (por ejemplo, Pérez)'

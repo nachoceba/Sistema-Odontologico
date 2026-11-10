@@ -28,6 +28,8 @@ ALL_NAMES = [
     "SMTP_PASSWORD",
     "SMTP_USE_TLS",
     "EMAIL_REDIRECT_TO",
+    "ONLINE_BOOKING_HOLD_MINUTES",
+    "PUBLIC_APP_URL",
 ]
 
 
@@ -203,3 +205,46 @@ def test_https_origin_is_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = load(monkeypatch, CORS_ORIGINS="https://consultorio.example")
 
     assert settings.CORS_ORIGINS == ["https://consultorio.example"]
+
+
+# --- Reservas online (C-15, DD-132) ---
+
+
+def test_online_booking_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = load(monkeypatch)
+
+    assert settings.ONLINE_BOOKING_HOLD_MINUTES == 60
+    assert settings.PUBLIC_APP_URL == "http://localhost:5173"
+
+
+@pytest.mark.parametrize("minutes", ["5", "60", "1440"])
+def test_hold_minutes_inside_the_range_are_accepted(
+    monkeypatch: pytest.MonkeyPatch, minutes: str
+) -> None:
+    assert (
+        int(minutes)
+        == load(monkeypatch, ONLINE_BOOKING_HOLD_MINUTES=minutes).ONLINE_BOOKING_HOLD_MINUTES
+    )
+
+
+@pytest.mark.parametrize("minutes", ["0", "4", "1441", "-1", "abc"])
+def test_hold_minutes_outside_the_range_name_the_variable(
+    monkeypatch: pytest.MonkeyPatch, minutes: str
+) -> None:
+    assert "ONLINE_BOOKING_HOLD_MINUTES" in error_text(
+        monkeypatch, ONLINE_BOOKING_HOLD_MINUTES=minutes
+    )
+
+
+@pytest.mark.parametrize("url", ["https://turnos.consultorio.example", "http://localhost:8080"])
+def test_public_app_url_accepts_an_origin_without_trailing_slash(
+    monkeypatch: pytest.MonkeyPatch, url: str
+) -> None:
+    assert url == load(monkeypatch, PUBLIC_APP_URL=url).PUBLIC_APP_URL
+
+
+@pytest.mark.parametrize("url", ["http://localhost:8080/", "localhost:5173", "ftp://x.example", ""])
+def test_public_app_url_with_trailing_slash_or_bad_scheme_names_the_variable(
+    monkeypatch: pytest.MonkeyPatch, url: str
+) -> None:
+    assert "PUBLIC_APP_URL" in error_text(monkeypatch, PUBLIC_APP_URL=url)

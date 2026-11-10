@@ -68,11 +68,16 @@ users 1───0..1 professionals
 - `starts_at` timestamptz NOT NULL, `ends_at` timestamptz NOT NULL
 - `status` enum (`scheduled`, `cancelled`, `completed`, `no_show`) NOT NULL default `scheduled`
 - `cancel_reason` text NULL
-- `created_by` FK a `users.id`, `created_at`, `updated_at`
+- `created_by` FK a `users.id` NULL: un valor nulo significa que el turno lo reservó el paciente online (migración `0003`, C-15)
+- `pending_until` timestamptz NULL: si tiene valor, el turno es una reserva online pendiente de confirmación (`status = 'scheduled'`); se calcula como el menor entre la reserva más `ONLINE_BOOKING_HOLD_MINUTES` y `starts_at`
+- `confirmation_token_hash` text NULL: SHA-256 en hexadecimal del token del enlace de confirmación; el token en claro nunca se guarda
+- `created_at`, `updated_at`
 - Constraints:
   - `starts_at < ends_at`
+  - `ck_appointments_pending_columns_together`: `(pending_until IS NULL) = (confirmation_token_hash IS NULL)`
+  - `ck_appointments_pending_only_online`: `pending_until IS NULL OR created_by IS NULL`
   - Exclusión `ex_appointments_no_overlap` (requiere `btree_gist`, creada en la migración de Alembic con `ExcludeConstraint`): `EXCLUDE USING gist (professional_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&) WHERE (status = 'scheduled')`
-- Índices: `(professional_id, starts_at)`, `(starts_at)` para el job de recordatorios (lo usa el listado de turnos `scheduled` que empiezan en un rango, C-12), `(patient_id, starts_at)` y `(created_by)` (claves foráneas indexadas)
+- Índices: `(professional_id, starts_at)`, `(starts_at)` para el job de recordatorios (lo usa el listado de turnos `scheduled` que empiezan en un rango, C-12), `(patient_id, starts_at)` y `(created_by)` (claves foráneas indexadas), `uq_appointments_confirmation_token_hash` (único parcial sobre `confirmation_token_hash`) e `ix_appointments_pending_until` (parcial sobre `pending_until`). La reversión de `0003` falla si hay turnos online
 
 ### email_notifications
 - `id` uuid PK

@@ -32,11 +32,20 @@ export function appointmentActions(input: {
   ownProfessionalId: string | null
   professionalActive: boolean
   now: Date
-  appointment: { status: AppointmentStatus; startsAt: string; professionalId: string }
+  appointment: {
+    status: AppointmentStatus
+    startsAt: string
+    professionalId: string
+    /** Pendiente de confirmación del paciente: solo se puede cancelar (DD-133). */
+    pending?: boolean
+  }
 }): AppointmentActions {
   const { role, appointment, now } = input
   if (appointment.status !== 'scheduled') {
     return { cancel: false, reschedule: false, markAttendance: false }
+  }
+  if (appointment.pending === true) {
+    return { cancel: canManage(role) && !started(appointment.startsAt, now), reschedule: false, markAttendance: false }
   }
   const begun = started(appointment.startsAt, now)
   const own = role !== 'dentist' || input.ownProfessionalId === appointment.professionalId

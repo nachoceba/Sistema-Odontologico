@@ -103,3 +103,44 @@ describe('AppointmentDetail', () => {
     expect(handlers.onClose).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('AppointmentDetail: turnos online (DD-133)', () => {
+  const PENDIENTE = {
+    origin: 'online',
+    created_by: null,
+    pending_until: '2026-11-09T16:00:00Z',
+  } as const
+  const ONLY_CANCEL: AppointmentActions = { cancel: true, reschedule: false, markAttendance: false }
+
+  it('un pendiente muestra la hora límite local y solo la acción Cancelar', () => {
+    renderDetail(turno(10, 30, 11, 0, PENDIENTE), ONLY_CANCEL)
+
+    expect(screen.getByText('Pendiente de confirmación hasta las 13:00')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Reprogramar|Atendido|Ausente/ })).toBeNull()
+  })
+
+  it('para el odontólogo el pendiente se ve sin acciones', () => {
+    renderDetail(turno(10, 30, 11, 0, PENDIENTE), NONE)
+
+    expect(screen.getByText('Pendiente de confirmación hasta las 13:00')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Cancelar|Reprogramar|Atendido|Ausente/ })).toBeNull()
+  })
+
+  it('un online confirmado muestra "Online" y no el plazo', () => {
+    renderDetail(
+      turno(10, 30, 11, 0, { origin: 'online', created_by: null, pending_until: null }),
+      ALL,
+    )
+
+    expect(screen.getByText('Online')).toBeInTheDocument()
+    expect(screen.queryByText(/Pendiente de confirmación/)).not.toBeInTheDocument()
+  })
+
+  it('un turno de recepción no muestra etiquetas de origen', () => {
+    renderDetail(turno(10, 30, 11, 0), ALL)
+
+    expect(screen.queryByText('Online')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Pendiente de confirmación/)).not.toBeInTheDocument()
+  })
+})

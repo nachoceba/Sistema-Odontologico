@@ -344,6 +344,7 @@ export default function AgendaPage() {
               status: panel.appointment.status,
               startsAt: panel.appointment.starts_at,
               professionalId: panel.appointment.professional_id,
+              pending: panel.appointment.pending_until !== null,
             },
           })}
           onCancel={() => {

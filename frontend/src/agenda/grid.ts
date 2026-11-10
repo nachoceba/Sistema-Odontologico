@@ -1,4 +1,9 @@
-import type { Appointment, AppointmentStatus, Slot } from '../api/appointments'
+import type {
+  Appointment,
+  AppointmentOrigin,
+  AppointmentStatus,
+  Slot,
+} from '../api/appointments'
 import type { Conflict, ConflictReason, TimeOff } from '../api/professionals'
 
 /** Un turno listo para dibujar; los instantes siguen en UTC y la hora local la pone la vista. */
@@ -10,6 +15,9 @@ export interface AppointmentItem {
   /** `Apellido, Nombre` (DD-79); nunca datos de contacto. */
   patientName: string
   conflict: ConflictReason | null
+  origin: AppointmentOrigin
+  /** Instante UTC hasta el que espera la confirmación del paciente, o null. */
+  pendingUntil: string | null
 }
 
 /**
@@ -67,6 +75,8 @@ function toItem(
     status: appointment.status,
     patientName: `${appointment.patient_last_name}, ${appointment.patient_first_name}`,
     conflict: appointment.status === 'scheduled' ? (conflictById.get(appointment.id) ?? null) : null,
+    origin: appointment.origin,
+    pendingUntil: appointment.status === 'scheduled' ? appointment.pending_until : null,
   }
 }
 

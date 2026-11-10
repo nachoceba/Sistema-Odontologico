@@ -43,3 +43,33 @@ def publish_send_email(notification_id: str) -> None:
 
 def build_dispatcher() -> CeleryNotificationDispatcher:
     return CeleryNotificationDispatcher(publish_send_email)
+
+
+class CeleryVerificationDispatcher:
+    """Pide el email de verificacion; un Redis caido nunca desarma la reserva (RN-NO-04)."""
+
+    def __init__(self, publish: Callable[[str, str], None]) -> None:
+        self._publish = publish
+
+    def dispatch(self, appointment_id: str, token: str) -> None:
+        try:
+            self._publish(appointment_id, token)
+        except Exception as error:  # noqa: BLE001  (nada de la cola debe romper la reserva)
+            logger.warning(
+                "no se pudo pedir la verificacion del turno %s: %s",
+                appointment_id,
+                type(error).__name__,
+            )
+
+
+def publish_verification(appointment_id: str, token: str) -> None:
+    """Encola ``enviar_verificacion_reserva`` sin reintentar la publicacion (design D-7)."""
+    from app.infrastructure.tasks.celery_app import celery_app
+
+    celery_app.tasks["enviar_verificacion_reserva"].apply_async(
+        args=[appointment_id, token], retry=False
+    )
+
+
+def build_verification_dispatcher() -> CeleryVerificationDispatcher:
+    return CeleryVerificationDispatcher(publish_verification)

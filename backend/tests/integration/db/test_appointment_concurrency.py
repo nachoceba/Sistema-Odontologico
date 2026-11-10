@@ -133,6 +133,18 @@ class GatedAppointments:
         self._gate.wait(timeout=JOIN_SECONDS)
         return self._inner.add(new)
 
+    def add_pending(
+        self, new: NewAppointment, token_hash: str, pending_until: datetime
+    ) -> Appointment:
+        self._gate.wait(timeout=JOIN_SECONDS)
+        return self._inner.add_pending(new, token_hash, pending_until)
+
+    def confirm_by_token_hash(self, token_hash: str, now: datetime) -> Appointment | None:
+        return self._inner.confirm_by_token_hash(token_hash, now)
+
+    def find_pending_by_token_hash(self, token_hash: str, now: datetime) -> Appointment | None:
+        return self._inner.find_pending_by_token_hash(token_hash, now)
+
     def reschedule(
         self, appointment_id: str, starts_at: datetime, ends_at: datetime
     ) -> Appointment:
@@ -168,6 +180,7 @@ class GatedUnitOfWork:
         self._inner = inner
         self.appointments = GatedAppointments(inner.appointments, gate)
         self.notifications = inner.notifications
+        self.patients = inner.patients
 
     def __enter__(self) -> GatedUnitOfWork:
         self._inner.__enter__()

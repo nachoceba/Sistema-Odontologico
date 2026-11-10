@@ -94,3 +94,47 @@ def render_email(kind: NotificationKind, data: EmailData) -> tuple[str, str]:
         lines.append(f"Teléfono: {data.phone}")
     lines += ["", INFORMATIVE_LINE]
     return subject, "\n".join(lines) + "\n"
+
+
+@dataclass(frozen=True)
+class VerificationEmailData:
+    """Datos del email de verificacion de una reserva online (C-15). Sin documento."""
+
+    patient_first_name: str
+    patient_last_name: str
+    professional_name: str
+    starts_at: datetime  # UTC
+    confirm_before: datetime  # UTC
+    timezone: str
+    clinic_name: str
+    address: str
+    phone: str | None
+    confirm_url: str
+
+
+def render_verification_email(data: VerificationEmailData) -> tuple[str, str]:
+    """Asunto y cuerpo del email con el enlace de un solo uso para confirmar la reserva."""
+    start = to_local(data.starts_at, data.timezone)
+    deadline = to_local(data.confirm_before, data.timezone)
+    when = f"{_WEEKDAYS[start.weekday()]} {start:%d/%m/%Y %H:%M}"
+    lines = [
+        f"Hola, {data.patient_first_name} {data.patient_last_name}:",
+        "",
+        "Recibimos tu pedido de turno:",
+        f"Profesional: {data.professional_name}",
+        f"Fecha y hora: {when}",
+        "",
+        'Para dejarlo confirmado abrí este enlace y tocá "Confirmar mi turno":',
+        data.confirm_url,
+        "",
+        f"Tenés tiempo de confirmar hasta las {deadline:%H:%M}. Si no confirmás, el horario "
+        "se libera.",
+        "Si no pediste el turno, podés ignorar este email.",
+        "",
+        f"Consultorio: {data.clinic_name}",
+    ]
+    if data.address:
+        lines.append(f"Dirección: {data.address}")
+    if data.phone:
+        lines.append(f"Teléfono: {data.phone}")
+    return f"Confirmá tu turno en {data.clinic_name}", "\n".join(lines) + "\n"

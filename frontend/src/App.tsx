@@ -10,6 +10,8 @@ import LoginPage from './pages/LoginPage'
 import PatientsPage from './pages/PatientsPage'
 import ProfessionalsPage from './pages/ProfessionalsPage'
 import UsersPage from './pages/UsersPage'
+import ConfirmBookingPage from './public/ConfirmBookingPage'
+import PublicBookingPage from './public/PublicBookingPage'
 
 function AppRoutes() {
   const { status } = useAuth()
@@ -39,11 +41,24 @@ function AppRoutes() {
   )
 }
 
-/** Raíz de la app; el router (BrowserRouter o MemoryRouter en tests) lo pone quien la monta. */
+/**
+ * Raíz de la app; el router (BrowserRouter o MemoryRouter en tests) lo pone quien la monta.
+ * Las páginas públicas de turnos (C-15) van fuera de `AuthProvider`: no leen el token, no piden
+ * `/auth/me` y no esperan a que la sesión termine de cargar.
+ */
 export default function App() {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <Routes>
+      <Route path="/turnos" element={<PublicBookingPage />} />
+      <Route path="/turnos/confirmar" element={<ConfirmBookingPage />} />
+      <Route
+        path="*"
+        element={
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        }
+      />
+    </Routes>
   )
 }

@@ -711,6 +711,53 @@
 **Alternativas consideradas**: solo unificar el aspecto.
 **Justificación**: arreglo de accesibilidad (WCAG 2.4.3) que no cambia ninguna acción.
 
+### DD-128 — Paso "¿Es usted J*** P***?" (C-15) — REEMPLAZADA por DD-129
+**Decisión**: quedó elegida en una ronda anterior (nombre enmascarado con Sí/No) y el dueño la reemplazó. No se implementa ni la consulta de documento ni el nombre enmascarado.
+**Justificación**: se conserva solo por trazabilidad.
+
+### DD-129 — Identificación por DNI y nombre, con rechazo genérico (C-15)
+**Decisión**: el formulario público pide siempre DNI, nombre, apellido y email (teléfono opcional). Si el DNI existe, nombre y apellido se comparan con la ficha sin distinguir mayúsculas, tildes ni espacios; si coinciden, el turno se vincula a la ficha sin modificarla y el email y el teléfono escritos se ignoran. Si no coinciden, y también ante un paciente inactivo, un turno superpuesto del paciente o una carrera de DNI, la respuesta es la misma: `BOOKING_NOT_POSSIBLE` ("Verifique sus datos ingresados."). Un DNI nuevo crea la ficha.
+**Alternativas consideradas**: mostrar el nombre enmascarado (DD-128); responder "te enviamos un email" también ante el nombre equivocado.
+**Justificación**: la respuesta no revela datos de la ficha. Es el mensaje que pidió el dueño.
+**Trade-offs aceptados**: quien prueba DNIs con un nombre cualquiera puede saber cuáles existen. No obtiene ningún dato de la ficha y el tope de 5 reservas por hora por IP vuelve la prueba muy lenta (ver `10_preguntas_abiertas.md`).
+
+### DD-130 — Reserva pendiente: `scheduled` con `pending_until`, sin estado nuevo (C-15)
+**Decisión**: una reserva online es un turno `scheduled` con las columnas nuevas `pending_until` y `confirmation_token_hash` (migración `0003`); `created_by` pasa a ser opcional y nulo significa online. El plazo es el menor entre la reserva más `ONLINE_BOOKING_HOLD_MINUTES` y el inicio del turno.
+**Alternativas consideradas**: un estado nuevo `pending_confirmation` (obliga a recrear el constraint de exclusión y a tocar DD-16, el cálculo de slots y las transiciones); una tabla aparte de reservas (dos fuentes de ocupación).
+**Justificación**: no cambia el constraint de exclusión ni el cálculo de slots; el riesgo para la regla dura 6 es el menor.
+**Trade-offs aceptados**: hay que excluir los pendientes de los recordatorios y bloquear reprogramar y marcar atención.
+
+### DD-131 — Token de un solo uso con hash, enlace con fragmento y POST (C-15)
+**Decisión**: el token es `secrets.token_urlsafe(32)` y en la base se guarda su SHA-256. El enlace es `PUBLIC_APP_URL/turnos/confirmar#token=…`; la página confirma con un `POST` solo cuando se toca el botón. La confirmación se hace con `SELECT … FOR UPDATE` por el hash y todo rechazo es `CONFIRMATION_LINK_INVALID` (410). Cancelar un pendiente limpia las dos columnas.
+**Justificación**: con el fragmento el token no llega a los logs ni al `Referer`; con el botón, un previsualizador de email no confirma el turno.
+
+### DD-132 — Plazo en C-15 y vencimiento automático en C-16
+**Decisión**: C-15 calcula `pending_until` y la confirmación rechaza un pendiente vencido. El vencimiento automático (tarea de Beat, carrera entre confirmar y vencer y aviso por email) lo trae C-16 `online-booking-expiry`.
+**Trade-offs aceptados**: hasta C-16, un pendiente vencido sigue ocupando su franja hasta que la recepción lo cancela, y no se envía ningún email de cancelación.
+
+### DD-133 — Lo que ve la recepción (C-15)
+**Decisión**: la API suma `origin` y `pending_until`. La grilla, la semana y el detalle muestran "Pendiente de confirmación" (con "hasta las HH:MM" en el detalle) u "Online". Sobre un pendiente solo se puede cancelar; reprogramar y marcar atención dan `PENDING_CONFIRMATION` (409).
+
+### DD-134 — Plazo de 60 minutos configurable (Q-1 de C-15)
+**Decisión**: `ONLINE_BOOKING_HOLD_MINUTES`, de 5 a 1440, con 60 por defecto.
+**Alternativas consideradas**: un plazo fijo; el plazo guardado en `clinic_settings`.
+
+### DD-135 — Toda reserva online se confirma por email (Q-2 de C-15)
+**Decisión**: también con un DNI nuevo. El email de verificación va siempre al email de la ficha.
+
+### DD-136 — La recepción no confirma a mano un pendiente (Q-3 de C-15)
+**Decisión**: solo lo cancela. Si el paciente llama, se cancela el pendiente y se agenda como siempre.
+
+### DD-137 — Confirmación por enlace y botón, con pantallas propias (Q-4 de C-15)
+**Decisión**: `/turnos/confirmar` confirma con un botón y tiene las pantallas "Turno confirmado" y "Enlace no válido"; `/turnos` termina en "Turno registrado exitosamente", con el mismo texto para un DNI nuevo y uno existente y solo con lo que el paciente eligió. Las páginas hablan de usted y se revisaron con los criterios C-1 a C-10 de `diseno-ui-odontologico`.
+
+### DD-138 — La ficha de una reserva que vence queda guardada (Q-5 de C-15)
+**Decisión**: la recepción la corrige o el administrador la borra. El riesgo del DNI ocupado queda en `10_preguntas_abiertas.md`.
+
+### DD-139 — El change se parte en C-15 y C-16 (Q-6 de C-15)
+**Decisión**: C-15 trae la reserva pública, la confirmación y las etiquetas; C-16 trae el vencimiento automático y el email de cancelación por falta de confirmación.
+**Justificación**: dos entregas más chicas y revisables.
+
 ## Supuestos inferidos
 
 ### SU-01 — Zona horaria única

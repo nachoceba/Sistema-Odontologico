@@ -1,7 +1,8 @@
 """Unidad de trabajo de la agenda sobre PostgreSQL (design D-2, DD-36).
 
-Una sola sesion y una sola transaccion para los repositorios de turnos y de notificaciones: al
-salir del bloque ``with`` sin excepcion se confirma todo; con una excepcion se revierte todo.
+Una sola sesion y una sola transaccion para los repositorios de turnos, notificaciones y
+pacientes: al salir del bloque ``with`` sin excepcion se confirma todo; con una excepcion
+se revierte todo.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.infrastructure.db.repositories.appointments import SqlAlchemyAppointmentRepository
 from app.infrastructure.db.repositories.notifications import SqlAlchemyNotificationRepository
+from app.infrastructure.db.repositories.patients import SqlAlchemyPatientRepository
 from app.infrastructure.db.scope import SessionScope
 
 
@@ -22,6 +24,7 @@ class SqlAlchemyAgendaUnitOfWork:
         scope = SessionScope(shared=self._session)
         self.appointments = SqlAlchemyAppointmentRepository(scope=scope)
         self.notifications = SqlAlchemyNotificationRepository(scope=scope)
+        self.patients = SqlAlchemyPatientRepository(scope=scope)
 
     def __enter__(self) -> SqlAlchemyAgendaUnitOfWork:
         return self

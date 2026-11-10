@@ -3,7 +3,7 @@
 Cada regla tiene un código único `RN-{DOMINIO}-{NN}` para trazabilidad.
 
 ## Dominio: Autenticación y acceso (RN-AU)
-- **RN-AU-01**: Todo endpoint salvo `POST /api/v1/auth/login` requiere un JWT válido; en el frontend toda pantalla salvo `/login` exige sesión.
+- **RN-AU-01**: Todo endpoint salvo `POST /api/v1/auth/login`, `GET /api/v1/health` y los de `/api/v1/public/` requiere un JWT válido; en el frontend toda pantalla salvo `/login`, `/turnos` y `/turnos/confirmar` exige sesión.
 - **RN-AU-02**: Cada usuario tiene exactamente un rol (`admin`, `receptionist`, `dentist`) y los permisos salen de `03_actores_y_roles.md`.
 - **RN-AU-03**: Un usuario con `active = false` no puede iniciar sesión.
 - **RN-AU-04**: Un odontólogo solo ve sus propios turnos y horarios.
@@ -13,6 +13,7 @@ Cada regla tiene un código único `RN-{DOMINIO}-{NN}` para trazabilidad.
 - **RN-PA-02**: El `email` es obligatorio porque es el canal de recordatorio.
 - **RN-PA-03**: Un paciente con turnos asociados no se elimina; se desactiva (`active = false`).
 - **RN-PA-04**: Un paciente inactivo no puede recibir turnos nuevos.
+- **RN-PA-05**: El paciente se identifica por DNI; en una reserva online con DNI existente, nombre y apellido deben coincidir con la ficha (sin distinguir mayúsculas, tildes ni espacios) y la reserva nunca modifica la ficha.
 
 ## Dominio: Horarios de profesionales (RN-HO)
 - **RN-HO-01**: Cada profesional tiene sus propios horarios de atención por día de la semana.
@@ -33,6 +34,8 @@ Cada regla tiene un código único `RN-{DOMINIO}-{NN}` para trazabilidad.
 - **RN-TU-10** (duración de prestaciones): no hay catálogo de prestaciones ni duración por tratamiento. Un tratamiento más largo que `slot_minutes` se agenda con turnos consecutivos (DD-03). La duración variable por prestación queda para una etapa posterior.
 - **RN-TU-11** (sobreturnos): no se permiten. La regla de no superposición (RN-TU-01) no tiene excepciones en v1, y el constraint de la base lo garantiza.
 - **RN-TU-12** (anticipación mínima): un turno solo se puede crear si empieza al menos `min_notice_hours` (6 por defecto, configurable en `clinic_settings`) después del momento actual; un inicio exactamente igual a ese límite se acepta. Reemplaza en la práctica a RN-TU-04 (DD-14).
+- **RN-TU-13**: Una reserva online queda pendiente de confirmación y ocupa su franja como un turno `scheduled`; no recibe confirmación ni recordatorio hasta que se confirma desde el enlace enviado al email de la ficha.
+- **RN-TU-15**: Un turno pendiente solo se puede cancelar: no se reprograma ni se marca atendido o ausente.
 
 ## Dominio: Notificaciones (RN-NO)
 - **RN-NO-01**: Al agendar un turno se envía un email de confirmación.
@@ -40,10 +43,11 @@ Cada regla tiene un código único `RN-{DOMINIO}-{NN}` para trazabilidad.
 - **RN-NO-03**: Se envía como máximo un email por tipo, turno y fecha del turno (constraint `UNIQUE (appointment_id, kind, appointment_starts_at)`).
 - **RN-NO-04**: Un fallo de envío se registra (`status = failed`) y nunca impide agendar, cancelar ni reprogramar.
 - **RN-NO-05**: Un turno reprogramado genera notificaciones nuevas para la nueva fecha; las `pending` de la fecha anterior se descartan. Uno cancelado no genera ninguna.
+- **RN-NO-06**: La reserva online envía un email de verificación con un enlace de un solo uso; el enlace vence con la reserva.
 
 ## Dominio: Datos y privacidad (RN-PR)
 - **RN-PR-01**: En este proyecto solo se usan datos de pacientes ficticios.
-- **RN-PR-02**: Los datos de pacientes solo son accesibles a usuarios autenticados según su rol (chequeo de rol en la API y en los casos de uso).
+- **RN-PR-02**: Los datos de pacientes solo son accesibles a usuarios autenticados según su rol (chequeo de rol en la API y en los casos de uso). La reserva pública nunca muestra datos de una ficha.
 - **RN-PR-03**: Ningún secreto (clave de firma del JWT, credenciales SMTP y de base de datos) llega al navegador ni al repositorio; solo `.env.example` se versiona.
 
 ## Dominio: Excepciones globales

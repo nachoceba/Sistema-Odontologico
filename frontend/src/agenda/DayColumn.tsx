@@ -9,6 +9,7 @@ import {
   OUTSIDE_LABEL,
   STATUS_LABELS,
   leaveLabel,
+  originLabel,
 } from './messages'
 
 function range(startsAt: string, endsAt: string): string {
@@ -29,10 +30,19 @@ function AppointmentLine({
   item: AppointmentItem
   onSelect: ((id: string) => void) | undefined
 }) {
+  const origin = originLabel(item)
   const content = (
     <>
       <span className="appointment-text">{`${range(item.startsAt, item.endsAt)} ${item.patientName}`}</span>{' '}
       <span className="status-tag">{STATUS_LABELS[item.status]}</span>
+      {origin === null ? null : (
+        <>
+          {' '}
+          <span className={item.pendingUntil === null ? 'origin-tag' : 'origin-tag origin-tag--pending'}>
+            {origin}
+          </span>
+        </>
+      )}
       {item.conflict === null ? null : (
         <span className="conflict-tag">{CONFLICT_LABELS[item.conflict]}</span>
       )}

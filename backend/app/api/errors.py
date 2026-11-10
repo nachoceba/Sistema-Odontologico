@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.core.errors import DomainError
+from app.domain.public_booking.errors import TooManyRequestsError
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,12 @@ STATUS_BY_CODE: dict[str, int] = {
     "INVALID_CREDENTIALS": 401,
     "NOT_AUTHENTICATED": 401,
     "FORBIDDEN": 403,
+    "SLOT_UNAVAILABLE": 409,
+    "BOOKING_NOT_POSSIBLE": 409,
+    "CONFIRMATION_LINK_INVALID": 410,
+    "PENDING_CONFIRMATION": 409,
+    "BOOKING_REJECTED": 400,
+    "TOO_MANY_REQUESTS": 429,
 }
 
 
@@ -49,7 +56,11 @@ def _body(code: str, message: str) -> dict[str, dict[str, str]]:
 async def handle_domain_error(_request: Request, error: Exception) -> JSONResponse:
     assert isinstance(error, DomainError)
     status = STATUS_BY_CODE.get(error.code, DEFAULT_DOMAIN_STATUS)
-    headers = {"WWW-Authenticate": "Bearer"} if status == HTTP_401 else None
+    headers: dict[str, str] | None = None
+    if status == HTTP_401:
+        headers = {"WWW-Authenticate": "Bearer"}
+    elif isinstance(error, TooManyRequestsError):
+        headers = {"Retry-After": str(error.retry_after)}
     return JSONResponse(status_code=status, content=_body(error.code, str(error)), headers=headers)
 
 

@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 from alembic.config import Config
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL, make_url
 
 from alembic import command
@@ -95,6 +95,23 @@ def upgrade_head(url: URL) -> None:
     command.upgrade(alembic_config(url), "head")
 
 
+def _clear_online_appointments(url: URL) -> None:
+    """La migracion 0003 no se revierte con turnos online: se vacian los de la base de pruebas."""
+    engine = create_engine(url)
+    try:
+        if not inspect(engine).has_table("appointments"):
+            return
+        with engine.begin() as connection:
+            online = connection.execute(
+                text("SELECT count(*) FROM appointments WHERE created_by IS NULL")
+            ).scalar_one()
+            if online:
+                connection.execute(text("TRUNCATE appointments CASCADE"))
+    finally:
+        engine.dispose()
+
+
 def downgrade_base(url: URL) -> None:
     require_test_database(url.database)
+    _clear_online_appointments(url)
     command.downgrade(alembic_config(url), "base")

@@ -55,7 +55,7 @@ class NewAppointment:
     professional_id: str
     starts_at: datetime
     ends_at: datetime
-    created_by: str
+    created_by: str | None
 
 
 @dataclass(frozen=True)
@@ -69,7 +69,8 @@ class Appointment:
     ends_at: datetime
     status: AppointmentStatus
     cancel_reason: str | None
-    created_by: str
+    created_by: str | None  # None: reserva online (C-15)
+    pending_until: datetime | None = None  # no nulo: pendiente de confirmacion (C-15)
 
     def to_existing(self) -> ExistingAppointment:
         """Dato que consumen validate_appointment y compute_slots."""

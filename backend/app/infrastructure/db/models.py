@@ -161,11 +161,28 @@ class AppointmentModel(Base):
     __tablename__ = "appointments"
     __table_args__ = (
         CheckConstraint("starts_at < ends_at", name="starts_before_ends"),
+        # C-15: las dos columnas de la reserva pendiente van juntas y solo en turnos online.
+        CheckConstraint(
+            "(pending_until IS NULL) = (confirmation_token_hash IS NULL)",
+            name="pending_columns_together",
+        ),
+        CheckConstraint("pending_until IS NULL OR created_by IS NULL", name="pending_only_online"),
         _no_overlap_constraint(),
         Index("ix_appointments_professional_starts_at", "professional_id", "starts_at"),
         Index("ix_appointments_starts_at", "starts_at"),
         Index("ix_appointments_patient_starts_at", "patient_id", "starts_at"),
         Index("ix_appointments_created_by", "created_by"),
+        Index(
+            "uq_appointments_confirmation_token_hash",
+            "confirmation_token_hash",
+            unique=True,
+            postgresql_where=text("confirmation_token_hash IS NOT NULL"),
+        ),
+        Index(
+            "ix_appointments_pending_until",
+            "pending_until",
+            postgresql_where=text("pending_until IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -178,7 +195,9 @@ class AppointmentModel(Base):
         server_default=text("'scheduled'"),
     )
     cancel_reason: Mapped[str | None] = mapped_column(Text)
-    created_by: Mapped[uuid.UUID] = _uuid_fk("users.id")
+    created_by: Mapped[uuid.UUID | None] = _uuid_fk("users.id", nullable=True)  # nulo: online
+    pending_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    confirmation_token_hash: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=NOW)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=NOW, onupdate=NOW

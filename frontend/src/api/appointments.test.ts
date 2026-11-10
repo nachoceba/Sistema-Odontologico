@@ -26,6 +26,8 @@ const TURNO: Appointment = {
   status: 'scheduled',
   cancel_reason: null,
   created_by: 'u-rec',
+  origin: 'staff',
+  pending_until: null,
 }
 const FRANJA: Slot = {
   starts_at: '2026-11-09T12:00:00Z',
@@ -86,6 +88,8 @@ const REGISTRO: AppointmentRecord = {
   status: 'scheduled',
   cancel_reason: null,
   created_by: 'u-rec',
+  origin: 'staff',
+  pending_until: null,
 }
 
 function bodyOf(fetchMock: ReturnType<typeof mockApi>): unknown {

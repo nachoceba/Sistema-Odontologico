@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import itertools
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 
 from app.application.appointments import AgendaDeps
 from app.application.patients import PatientDeps
 from app.application.professionals import ScheduleDeps
+from app.application.public_booking import PublicBookingDeps
+from app.core.security import hash_confirmation_token
 from app.domain.appointments import (
     Appointment,
     NewAppointment,
@@ -52,6 +55,19 @@ def _dentist(user_id: str, professional_id: str) -> UserAccount:
     )
 
 
+class RecordingVerification:
+    """Aviso de verificacion de prueba: anota (turno, token); puede fallar a pedido."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str]] = []
+        self.error: Exception | None = None
+
+    def dispatch(self, appointment_id: str, token: str) -> None:
+        self.calls.append((appointment_id, token))
+        if self.error is not None:
+            raise self.error
+
+
 class RecordingDispatcher:
     """Despachador de prueba: anota cada llamada; puede fallar a pedido o delegar en otro."""
 
@@ -87,6 +103,8 @@ class World:
         default_factory=InMemoryNotificationRepository
     )
     dispatcher: RecordingDispatcher = field(default_factory=RecordingDispatcher)
+    verification: RecordingVerification = field(default_factory=RecordingVerification)
+    token_counter: Iterator[int] = field(default_factory=lambda: itertools.count(1))
     patient_list: list[Patient] = field(
         default_factory=lambda: [
             Patient("pac-1", "Juan", "Pérez", "juan@example.com", True),
@@ -123,9 +141,21 @@ class World:
                     slot_minutes=self.slot_minutes, min_notice_hours=self.min_notice_hours
                 )
             ),
-            unit_of_work=lambda: InMemoryAgendaUnitOfWork(self.appointments, self.notifications),
+            unit_of_work=lambda: InMemoryAgendaUnitOfWork(
+                self.appointments, self.notifications, self.patients
+            ),
             dispatcher=self.dispatcher,
             clock=lambda: self.now,
+        )
+
+    def public_deps(self, *, hold_minutes: int = 60) -> PublicBookingDeps:
+        """La reserva online sobre los mismos repositorios; tokens predecibles (``tok-1``...)."""
+        return PublicBookingDeps(
+            agenda=self.deps(),
+            new_token=lambda: f"tok-{next(self.token_counter)}",
+            hash_token=hash_confirmation_token,
+            hold_minutes=hold_minutes,
+            verification=self.verification,
         )
 
     def schedule_deps(self) -> ScheduleDeps:

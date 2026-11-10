@@ -6,7 +6,9 @@ de terceros). Los errores de token se traducen a ``NotAuthenticatedError`` (un s
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -103,3 +105,13 @@ def decode_access_token(
     if expires_at <= (now or datetime.now(UTC)).timestamp():
         raise NotAuthenticatedError
     return token_claims
+
+
+def generate_confirmation_token() -> str:
+    """Token de un solo uso de una reserva online: 256 bits, apto para una URL (DD-131)."""
+    return secrets.token_urlsafe(32)
+
+
+def hash_confirmation_token(token: str) -> str:
+    """SHA-256 hexadecimal del token: lo unico que se guarda; no permite recuperar el token."""
+    return hashlib.sha256(token.encode()).hexdigest()

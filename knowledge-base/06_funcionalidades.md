@@ -141,15 +141,44 @@ Organizadas por **épica** y luego por **historia de usuario** (formato US-NNN).
 
 **Reglas relacionadas**: RN-NO-02, RN-NO-03, RN-NO-04
 
+### US-012 — Reservar un turno online
+**Como** paciente
+**Quiero** elegir profesional y horario libre desde `/turnos`, sin iniciar sesión
+**Para** reservar mi turno sin llamar al consultorio
+
+**Criterios de aceptación**:
+- [ ] La página pública lista los profesionales activos y sus franjas libres, sin mostrar datos de pacientes.
+- [ ] El formulario pide DNI, nombre, apellido y email; el teléfono es opcional.
+- [ ] Con un DNI nuevo se crea la ficha; con un DNI existente, nombre y apellido deben coincidir con la ficha (sin distinguir mayúsculas, tildes ni espacios) y la ficha no se modifica.
+- [ ] Cualquier rechazo por los datos del paciente muestra el mismo mensaje: "Verifique sus datos ingresados."
+- [ ] La reserva queda pendiente de confirmación y ocupa la franja; dos reservas de la misma franja dejan una sola.
+- [ ] El pedido lleva límite por IP y un campo trampa; la respuesta no devuelve email, teléfono, documento ni nombre completo de una ficha.
+
+**Reglas relacionadas**: RN-AU-01, RN-PA-01, RN-PA-05, RN-PR-02, RN-TU-01, RN-TU-13, RN-NO-06
+
+### US-013 — Confirmar la reserva desde el email
+**Como** paciente
+**Quiero** confirmar mi reserva con el enlace que recibí por email
+**Para** que el turno quede firme
+
+**Criterios de aceptación**:
+- [ ] El email de verificación va al email de la ficha y trae un enlace de un solo uso a `/turnos/confirmar`.
+- [ ] La confirmación se hace con un botón en esa página, no al abrir el enlace.
+- [ ] Al confirmar se envía el email de confirmación normal y el turno entra en el recordatorio.
+- [ ] Un enlace usado, vencido o inexistente muestra "Enlace no válido".
+- [ ] Recepción ve la reserva como "Pendiente de confirmación" y solo puede cancelarla; una vez confirmada, la ve etiquetada "Online".
+
+**Reglas relacionadas**: RN-TU-13, RN-TU-15, RN-NO-01, RN-NO-02, RN-NO-06
+
 ## Backlog posterior a v1
 
-Historia clínica y odontograma, presupuestos y cobros, turnos online para pacientes, reportes, confirmar/cancelar desde el email y Google Calendar.
+Historia clínica y odontograma, presupuestos y cobros, reportes, cancelación desde el email, cancelar o reprogramar por el paciente y Google Calendar.
 
 ### Clasificación según el informe de Discovery
 
 | Nivel | Funcionalidad | Estado en este proyecto |
 |---|---|---|
-| Estándar de mercado | Agenda multi-profesional, recordatorios, odontograma, presupuestos, reserva online | Agenda y recordatorios por email en v1; el resto fuera de v1 |
+| Estándar de mercado | Agenda multi-profesional, recordatorios, odontograma, presupuestos, reserva online | Agenda, recordatorios por email y reserva online con confirmación por email (C-15); el resto fuera de v1 |
 | Diferenciador | Lista de espera, sobreturnos controlados, seña con Mercado Pago, panel de ausentismo | Backlog posterior |
 | Imprescindible según el informe | Exportación de datos y registro de accesos | Fuera de v1 por alcance (DD-07); el informe la marca como vacío del mercado y oportunidad |
 | Etapa posterior | ARCA, obras sociales, receta electrónica, multi-sucursal, reactivación de pacientes | Fuera de v1 |

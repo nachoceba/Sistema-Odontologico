@@ -44,11 +44,16 @@ def test_timezone_follows_clinic_and_utc_internally(celery_conf: Any) -> None:
     assert celery_conf.conf.enable_utc is True
 
 
-def test_the_only_own_tasks_are_send_email_requeue_pending_and_send_reminders(
+def test_the_only_own_tasks_are_the_emails_the_requeue_and_the_reminders(
     celery_conf: Any,
 ) -> None:
     own = sorted(name for name in celery_conf.tasks if not name.startswith("celery."))
-    assert own == ["enviar_email", "enviar_recordatorios", "reencolar_pendientes"]
+    assert own == [
+        "enviar_email",
+        "enviar_recordatorios",
+        "enviar_verificacion_reserva",
+        "reencolar_pendientes",
+    ]
 
 
 def test_beat_has_exactly_two_own_entries(celery_conf: Any) -> None:

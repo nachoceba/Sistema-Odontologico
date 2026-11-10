@@ -110,6 +110,25 @@ def test_invalid_reference_format_on_add_raises_value_error(
         repo.add(bad)
 
 
+def test_staff_add_requires_a_creator_and_writes_nothing_without_one(
+    engine: Engine, session_factory: sessionmaker[Session], world: World
+) -> None:
+    repo = SqlAlchemyAppointmentRepository(session_factory)
+    online = NewAppointment(
+        patient_id=str(world.juan),
+        professional_id=str(world.dra_a),
+        starts_at=at(10),
+        ends_at=at(10, 30),
+        created_by=None,
+    )
+
+    with pytest.raises(ValueError, match="usuario"):
+        repo.add(online)
+
+    with engine.connect() as connection:
+        assert scalar(connection, "SELECT count(*) FROM appointments") == 0
+
+
 def test_replace_working_hours_is_atomic_when_a_new_block_is_rejected(
     session_factory: sessionmaker[Session], world: World
 ) -> None:

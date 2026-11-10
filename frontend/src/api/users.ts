@@ -1,5 +1,5 @@
 import type { Role } from '../auth/AuthContext'
-import { apiFetch } from './client'
+import { apiFetch, type ApiFetchOptions } from './client'
 
 /** Una cuenta tal como la devuelve la API al administrador (nunca trae contraseña ni hash). */
 export interface ManagedUser {
@@ -53,12 +53,17 @@ async function errorFrom(response: Response): Promise<ApiError> {
   return new ApiError(response.status, code, message)
 }
 
-export async function request(path: string, method: string, body?: unknown): Promise<Response> {
+export async function request(
+  path: string,
+  method: string,
+  body?: unknown,
+  options?: ApiFetchOptions,
+): Promise<Response> {
   const init: RequestInit =
     body === undefined
       ? { method }
       : { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-  const response = await apiFetch(path, init)
+  const response = await apiFetch(path, init, options)
   if (!response.ok) throw await errorFrom(response)
   return response
 }

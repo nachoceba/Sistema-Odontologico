@@ -168,3 +168,23 @@ def test_a_hash_with_weaker_parameters_needs_rehash() -> None:
 
 def test_a_corrupt_hash_does_not_raise_in_needs_rehash() -> None:
     assert needs_rehash("esto-no-es-un-hash") is False
+
+
+# --- Token de confirmacion de reservas online (C-15, DD-131) ---
+
+
+def test_confirmation_tokens_are_long_and_distinct() -> None:
+    from app.core.security import generate_confirmation_token
+
+    first, second = generate_confirmation_token(), generate_confirmation_token()
+    assert first != second
+    assert len(first) >= 43  # token_urlsafe(32)
+
+
+def test_token_hash_is_sha256_hex_and_does_not_reveal_the_token() -> None:
+    from app.core.security import hash_confirmation_token
+
+    digest = hash_confirmation_token("abc")
+    assert digest == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    assert hash_confirmation_token("abc ") != digest
+    assert "abc" not in hash_confirmation_token("abc")

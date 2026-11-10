@@ -48,6 +48,7 @@ from app.domain.patients.eligibility import check_patient_can_book
 from app.domain.patients.ports import PatientRepository
 from app.domain.patients.types import Patient
 from app.domain.professionals import Professional, ProfessionalRepository
+from app.domain.public_booking.errors import PendingConfirmationError
 from app.domain.schedules import TimeOffRepository, WorkingHoursRepository
 from app.domain.settings.ports import ClinicSettingsRepository
 from app.domain.settings.types import ClinicSettings
@@ -126,7 +127,7 @@ def book_appointment(
         raise PatientNotFoundError
     professional = _require_professional(deps, professional_id)
     _require_active(patient, professional)
-    ends_at = _validated_end(deps, patient_id, professional_id, starts_at)
+    ends_at = validated_end(deps, patient_id, professional_id, starts_at)
     with deps.unit_of_work() as uow:
         saved = uow.appointments.add(
             NewAppointment(
@@ -150,9 +151,9 @@ def _require_active(patient: Patient, professional: Professional) -> None:
         raise ProfessionalInactiveError
 
 
-def _validated_end(
+def validated_end(
     deps: AgendaDeps,
-    patient_id: str,
+    patient_id: str | None,
     professional_id: str,
     starts_at: datetime,
     *,
@@ -160,7 +161,9 @@ def _validated_end(
 ) -> datetime:
     """Reglas de horario y de paciente sobre un inicio; devuelve el fin (slot vigente).
 
-    ``exclude_id`` deja afuera el propio turno al reprogramar (Hallazgo 1).
+    ``exclude_id`` deja afuera el propio turno al reprogramar (Hallazgo 1). Con
+    ``patient_id=None`` (reserva online de un paciente que todavia no existe) solo valida la
+    agenda del profesional; el paciente se controla aparte (C-15).
     """
     if has_sub_minute_precision(starts_at):
         raise OffGridError
@@ -181,7 +184,10 @@ def _validated_end(
         raise error_for_rejection(
             validation.reason, professional_id=professional_id, starts_at=starts_at
         )
-    _require_patient_free(deps, patient_id, starts_at, validation.ends_at, exclude_id=exclude_id)
+    if patient_id is not None:
+        _require_patient_free(
+            deps, patient_id, starts_at, validation.ends_at, exclude_id=exclude_id
+        )
     return validation.ends_at
 
 
@@ -282,6 +288,11 @@ def day_slots(
     """Franjas del dia local del profesional; el mismo cargador de contexto que agendar."""
     _require_access(principal, professional_id)
     _require_professional(deps, professional_id)
+    return slots_for_day(deps, professional_id, day)
+
+
+def slots_for_day(deps: AgendaDeps, professional_id: str, day: date) -> list[Slot]:
+    """Las franjas del dia local sin chequeos de acceso (los comparte la reserva online)."""
     settings = deps.settings.get()
     day_start, _ = local_day_bounds(day, settings.timezone)
     context = load_context(deps, professional_id, day_start)
@@ -331,6 +342,8 @@ def reschedule_appointment(
 ) -> Appointment:
     """Mueve un turno a un nuevo inicio, con la duracion vigente (P-6, P-12)."""
     appointment = _load_appointment(deps, appointment_id)
+    if appointment.pending_until is not None:
+        raise PendingConfirmationError
     eligibility = validate_reschedule_eligibility(
         appointment.status, appointment.starts_at, deps.clock()
     )
@@ -344,7 +357,7 @@ def reschedule_appointment(
         raise PatientNotFoundError
     professional = _require_professional(deps, appointment.professional_id)
     _require_active(patient, professional)
-    ends_at = _validated_end(
+    ends_at = validated_end(
         deps,
         appointment.patient_id,
         appointment.professional_id,
@@ -369,6 +382,8 @@ def record_attendance(
     if status not in (AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW):
         raise ValueError("el estado de atencion debe ser completed o no_show")
     appointment = get_appointment(deps, principal, appointment_id)
+    if appointment.pending_until is not None:
+        raise PendingConfirmationError
     _require_transition(deps, appointment, status)
     return deps.appointments.change_status(appointment.id, status)
 

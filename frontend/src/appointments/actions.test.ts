@@ -116,3 +116,46 @@ describe('appointmentActions', () => {
     }
   })
 })
+
+describe('acciones sobre un turno pendiente de confirmación (DD-133)', () => {
+  const base = {
+    ownProfessionalId: null,
+    professionalActive: true,
+    now: new Date('2026-11-09T14:00:00Z'),
+  }
+  const pending = {
+    status: 'scheduled' as const,
+    startsAt: '2026-11-10T13:00:00Z',
+    professionalId: 'p-1',
+    pending: true,
+  }
+
+  it.each(['admin', 'receptionist'] as const)('%s solo puede cancelar un pendiente', (role) => {
+    expect(appointmentActions({ ...base, role, appointment: pending })).toEqual({
+      cancel: true,
+      reschedule: false,
+      markAttendance: false,
+    })
+  })
+
+  it('el odontólogo dueño del turno no recibe ninguna acción sobre un pendiente', () => {
+    const actions = appointmentActions({
+      ...base,
+      role: 'dentist',
+      ownProfessionalId: 'p-1',
+      appointment: pending,
+    })
+
+    expect(actions).toEqual({ cancel: false, reschedule: false, markAttendance: false })
+  })
+
+  it('el mismo turno ya confirmado conserva cancelar y reprogramar', () => {
+    const actions = appointmentActions({
+      ...base,
+      role: 'receptionist',
+      appointment: { ...pending, pending: false },
+    })
+
+    expect(actions).toEqual({ cancel: true, reschedule: true, markAttendance: false })
+  })
+})

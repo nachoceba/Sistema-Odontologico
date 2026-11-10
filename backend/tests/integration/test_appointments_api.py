@@ -366,6 +366,7 @@ class FailingNotificationsUnitOfWork:
     def __init__(self, sessions: sessionmaker[Session]) -> None:
         self._inner = SqlAlchemyAgendaUnitOfWork(sessions)
         self.appointments = self._inner.appointments
+        self.patients = self._inner.patients
 
     @property
     def notifications(self) -> NotificationRepository:

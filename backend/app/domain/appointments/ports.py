@@ -17,6 +17,7 @@ if TYPE_CHECKING:
         NewAppointment,
         Notification,
     )
+    from app.domain.patients.ports import PatientRepository
 
 
 class AppointmentRepository(Protocol):
@@ -29,6 +30,29 @@ class AppointmentRepository(Protocol):
     """
 
     def add(self, new: NewAppointment) -> Appointment: ...
+
+    def add_pending(
+        self, new: NewAppointment, token_hash: str, pending_until: datetime
+    ) -> Appointment:
+        """Guarda un turno online ``scheduled`` pendiente de confirmacion (C-15, DD-130).
+
+        ``new.created_by`` debe ser ``None``. Misma garantia anti-superposicion que ``add``. El
+        hash del token queda guardado pero nunca sale en el ``Appointment``.
+        """
+        ...
+
+    def confirm_by_token_hash(self, token_hash: str, now: datetime) -> Appointment | None:
+        """Confirma el turno pendiente con ese hash y devuelve el turno ya confirmado.
+
+        Toma la fila con bloqueo. Devuelve ``None``, sin cambiar nada, si el hash no existe o el
+        turno no se puede confirmar (vencido, cancelado o ya empezado). Al confirmar borra
+        ``pending_until`` y el hash: el token sirve una sola vez.
+        """
+        ...
+
+    def find_pending_by_token_hash(self, token_hash: str, now: datetime) -> Appointment | None:
+        """El turno pendiente con ese hash si todavia se puede confirmar; sin cambiar nada."""
+        ...
 
     def get(self, appointment_id: str) -> Appointment | None: ...
 
@@ -56,7 +80,9 @@ class AppointmentRepository(Protocol):
         ...
 
     def list_scheduled_starting_between(self, start: datetime, end: datetime) -> list[Appointment]:
-        """Turnos ``scheduled`` de todos los profesionales que EMPIEZAN en [start, end).
+        """Turnos ``scheduled`` confirmados de todos los profesionales que EMPIEZAN en [start, end).
+
+        Excluye los pendientes de confirmacion (C-15): no reciben recordatorio.
 
         Criterio por inicio y no por superposicion (DD-66): orden ``(starts_at, id)``. Ambos
         limites son obligatorios; sin zona o ``start >= end`` lanza ``ValueError``.
@@ -119,7 +145,7 @@ class NotificationRepository(Protocol):
 
 
 class AgendaUnitOfWork(Protocol):
-    """Una transaccion que agrupa turnos y notificaciones (DD-36, D-2).
+    """Una transaccion que agrupa turnos, notificaciones y pacientes (DD-36, D-2, C-15).
 
     Al salir del bloque ``with`` sin excepcion se confirma todo; con una excepcion se revierte
     todo. Las excepciones no se suprimen.
@@ -130,6 +156,9 @@ class AgendaUnitOfWork(Protocol):
 
     @property
     def notifications(self) -> NotificationRepository: ...
+
+    @property
+    def patients(self) -> PatientRepository: ...
 
     def __enter__(self) -> Self: ...
 

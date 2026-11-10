@@ -58,6 +58,8 @@ export function turno(
     status: 'scheduled',
     cancel_reason: null,
     created_by: 'u-rec',
+    origin: 'staff',
+    pending_until: null,
     ...overrides,
   }
 }

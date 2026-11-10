@@ -214,3 +214,41 @@ def test_a_database_error_at_the_start_ends_the_task_logged_without_retrying_or_
     assert "juan@example.com" not in caplog.text
     assert "Pérez" not in caplog.text
     assert reminders.sender.attempts == 0
+
+
+# --- Verificacion de una reserva online (C-15) ---
+
+
+def test_the_verification_task_sends_the_email_when_the_pending_appointment_matches(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.infrastructure.tasks.notifications import enviar_verificacion_reserva
+    from tests.unit.application.test_send_verification import Scenario
+
+    scenario = Scenario()
+    monkeypatch.setattr(wiring, "build_verification_deps", lambda: scenario.deps())
+
+    result = enviar_verificacion_reserva.apply(
+        args=[scenario.appointment_id, scenario.token], throw=False
+    )
+
+    assert result.get() == "SENT"
+    assert len(scenario.sender.sent) == 1
+
+
+def test_the_verification_task_retries_a_temporary_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.infrastructure.tasks.notifications import enviar_verificacion_reserva
+    from tests.unit.application.test_send_verification import Scenario
+
+    scenario = Scenario()
+    scenario.sender.fail_next(1, temporary=True, code="TIMEOUT")
+    monkeypatch.setattr(wiring, "build_verification_deps", lambda: scenario.deps())
+
+    result = enviar_verificacion_reserva.apply(
+        args=[scenario.appointment_id, scenario.token], throw=False
+    )
+
+    assert result.get() == "SENT"
+    assert scenario.sender.attempts == 2

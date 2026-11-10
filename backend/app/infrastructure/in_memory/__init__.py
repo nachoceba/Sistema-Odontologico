@@ -7,6 +7,7 @@ from app.infrastructure.in_memory.appointments import InMemoryAppointmentReposit
 from app.infrastructure.in_memory.notifications import InMemoryNotificationRepository
 from app.infrastructure.in_memory.patients import InMemoryPatientRepository
 from app.infrastructure.in_memory.professionals import InMemoryProfessionalRepository
+from app.infrastructure.in_memory.rate_limiter import InMemoryRateLimiter
 from app.infrastructure.in_memory.schedules import (
     InMemoryTimeOffRepository,
     InMemoryWorkingHoursRepository,
@@ -22,6 +23,7 @@ __all__ = [
     "InMemoryNotificationRepository",
     "InMemoryPatientRepository",
     "InMemoryProfessionalRepository",
+    "InMemoryRateLimiter",
     "InMemoryTimeOffRepository",
     "InMemoryUserAccountRepository",
     "InMemoryWorkingHoursRepository",

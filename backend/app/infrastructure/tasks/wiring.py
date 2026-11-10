@@ -9,7 +9,9 @@ from datetime import UTC, datetime
 
 from app.application.notifications import NotificationDeps, RequeueDeps
 from app.application.reminders import ReminderDeps
+from app.application.verification import VerificationDeps
 from app.core.config import get_settings
+from app.core.security import hash_confirmation_token
 from app.infrastructure.db.repositories import (
     SqlAlchemyAgendaUnitOfWork,
     SqlAlchemyAppointmentRepository,
@@ -42,6 +44,22 @@ def build_notification_deps() -> NotificationDeps:
         settings=SqlAlchemyClinicSettingsRepository(sessions),
         sender=RedirectingEmailSender(sender, settings.EMAIL_REDIRECT_TO),
         clock=lambda: datetime.now(UTC),
+    )
+
+
+def build_verification_deps() -> VerificationDeps:
+    settings = get_settings()
+    notification_deps = build_notification_deps()
+    sessions = get_session_factory()
+    return VerificationDeps(
+        appointments=SqlAlchemyAppointmentRepository(sessions),
+        patients=notification_deps.patients,
+        professionals=notification_deps.professionals,
+        settings=notification_deps.settings,
+        sender=notification_deps.sender,
+        clock=lambda: datetime.now(UTC),
+        hash_token=hash_confirmation_token,
+        public_app_url=settings.PUBLIC_APP_URL,
     )
 
 

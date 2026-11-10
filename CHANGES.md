@@ -41,6 +41,8 @@ C-01 foundation-setup     [x] archivado (2026-11-03)
 
 C-13 deploy-and-hardening  ← C-04, C-10, C-12   [x] archivado (2026-11-07)
  └── C-14 ui-visual-refresh   [x] archivado (2026-11-07)  (+ C-04, C-06, C-07, C-09, C-10)
+      └── C-15 public-patient-booking   [x] archivado (2026-11-10)  (+ C-08, C-09, C-11, C-12)
+           └── C-16 online-booking-expiry   [ ] pendiente
 ```
 
 ### Paralelismo por fase
@@ -543,6 +545,47 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 
 ---
 
+## FASE 7 — Extensiones
+
+### [C-15] `public-patient-booking`
+- **Estado**: `[x]` implementado, verificado y archivado el 2026-11-10 (`openspec/changes/archive/2026-11-10-public-patient-booking/`; `openspec validate --specs --strict` válido): 1907 tests por defecto, 378 de integración, 7 de smoke y 508 de frontend; `mypy --strict app/`, `ruff`, typecheck y lint sin hallazgos. Decisiones DD-128 a DD-139.
+- **Resultado**: reserva pública sin login en `/turnos` y confirmación en `/turnos/confirmar`; cuatro endpoints bajo `/api/v1/public/` con límite de pedidos por IP en Redis, campo trampa y respuestas sin datos de pacientes; reserva pendiente (`scheduled` con `pending_until` y hash del token, migración `0003`, `created_by` opcional); email de verificación al email de la ficha; recepción ve "Pendiente de confirmación" (solo cancela) y "Online"; recordatorios solo de turnos confirmados. Evidencia visual en `docs/skills-mcp/evidencias/public-patient-booking.md`.
+- **Scope**:
+  - Identificación por DNI, nombre y apellido con rechazo genérico (`BOOKING_NOT_POSSIBLE`); la ficha existente nunca se modifica (DD-129)
+  - Reserva pendiente y token de un solo uso con hash (DD-130, DD-131); plazo `ONLINE_BOOKING_HOLD_MINUTES` (DD-134)
+  - Excepción documentada a la regla dura 4 en `CLAUDE.md`, `AGENTS.md` y la KB
+  - Variables `ONLINE_BOOKING_HOLD_MINUTES` y `PUBLIC_APP_URL`
+- **Exclusiones**:
+  - Vencimiento automático, aviso de cancelación por falta de confirmación y tarea de Beat: C-16
+  - Cuentas o login de pacientes, cancelar o reprogramar por el paciente, tope de reservas por DNI (DD-07)
+  - Confirmación manual por la recepción de un pendiente (DD-136)
+- **Dependencias**: `C-08`, `C-09`, `C-11`, `C-12`, `C-13` y `C-14`
+- **Governance**: ALTO (primera superficie sin sesión: endpoints públicos que escriben turnos y fichas, y migración con cambio de nulabilidad; checkpoints por grupo y tests de carrera con PostgreSQL real)
+- **Leer antes**:
+  - `openspec/changes/public-patient-booking/design.md` (D-1 a D-11)
+  - `knowledge-base/05_reglas_de_negocio.md` (RN-AU-01, RN-PA-05, RN-TU-13, RN-TU-15, RN-NO-06) y `knowledge-base/07_flujos_principales.md` (Flujo 6)
+  - `knowledge-base/11_recordatorios_email.md` y `knowledge-base/10_preguntas_abiertas.md` (DNI ocupado)
+  - `docs/skills-mcp/evidencias/public-patient-booking.md`
+- **Escenarios verificables** (specs del change):
+  - Dado un DNI nuevo y una franja libre, cuando el paciente reserva, entonces recibe 202 sin datos de pacientes, el turno queda `scheduled` con `pending_until` y le llega la verificación
+  - Dado un DNI existente con otro nombre, cuando reserva, entonces recibe `BOOKING_NOT_POSSIBLE` y no se crea ni modifica nada
+  - Dadas dos reservas simultáneas de la misma franja, cuando ambas escriben, entonces queda un turno y la perdedora recibe `SLOT_TAKEN`
+  - Dado un enlace ya usado, cuando se confirma de nuevo, entonces la respuesta es 410 `CONFIRMATION_LINK_INVALID`
+
+### [C-16] `online-booking-expiry`
+- **Estado**: `[ ]` pendiente (propuesto en `openspec/changes/online-booking-expiry/`; depende de C-15).
+- **Scope**:
+  - Tarea de Beat cada 5 minutos que cancela las reservas pendientes vencidas con `FOR UPDATE SKIP LOCKED` y el motivo "Reserva online no confirmada" (RN-TU-14)
+  - Tests de la carrera entre confirmar y vencer
+  - Email de cancelación por falta de confirmación (DD-140)
+- **Exclusiones**: lo que ya trae C-15; cuentas de pacientes y cancelación o reprogramación por el paciente
+- **Dependencias**: `C-15`
+- **Governance**: ALTO (cancela turnos sin intervención humana y agrega un tipo de notificación)
+- **Leer antes**:
+  - `openspec/changes/online-booking-expiry/design.md`
+  - `openspec/changes/public-patient-booking/design.md` (D-6, D-7)
+  - `knowledge-base/11_recordatorios_email.md`
+
 ## Tabla resumen
 
 | ID | Change | Fase | Deps | Governance |
@@ -565,5 +608,7 @@ Ninguno agrega funcionalidades que el informe desaconseje o que el MVP excluya (
 | C-12 | reminders-cron (archivado `[x]`) | 4 | C-11 | ALTO |
 | C-13 | deploy-and-hardening (archivado `[x]`) | 5 | C-04, C-10, C-12 | MEDIO |
 | C-14 | ui-visual-refresh (archivado `[x]`) | 6 | C-13 | MEDIO |
+| C-15 | public-patient-booking (archivado `[x]`) | 7 | C-08, C-09, C-11, C-12, C-13, C-14 | ALTO |
+| C-16 | online-booking-expiry (pendiente `[ ]`) | 7 | C-15 | ALTO |
 
-**Siguientes changes habilitados**: C-01 a C-14 están implementados y archivados (C-14 el 2026-11-07, en `openspec/changes/archive/2026-11-07-ui-visual-refresh/`; C-13 el 2026-11-07, en `openspec/changes/archive/2026-11-07-deploy-and-hardening/`). Siguen abiertas en `knowledge-base/10_preguntas_abiertas.md` el proveedor SMTP de producción (SU-02), endurecer sesión y login (DD-46, DD-47, DD-112) y la adopción con una recepcionista real (R-8), además de las preguntas de dominio de prioridad media.
+**Siguientes changes habilitados**: sigue C-16 (`online-booking-expiry`). C-01 a C-15 están implementados y archivados (C-15 el 2026-11-10, en `openspec/changes/archive/2026-11-10-public-patient-booking/`; C-14 el 2026-11-07, en `openspec/changes/archive/2026-11-07-ui-visual-refresh/`; C-13 el 2026-11-07, en `openspec/changes/archive/2026-11-07-deploy-and-hardening/`). Siguen abiertas en `knowledge-base/10_preguntas_abiertas.md` el proveedor SMTP de producción (SU-02), endurecer sesión y login (DD-46, DD-47, DD-112) y la adopción con una recepcionista real (R-8), además de las preguntas de dominio de prioridad media.

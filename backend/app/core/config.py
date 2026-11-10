@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     EMAIL_REDIRECT_TO: str = ""
     CLINIC_TIMEZONE: str
     CORS_ORIGINS: CommaSeparated = Field(min_length=1)
+    ONLINE_BOOKING_HOLD_MINUTES: int = Field(default=60, ge=5, le=1440)
+    PUBLIC_APP_URL: str = "http://localhost:5173"
 
     @field_validator("JWT_SECRET_KEY")
     @classmethod
@@ -67,6 +69,13 @@ class Settings(BaseSettings):
     def _origins_are_explicit(cls, value: list[str]) -> list[str]:
         if any(not origin.startswith(CORS_ORIGIN_SCHEMES) for origin in value):
             raise ValueError("cada origen debe ser explicito, con http:// o https:// (sin comodin)")
+        return value
+
+    @field_validator("PUBLIC_APP_URL")
+    @classmethod
+    def _public_url_is_an_origin(cls, value: str) -> str:
+        if not value.startswith(CORS_ORIGIN_SCHEMES) or value.endswith("/"):
+            raise ValueError("debe empezar con http:// o https:// y no terminar en /")
         return value
 
     @field_validator("EMAIL_REDIRECT_TO")

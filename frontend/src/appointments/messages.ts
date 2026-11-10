@@ -26,6 +26,7 @@ export const ACCENT_NOTE =
 
 const MESSAGE_BY_CODE: Record<string, string> = {
   SLOT_TAKEN: 'Ese horario se acaba de ocupar. Elegí otro horario',
+  PENDING_CONFIRMATION: 'Este turno espera la confirmación del paciente.',
   OUTSIDE_WORKING_HOURS: 'Ese horario está fuera del horario de atención del profesional',
   PROFESSIONAL_TIME_OFF: 'El profesional está de licencia ese día',
   INSUFFICIENT_NOTICE: 'Ese horario ya pasó o no respeta la anticipación mínima del consultorio',

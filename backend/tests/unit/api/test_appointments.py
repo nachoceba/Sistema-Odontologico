@@ -56,6 +56,8 @@ def test_booking_returns_201_with_the_created_appointment_in_utc(
         "status",
         "cancel_reason",
         "created_by",
+        "origin",
+        "pending_until",
     }
     stored = agenda.world.appointments.get(body["id"])
     assert stored is not None
@@ -449,6 +451,8 @@ NAME_KEYS = {
     "status",
     "cancel_reason",
     "created_by",
+    "origin",
+    "pending_until",
 }
 DAY = {
     "professional_id": PROF_A,
@@ -519,3 +523,106 @@ def test_consulting_the_agenda_changes_nothing(
 
     assert agenda.snapshot() == before
     assert agenda.world.notifications.__dict__ == notifications
+
+
+# --- Origen y turnos pendientes de la reserva online (C-15, spec appointment-api) ---------------
+
+ONLINE_DOC = "40999888"
+
+
+def _online_pending(agenda: AgendaScene) -> str:
+    from tests.unit.api.test_public_booking import booking
+
+    deps = agenda.world.public_deps()
+    from app.application.public_booking import book_online
+
+    book_online(
+        deps,
+        professional_id=PROF_A,
+        starts_at=monday(16),
+        document_number=booking()["document_number"],
+        first_name="Lucía",
+        last_name="Díaz",
+        email="lucia@example.com",
+        phone=None,
+    )
+    return next(a.id for a in agenda.world.everything() if a.created_by is None)
+
+
+def test_a_staff_appointment_says_origin_staff_and_has_no_pending_until(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    response = auth_client.get(f"{BASE}/{agenda.future_a}", headers=reception)
+
+    body = response.json()
+    assert body["origin"] == "staff"
+    assert body["created_by"] == "u-rec"
+    assert body["pending_until"] is None
+
+
+def test_a_pending_online_appointment_has_origin_online_and_its_deadline(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    pending_id = _online_pending(agenda)
+
+    body = auth_client.get(f"{BASE}/{pending_id}", headers=reception).json()
+
+    assert body["origin"] == "online"
+    assert body["created_by"] is None
+    assert _parse(body["pending_until"]) == agenda.world.now + timedelta(hours=1)
+    assert _parse(body["pending_until"]).utcoffset() == timedelta(0)
+    assert body["patient_first_name"] == "Lucía"
+
+
+def test_a_confirmed_online_appointment_keeps_origin_online_without_deadline(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    from app.application.public_booking import confirm_online_booking
+
+    pending_id = _online_pending(agenda)
+    confirm_online_booking(agenda.world.public_deps(), "tok-1")
+
+    body = auth_client.get(f"{BASE}/{pending_id}", headers=reception).json()
+
+    assert (body["origin"], body["created_by"], body["pending_until"]) == ("online", None, None)
+
+
+def test_the_listing_carries_origin_and_pending_until_for_every_row(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    _online_pending(agenda)
+
+    rows = auth_client.get(BASE, params=DAY, headers=reception).json()
+
+    assert {r["origin"] for r in rows} == {"staff", "online"}
+    assert all("pending_until" in r for r in rows)
+    assert [r["origin"] for r in rows if r["pending_until"] is not None] == ["online"]
+
+
+def test_rescheduling_a_pending_appointment_is_409_pending_confirmation(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    pending_id = _online_pending(agenda)
+
+    response = auth_client.post(
+        f"{BASE}/{pending_id}/reschedule",
+        json={"starts_at": monday(17).isoformat()},
+        headers=reception,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "PENDING_CONFIRMATION"
+
+
+def test_receptionist_can_still_cancel_a_pending_appointment(
+    auth_client: TestClient, agenda: AgendaScene, reception: dict[str, str]
+) -> None:
+    pending_id = _online_pending(agenda)
+
+    response = auth_client.post(
+        f"{BASE}/{pending_id}/cancel", json={"reason": "Paciente no confirmó"}, headers=reception
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "cancelled"
+    assert response.json()["pending_until"] is None

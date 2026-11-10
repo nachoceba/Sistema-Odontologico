@@ -45,6 +45,18 @@ class InMemoryPatientRepository:
             active=record.active,
         )
 
+    def snapshot(self) -> dict[str, PatientRecord]:
+        """Copia del estado, para que la unidad de trabajo pueda revertir."""
+        return dict(self._records)
+
+    def restore(self, state: dict[str, PatientRecord]) -> None:
+        self._records = dict(state)
+
+    def get_by_document(self, document_number: str) -> PatientRecord | None:
+        return next(
+            (r for r in self._records.values() if r.document_number == document_number), None
+        )
+
     def get_record(self, patient_id: str) -> PatientRecord | None:
         return self._records.get(patient_id)
 

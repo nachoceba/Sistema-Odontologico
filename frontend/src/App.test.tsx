@@ -312,3 +312,63 @@ describe('rutas protegidas', () => {
     expect(await screen.findByRole('button', { name: 'Ingresar' })).toBeInTheDocument()
   })
 })
+
+describe('páginas públicas de turnos: fuera de la sesión (frontend-auth, P-8)', () => {
+  const PROFESIONALES = [{ id: 'p-1', display_name: 'Dra. A' }]
+
+  it('sin sesión, /turnos muestra la reserva y no redirige a /login', async () => {
+    mockApi({ 'GET /public/professionals': () => jsonResponse(PROFESIONALES) })
+
+    renderApp('/turnos')
+
+    expect(await screen.findByRole('heading', { name: 'Reservar un turno' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Dra. A' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Contraseña')).not.toBeInTheDocument()
+  })
+
+  it('con un token guardado y /auth/me sin responder, /turnos no queda en "Cargando…"', async () => {
+    saveToken('tok-rec')
+    const fetchMock = mockApi({
+      'GET /public/professionals': () => jsonResponse(PROFESIONALES),
+      'GET /auth/me': () => new Promise<Response>(() => undefined),
+    })
+
+    renderApp('/turnos')
+
+    expect(await screen.findByRole('heading', { name: 'Reservar un turno' })).toBeInTheDocument()
+    const paths = fetchMock.mock.calls.map((call) => String(call[0]))
+    expect(paths.some((path) => path.endsWith('/auth/me'))).toBe(false)
+  })
+
+  it('con sesión de recepción abierta, ningún pedido de /turnos lleva Authorization', async () => {
+    saveToken('tok-rec')
+    const fetchMock = mockApi({ 'GET /public/professionals': () => jsonResponse(PROFESIONALES) })
+
+    renderApp('/turnos')
+
+    await screen.findByRole('button', { name: 'Dra. A' })
+    for (const call of fetchMock.mock.calls) {
+      const init = call[1] as RequestInit | undefined
+      expect(new Headers(init?.headers).has('Authorization')).toBe(false)
+    }
+    expect(readToken()).toBe('tok-rec')
+  })
+
+  it('/turnos/confirmar#token=abc muestra la confirmación sin sesión y sin hacer pedidos', async () => {
+    const fetchMock = mockApi({})
+
+    renderApp('/turnos/confirmar#token=abc')
+
+    expect(await screen.findByRole('heading', { name: 'Confirmar su turno' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirmar mi turno' })).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('una ruta inexistente sigue llevando a /login sin sesión', async () => {
+    mockApi({ 'GET /health': () => jsonResponse({ status: 'ok' }) })
+
+    renderApp('/turnos/otra-cosa')
+
+    expect(await screen.findByLabelText('Contraseña')).toBeInTheDocument()
+  })
+})

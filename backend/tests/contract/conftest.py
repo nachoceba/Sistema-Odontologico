@@ -131,6 +131,7 @@ class InMemoryFactory:
         self._notifications = InMemoryNotificationRepository(
             appointment_lookup=self._appointments.get
         )
+        self._patients = InMemoryPatientRepository()
 
     def professional(self, name: str) -> str:
         return name
@@ -145,7 +146,9 @@ class InMemoryFactory:
         return self._appointments
 
     def unit_of_work(self) -> Callable[[], AgendaUnitOfWork]:
-        return lambda: InMemoryAgendaUnitOfWork(self._appointments, self._notifications)
+        return lambda: InMemoryAgendaUnitOfWork(
+            self._appointments, self._notifications, self._patients
+        )
 
     def notifications(self) -> NotificationRepository:
         return self._notifications
@@ -167,7 +170,9 @@ class InMemoryFactory:
         return InMemoryTimeOffRepository()
 
     def patients(self, initial: Sequence[Patient | PatientRecord] = ()) -> PatientRepository:
-        return InMemoryPatientRepository(initial)
+        if initial:
+            self._patients = InMemoryPatientRepository(initial)
+        return self._patients
 
     def settings(self, initial: ClinicSettings | None = None) -> ClinicSettingsRepository:
         return InMemoryClinicSettingsRepository(initial)

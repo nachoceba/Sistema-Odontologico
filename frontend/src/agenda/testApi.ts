@@ -92,6 +92,8 @@ function write(
       status: 'scheduled',
       cancel_reason: null,
       created_by: 'u-rec',
+      origin: 'staff',
+      pending_until: null,
     }
     world.appointments.push(created)
     return jsonResponse(created, 201)

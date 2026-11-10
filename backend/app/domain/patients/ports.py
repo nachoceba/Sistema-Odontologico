@@ -17,6 +17,10 @@ class PatientRepository(Protocol):
         """La ficha completa, o None si no existe o el identificador no tiene formato valido."""
         ...
 
+    def get_by_document(self, document_number: str) -> PatientRecord | None:
+        """La ficha con ese documento ya normalizado, o None (C-15: reserva online)."""
+        ...
+
     def search(self, *, text: str, include_inactive: bool, limit: int) -> list[PatientRecord]:
         """Pacientes cuyo apellido contiene ``text`` o cuyo documento empieza con el.
 

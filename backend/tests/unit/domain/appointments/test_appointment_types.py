@@ -68,3 +68,17 @@ def test_appointment_not_found_error_carries_id() -> None:
     assert error.code == "APPOINTMENT_NOT_FOUND"
     assert error.appointment_id == "a-9"
     assert "a-9" in str(error)
+
+
+def test_appointment_may_be_online_and_pending() -> None:
+    from datetime import UTC, datetime
+
+    from app.domain.appointments.types import Appointment, AppointmentStatus, NewAppointment
+
+    start = datetime(2026, 11, 10, 13, 0, tzinfo=UTC)
+    status = AppointmentStatus.SCHEDULED
+    pending = Appointment("a", "p", "d", start, start, status, None, None, start)
+    assert pending.created_by is None
+    assert pending.pending_until == start
+    assert NewAppointment("p", "d", start, start, None).created_by is None
+    assert Appointment("a", "p", "d", start, start, status, None, "u").pending_until is None

@@ -7,6 +7,7 @@ aca); la fecha de nacimiento invalida lanza ``InvalidPatientDataError`` (400).
 from __future__ import annotations
 
 import re
+import unicodedata
 from datetime import date
 
 from app.domain.patients.errors import InvalidPatientDataError
@@ -80,3 +81,16 @@ def normalize_document_prefix(text: str) -> str | None:
     if not normalized.isascii() or not normalized.isalnum():
         return None
     return normalized
+
+
+def _comparable_name(text: str) -> str:
+    """NFKD sin diacriticos, en mayusculas y con los espacios reducidos (DD-129)."""
+    decomposed = unicodedata.normalize("NFKD", text)
+    without_marks = "".join(char for char in decomposed if not unicodedata.combining(char))
+    return " ".join(without_marks.upper().split())
+
+
+def same_person_name(first: str, second: str) -> bool:
+    """True si dos nombres (o apellidos) son el mismo sin contar mayusculas, tildes ni espacios."""
+    left, right = _comparable_name(first), _comparable_name(second)
+    return bool(left) and left == right

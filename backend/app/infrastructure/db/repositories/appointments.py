@@ -20,6 +20,7 @@ from sqlalchemy.orm import InstrumentedAttribute, Session, sessionmaker
 from app.domain.appointments.errors import AppointmentNotFoundError, SlotTakenError
 from app.domain.appointments.ranges import require_query_range, require_range
 from app.domain.appointments.types import Appointment, AppointmentStatus, NewAppointment
+from app.domain.public_booking.rules import can_confirm
 from app.infrastructure.db.models import AppointmentModel
 from app.infrastructure.db.repositories._ids import parse_uuid
 from app.infrastructure.db.scope import SessionScope
@@ -35,7 +36,8 @@ def _to_domain(row: AppointmentModel) -> Appointment:
         ends_at=row.ends_at.astimezone(UTC),
         status=row.status,
         cancel_reason=row.cancel_reason,
-        created_by=str(row.created_by),
+        created_by=None if row.created_by is None else str(row.created_by),
+        pending_until=None if row.pending_until is None else row.pending_until.astimezone(UTC),
     )
 
 
@@ -84,6 +86,8 @@ class SqlAlchemyAppointmentRepository:
 
     def add(self, new: NewAppointment) -> Appointment:
         require_range(new.starts_at, new.ends_at)
+        if new.created_by is None:
+            raise ValueError("el turno de recepcion necesita un usuario creador")
         row = AppointmentModel(
             patient_id=_required_uuid(new.patient_id, "paciente"),
             professional_id=_required_uuid(new.professional_id, "profesional"),
@@ -95,6 +99,53 @@ class SqlAlchemyAppointmentRepository:
         with self._scope.write() as session:
             session.add(row)
             _flush_or_slot_taken(session, row)
+            return _to_domain(row)
+
+    def add_pending(
+        self, new: NewAppointment, token_hash: str, pending_until: datetime
+    ) -> Appointment:
+        require_range(new.starts_at, new.ends_at)
+        if new.created_by is not None:
+            raise ValueError("un turno pendiente no tiene usuario creador")
+        row = AppointmentModel(
+            patient_id=_required_uuid(new.patient_id, "paciente"),
+            professional_id=_required_uuid(new.professional_id, "profesional"),
+            starts_at=new.starts_at,
+            ends_at=new.ends_at,
+            status=AppointmentStatus.SCHEDULED,
+            created_by=None,
+            pending_until=pending_until,
+            confirmation_token_hash=token_hash,
+        )
+        with self._scope.write() as session:
+            session.add(row)
+            _flush_or_slot_taken(session, row)
+            return _to_domain(row)
+
+    def find_pending_by_token_hash(self, token_hash: str, now: datetime) -> Appointment | None:
+        query = select(AppointmentModel).where(
+            AppointmentModel.confirmation_token_hash == token_hash
+        )
+        with self._scope.read() as session:
+            row = session.scalars(query).first()
+            if row is None:
+                return None
+            appointment = _to_domain(row)
+            return appointment if can_confirm(appointment, now) else None
+
+    def confirm_by_token_hash(self, token_hash: str, now: datetime) -> Appointment | None:
+        query = (
+            select(AppointmentModel)
+            .where(AppointmentModel.confirmation_token_hash == token_hash)
+            .with_for_update()
+        )
+        with self._scope.write() as session:
+            row = session.scalars(query).first()
+            if row is None or not can_confirm(_to_domain(row), now):
+                return None
+            row.pending_until = None
+            row.confirmation_token_hash = None
+            session.flush()
             return _to_domain(row)
 
     def get(self, appointment_id: str) -> Appointment | None:
@@ -115,6 +166,9 @@ class SqlAlchemyAppointmentRepository:
             row = self._locked(session, appointment_id)
             row.status = status
             row.cancel_reason = cancel_reason
+            if status is AppointmentStatus.CANCELLED:
+                row.pending_until = None
+                row.confirmation_token_hash = None
             _flush_or_slot_taken(session, row)
             return _to_domain(row)
 
@@ -145,6 +199,7 @@ class SqlAlchemyAppointmentRepository:
             select(AppointmentModel)
             .where(
                 AppointmentModel.status == AppointmentStatus.SCHEDULED,
+                AppointmentModel.pending_until.is_(None),
                 AppointmentModel.starts_at >= start,
                 AppointmentModel.starts_at < end,
             )

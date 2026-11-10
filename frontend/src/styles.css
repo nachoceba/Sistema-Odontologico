@@ -740,3 +740,71 @@ button.appointment-button:hover {
 .conflict-actions {
   margin-left: auto;
 }
+
+/* Páginas públicas de turnos (C-15): sin barra interna, columna angosta y centrada. */
+.page--public {
+  max-width: 40rem;
+}
+
+.public-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.public-card,
+.public-form {
+  margin: var(--space-4) 0;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.public-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.public-card h1:focus {
+  outline: none;
+}
+
+/* Campo trampa: fuera de la vista y del orden de Tab; una persona nunca lo completa. */
+.trap-field {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* Etiquetas de origen de los turnos online (DD-133): siempre con texto, nunca solo color. */
+.origin-tag {
+  display: inline-block;
+  margin-left: var(--space-1);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: var(--font-size-1);
+}
+
+.origin-tag--pending {
+  border-color: var(--color-pending);
+  background: var(--color-pending-bg);
+  color: var(--color-pending);
+}
+
+/* Enlace suelto de las páginas públicas: objetivo de al menos 24 px de alto (WCAG 2.5.8). */
+.public-card a {
+  display: inline-block;
+  min-height: 1.5rem;
+  padding: var(--space-1) 0;
+}

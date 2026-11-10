@@ -15,6 +15,8 @@ from celery import shared_task
 
 from app.application.notifications import MAX_ATTEMPTS, deliver_notification, requeue_pending
 from app.application.reminders import send_reminders
+from app.application.verification import MAX_ATTEMPTS as VERIFICATION_ATTEMPTS
+from app.application.verification import send_verification
 from app.domain.notifications import DeliveryOutcome
 from app.infrastructure.tasks import wiring
 
@@ -28,6 +30,23 @@ def enviar_email(self: Any, notification_id: str) -> str:
     attempt = int(self.request.retries) + 1
     outcome = deliver_notification(
         wiring.build_notification_deps(), notification_id, attempt=attempt
+    )
+    if outcome is DeliveryOutcome.RETRY:
+        raise self.retry(countdown=RETRY_BASE_SECONDS * 2 ** (attempt - 1))
+    return str(outcome.value)
+
+
+@shared_task(  # type: ignore[untyped-decorator]
+    bind=True, name="enviar_verificacion_reserva", max_retries=VERIFICATION_ATTEMPTS - 1
+)
+def enviar_verificacion_reserva(self: Any, appointment_id: str, token: str) -> str:
+    """Email con el enlace de confirmacion de una reserva online (C-15, design D-7).
+
+    El token en claro solo viaja en el mensaje de la cola; el log lleva el turno y el resultado.
+    """
+    attempt = int(self.request.retries) + 1
+    outcome = send_verification(
+        wiring.build_verification_deps(), appointment_id, token, attempt=attempt
     )
     if outcome is DeliveryOutcome.RETRY:
         raise self.retry(countdown=RETRY_BASE_SECONDS * 2 ** (attempt - 1))

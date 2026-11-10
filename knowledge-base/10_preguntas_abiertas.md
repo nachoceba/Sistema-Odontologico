@@ -38,6 +38,7 @@
 | Baja | Precio de Dentalink (USD 29 según un tercero, sin respaldo del sitio oficial): no verificado. | Contexto de mercado | Equipo |
 | Baja | Normativa: Ley 25.326 y Ley 27.706 no fueron contrastadas con su texto. ¿Hace falta revisión legal si el proyecto pasara a datos reales? | Cumplimiento | Dueño |
 | Media | Adopción: ¿cómo se hace que recepción abandone planilla y WhatsApp? Checklist y criterio para dejar la planilla en `docs/adopcion-recepcion.md` (C-13, DD-114); falta que el dueño decida y pruebe con una recepcionista real (R-8) | Éxito del proyecto | Dueño |
+| Media | ¿Cómo se evita que alguien registre primero el DNI de otra persona con datos inventados, o que pruebe DNIs para saber cuáles existen? En C-15 un DNI nuevo crea la ficha con el email escrito y el rechazo por nombre distinto es genérico, con un tope de 5 reservas por hora por IP (DD-129, DD-138); el email de verificación y los avisos del turno llegan a quien escribió ese email | Uso con datos reales | Dueño / Equipo técnico |
 
 ## Preguntas resueltas
 

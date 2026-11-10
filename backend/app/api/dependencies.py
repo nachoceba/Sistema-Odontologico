@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime
+from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends
@@ -13,7 +14,9 @@ from app.application.appointments import AgendaDeps
 from app.application.auth import TokenConfig, resolve_principal
 from app.application.patients import PatientDeps
 from app.application.professionals import ScheduleDeps
+from app.application.public_booking import PublicBookingDeps
 from app.core.config import get_settings
+from app.core.security import generate_confirmation_token, hash_confirmation_token
 from app.domain.auth import (
     ForbiddenError,
     NotAuthenticatedError,
@@ -22,6 +25,7 @@ from app.domain.auth import (
     UserAccountRepository,
     can_access_professional,
 )
+from app.domain.public_booking.ports import RateLimiter
 from app.infrastructure.db.repositories import (
     SqlAlchemyAgendaUnitOfWork,
     SqlAlchemyAppointmentRepository,
@@ -33,7 +37,8 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyWorkingHoursRepository,
 )
 from app.infrastructure.db.session import get_session_factory
-from app.infrastructure.tasks.dispatcher import build_dispatcher
+from app.infrastructure.rate_limiter import RedisRateLimiter, build_redis_rate_limiter
+from app.infrastructure.tasks.dispatcher import build_dispatcher, build_verification_dispatcher
 
 
 def get_user_repository() -> UserAccountRepository:
@@ -94,11 +99,36 @@ def get_patient_deps(
     )
 
 
+def get_public_booking_deps(
+    agenda: Annotated[AgendaDeps, Depends(get_agenda_deps)],
+) -> PublicBookingDeps:
+    """Reserva online sobre la misma agenda; sobreescribible en los tests (design D-6)."""
+    return PublicBookingDeps(
+        agenda=agenda,
+        new_token=generate_confirmation_token,
+        hash_token=hash_confirmation_token,
+        hold_minutes=get_settings().ONLINE_BOOKING_HOLD_MINUTES,
+        verification=build_verification_dispatcher(),
+    )
+
+
+@lru_cache
+def _redis_rate_limiter() -> RedisRateLimiter:
+    return build_redis_rate_limiter(get_settings().REDIS_URL, lambda: datetime.now(UTC))
+
+
+def get_rate_limiter() -> RateLimiter:
+    """Limite de pedidos sobre Redis; los tests lo sobreescriben con el de memoria."""
+    return _redis_rate_limiter()
+
+
 UserRepository = Annotated[UserAccountRepository, Depends(get_user_repository)]
 TokenSettings = Annotated[TokenConfig, Depends(get_token_config)]
 Agenda = Annotated[AgendaDeps, Depends(get_agenda_deps)]
 Schedule = Annotated[ScheduleDeps, Depends(get_schedule_deps)]
 Patients = Annotated[PatientDeps, Depends(get_patient_deps)]
+PublicBooking = Annotated[PublicBookingDeps, Depends(get_public_booking_deps)]
+RateLimiterDep = Annotated[RateLimiter, Depends(get_rate_limiter)]
 
 
 # auto_error=False: sin encabezado la dependencia devuelve None y respondemos con el cuerpo

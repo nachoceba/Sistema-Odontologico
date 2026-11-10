@@ -83,3 +83,24 @@ Worker Celery → servidor SMTP (email de confirmación)
 2. El sistema valida que los tramos no se superpongan.
 3. Consulta los turnos `scheduled` que quedan fuera del nuevo horario y los lista como conflictos.
 4. Recepción reprograma o cancela esos turnos.
+
+## Flujo 6: Reserva online
+**Disparador**: el paciente abre `/turnos`
+**Actor**: paciente (sin sesión) y sistema
+
+**Pasos**:
+1. La página pública pide `GET /api/v1/public/professionals` y las franjas libres del profesional elegido (`.../slots?date=`).
+2. El paciente elige una franja y completa DNI, nombre, apellido y email (teléfono opcional). El campo trampa `website` va vacío.
+3. `POST /api/v1/public/appointments` aplica el límite por IP (5 por hora) y valida los datos. El caso de uso `reservar_online` busca el DNI: si no existe crea la ficha; si existe, compara nombre y apellido con la ficha y la vincula sin modificarla.
+4. Inserta el turno como `scheduled` con `pending_until` y el hash del token, sin `created_by`; el constraint de exclusión protege ante concurrencia. La respuesta es 202 y trae solo profesional, día, hora y el plazo.
+5. Después del commit se encola `enviar_verificacion_reserva`, que manda al email de la ficha el enlace `PUBLIC_APP_URL/turnos/confirmar#token=…`.
+6. El paciente abre el enlace y toca el botón; la página hace `POST /api/v1/public/appointment-confirmations` con el token (10 por hora por IP).
+7. En una transacción se busca el turno por el hash con `FOR UPDATE`, se comprueba que siga `scheduled`, que `pending_until` no haya pasado y que el turno no haya empezado, y se limpian `pending_until` y el hash. Se registra la notificación `confirmation` y se envía el email de confirmación normal (C-11). Desde ahí el turno recibe el recordatorio como cualquier otro.
+
+**Casos de error**:
+- Franja ocupada o fuera de horario → `SLOT_TAKEN` o `SLOT_UNAVAILABLE`, sin crear la ficha de un DNI nuevo.
+- DNI existente con otro nombre, paciente inactivo, paciente con otro turno a la misma hora o carrera de DNI → el mismo `BOOKING_NOT_POSSIBLE` ("Verifique sus datos ingresados."), sin pistas de cuál fue el motivo.
+- Campo trampa completo → `BOOKING_REJECTED`. Límite excedido → `TOO_MANY_REQUESTS` con `Retry-After`.
+- Enlace usado, inexistente o de una reserva vencida o cancelada → `CONFIRMATION_LINK_INVALID` (410), con la pantalla "Enlace no válido".
+- Redis caído al encolar la verificación → la reserva queda pendiente sin email; el paciente puede volver a reservar.
+- Mientras no exista el vencimiento automático (C-16), una reserva pendiente vencida sigue ocupando la franja hasta que la recepción la cancele.

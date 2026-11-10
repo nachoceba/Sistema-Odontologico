@@ -9,6 +9,7 @@ from types import TracebackType
 
 from app.infrastructure.in_memory.appointments import InMemoryAppointmentRepository
 from app.infrastructure.in_memory.notifications import InMemoryNotificationRepository
+from app.infrastructure.in_memory.patients import InMemoryPatientRepository
 
 
 class InMemoryAgendaUnitOfWork:
@@ -16,15 +17,19 @@ class InMemoryAgendaUnitOfWork:
         self,
         appointments: InMemoryAppointmentRepository,
         notifications: InMemoryNotificationRepository,
+        patients: InMemoryPatientRepository | None = None,
     ) -> None:
         self.appointments = appointments
         self.notifications = notifications
+        self.patients = patients if patients is not None else InMemoryPatientRepository()
         self._appointments_state = appointments.snapshot()
         self._notifications_state = notifications.snapshot()
+        self._patients_state = self.patients.snapshot()
 
     def __enter__(self) -> InMemoryAgendaUnitOfWork:
         self._appointments_state = self.appointments.snapshot()
         self._notifications_state = self.notifications.snapshot()
+        self._patients_state = self.patients.snapshot()
         return self
 
     def __exit__(
@@ -36,3 +41,4 @@ class InMemoryAgendaUnitOfWork:
         if exc_type is not None:
             self.appointments.restore(self._appointments_state)
             self.notifications.restore(self._notifications_state)
+            self.patients.restore(self._patients_state)

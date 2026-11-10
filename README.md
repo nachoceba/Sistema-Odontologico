@@ -98,6 +98,10 @@ La pasada de recordatorios también se puede forzar a mano desde la consola (no 
 docker compose exec worker celery -A app.infrastructure.tasks.celery_app call enviar_recordatorios --kwargs='{"forzar": true}'
 ```
 
+## Reserva online de turnos (C-15)
+
+Los pacientes reservan sin iniciar sesión en `/turnos`: eligen profesional y franja libre y completan DNI, nombre, apellido y email (el teléfono es opcional). La reserva queda pendiente de confirmación y ocupa la franja; el sistema envía un email con un enlace a `/turnos/confirmar`, y el turno queda firme cuando el paciente toca el botón de esa página. Recepción ve la reserva como "Pendiente de confirmación" (solo puede cancelarla) y, ya confirmada, como "Online". En desarrollo y demo el email se lee en Mailpit (http://localhost:8025). El plazo se ajusta con `ONLINE_BOOKING_HOLD_MINUTES` y el enlace se arma con `PUBLIC_APP_URL` (ver la tabla de variables). El vencimiento automático de las reservas sin confirmar es el change C-16.
+
 ## Servicios
 
 | Servicio | Qué hace |
@@ -132,6 +136,8 @@ Los valores van solo en el `.env` local; `.env.example` declara todas sin secret
 | `CORS_ORIGINS` | Orígenes del navegador permitidos, con esquema y sin `*` | No |
 | `SEED_DEMO_PASSWORD` | Contraseña de las cuentas de demostración del seed | Sí |
 | `VITE_API_URL` | URL pública de la API para el navegador (única variable del frontend) | No |
+| `ONLINE_BOOKING_HOLD_MINUTES` | Minutos que una reserva online espera su confirmación (de 5 a 1440; por defecto 60) | No |
+| `PUBLIC_APP_URL` | Dirección pública del frontend, sin barra final, para el enlace del email de confirmación (por defecto `http://localhost:5173`) | No |
 
 ## Chequeos
 
@@ -161,11 +167,11 @@ Sin Docker (solo backend, Python 3.12 o superior): `cd backend && python -m venv
 
 ## Seguridad
 
-Todo endpoint exige JWT y rol salvo el login y `GET /api/v1/health`. Una matriz única ruta × rol (`backend/tests/unit/api/test_permission_matrix.py`) debe ser igual al conjunto de rutas registradas, y comprueba 401 sin token y 403 por rol. CORS permite solo los orígenes de `CORS_ORIGINS` y solo los métodos y encabezados que usa el frontend, sin credenciales de navegador. El registro de accesos de la API no guarda la parte `?…` de la dirección (la búsqueda de pacientes). El código del frontend solo lee `VITE_API_URL` y el bundle se revisa para que no contenga secretos.
+Todo endpoint exige JWT y rol salvo el login, `GET /api/v1/health` y los cuatro de la reserva online bajo `/api/v1/public/`, que llevan límite de pedidos por IP y nunca devuelven datos de pacientes. Una matriz única ruta × rol (`backend/tests/unit/api/test_permission_matrix.py`) debe ser igual al conjunto de rutas registradas, y comprueba 401 sin token y 403 por rol. CORS permite solo los orígenes de `CORS_ORIGINS` y solo los métodos y encabezados que usa el frontend, sin credenciales de navegador. El registro de accesos de la API no guarda la parte `?…` de la dirección (la búsqueda de pacientes). El código del frontend solo lee `VITE_API_URL` y el bundle se revisa para que no contenga secretos.
 
 ## Estado de los changes y decisiones abiertas
 
-Los changes C-01 a C-13 del roadmap están implementados y archivados, y C-14 (mejora de la capa visual) está implementado y pendiente de archivar (ver `CHANGES.md`); la lista de decisiones está en `knowledge-base/09_decisiones_y_supuestos.md`. Quedan abiertas, antes de usar datos reales:
+Los changes C-01 a C-15 del roadmap están implementados y archivados (C-14 es la mejora de la capa visual y C-15 los turnos online con confirmación por email), y queda C-16 (vencimiento automático de las reservas online sin confirmar) pendiente (ver `CHANGES.md`); la lista de decisiones está en `knowledge-base/09_decisiones_y_supuestos.md`. Quedan abiertas, antes de usar datos reales:
 
 - **SU-02, SMTP de producción**: hoy los emails van a Mailpit; falta elegir un servidor SMTP y revisar su cupo (el adaptador se configura solo por variables).
 - **SU-01, zona horaria**: se asume `America/Argentina/Buenos_Aires` sin horario de verano; confirmar con el dueño.

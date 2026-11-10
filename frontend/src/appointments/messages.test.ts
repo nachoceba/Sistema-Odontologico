@@ -9,6 +9,7 @@ import {
 } from './messages'
 
 const CODES: [string, string][] = [
+  ['PENDING_CONFIRMATION', 'Este turno espera la confirmación del paciente.'],
   ['SLOT_TAKEN', 'Ese horario se acaba de ocupar. Elegí otro horario'],
   ['OUTSIDE_WORKING_HOURS', 'Ese horario está fuera del horario de atención del profesional'],
   ['PROFESSIONAL_TIME_OFF', 'El profesional está de licencia ese día'],

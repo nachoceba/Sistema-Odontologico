@@ -15,8 +15,15 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.api.dependencies import get_agenda_deps, get_patient_deps, get_schedule_deps
+from app.api.dependencies import (
+    get_agenda_deps,
+    get_patient_deps,
+    get_public_booking_deps,
+    get_rate_limiter,
+    get_schedule_deps,
+)
 from app.domain.auth import Role
+from app.infrastructure.in_memory import InMemoryRateLimiter
 from tests.unit.api.conftest import PROFESSIONAL_A, bearer, login_token
 from tests.unit.api.route_helpers import api_routes, route_keys
 from tests.unit.application.agenda_helpers import World
@@ -32,6 +39,11 @@ EVERYONE = frozenset({Role.ADMIN, Role.RECEPTIONIST, Role.DENTIST})
 MATRIX: dict[RouteKey, frozenset[Role] | None] = {
     ("POST", "/api/v1/auth/login"): None,
     ("GET", "/api/v1/health"): None,
+    # Reserva online sin cuenta (C-15, design D-10): unica excepcion publica a la regla dura 4.
+    ("GET", "/api/v1/public/professionals"): None,
+    ("GET", "/api/v1/public/professionals/{professional_id}/slots"): None,
+    ("POST", "/api/v1/public/appointments"): None,
+    ("POST", "/api/v1/public/appointment-confirmations"): None,
     ("GET", "/api/v1/auth/me"): EVERYONE,
     # Usuarios y roles: solo el administrador.
     ("GET", "/api/v1/users"): ADMIN_ONLY,
@@ -132,8 +144,15 @@ def test_a_new_route_without_a_row_is_named_by_the_matrix_test(
     assert compare_route_sets(set(MATRIX), registered) == (["GET /api/v1/olvidada"], [])
 
 
-def test_public_routes_in_the_matrix_are_login_and_health() -> None:
-    assert set(PUBLIC_KEYS) == {("POST", "/api/v1/auth/login"), ("GET", "/api/v1/health")}
+def test_public_routes_in_the_matrix_are_login_health_and_the_online_booking_four() -> None:
+    assert set(PUBLIC_KEYS) == {
+        ("POST", "/api/v1/auth/login"),
+        ("GET", "/api/v1/health"),
+        ("GET", "/api/v1/public/professionals"),
+        ("GET", "/api/v1/public/professionals/{professional_id}/slots"),
+        ("POST", "/api/v1/public/appointments"),
+        ("POST", "/api/v1/public/appointment-confirmations"),
+    }
 
 
 # --- Comportamiento por ruta y rol ---
@@ -149,6 +168,8 @@ def world_client(auth_app: tuple[FastAPI, TestClient]) -> tuple[TestClient, dict
     app.dependency_overrides[get_agenda_deps] = world.deps
     app.dependency_overrides[get_schedule_deps] = world.schedule_deps
     app.dependency_overrides[get_patient_deps] = world.patient_deps
+    app.dependency_overrides[get_public_booking_deps] = world.public_deps
+    app.dependency_overrides[get_rate_limiter] = lambda: InMemoryRateLimiter(lambda: world.now)
     if not _TOKENS:
         for role, email in ACCOUNT_BY_ROLE.items():
             _TOKENS[role] = login_token(client, email)

@@ -39,7 +39,9 @@ class AppointmentOut(BaseModel):
     ends_at: datetime
     status: str
     cancel_reason: str | None
-    created_by: str
+    created_by: str | None  # None: reserva online (C-15)
+    origin: Literal["staff", "online"]
+    pending_until: datetime | None
 
     @classmethod
     def from_domain(cls, appointment: Appointment) -> AppointmentOut:
@@ -52,6 +54,12 @@ class AppointmentOut(BaseModel):
             status=appointment.status.value,
             cancel_reason=appointment.cancel_reason,
             created_by=appointment.created_by,
+            origin="online" if appointment.created_by is None else "staff",
+            pending_until=(
+                None
+                if appointment.pending_until is None
+                else appointment.pending_until.astimezone(UTC)
+            ),
         )
 
 

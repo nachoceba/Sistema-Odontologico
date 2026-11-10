@@ -2,6 +2,7 @@ import { request } from './users'
 
 export type AppointmentStatus = 'scheduled' | 'completed' | 'no_show' | 'cancelled'
 export type SlotStatus = 'FREE' | 'BUSY' | 'OUTSIDE_HOURS'
+export type AppointmentOrigin = 'staff' | 'online'
 
 /** Turno tal como lo devuelve el listado: instantes UTC y nombre vigente del paciente (DD-79). */
 export interface Appointment {
@@ -14,7 +15,11 @@ export interface Appointment {
   ends_at: string
   status: AppointmentStatus
   cancel_reason: string | null
-  created_by: string
+  /** null: reserva online del paciente (C-15). */
+  created_by: string | null
+  origin: AppointmentOrigin
+  /** No nulo: el turno espera la confirmación del paciente hasta ese instante (UTC). */
+  pending_until: string | null
 }
 
 /** Turno tal como lo devuelven agendar, cancelar, reprogramar y marcar: sin nombre del paciente. */
@@ -26,7 +31,9 @@ export interface AppointmentRecord {
   ends_at: string
   status: AppointmentStatus
   cancel_reason: string | null
-  created_by: string
+  created_by: string | null
+  origin: AppointmentOrigin
+  pending_until: string | null
 }
 
 export type AttendanceStatus = 'completed' | 'no_show'

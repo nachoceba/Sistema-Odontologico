@@ -258,7 +258,7 @@ def test_0002_downgrade_drops_column_and_index_but_keeps_rows_and_reapplies_iden
         before = snapshot(engine)
         _insert_pending_notification(engine)
 
-        command.downgrade(alembic_config(fresh_url), "-1")
+        command.downgrade(alembic_config(fresh_url), FIRST_REVISION)
 
         assert "created_at" not in _notification_columns(engine)
         with engine.connect() as connection:

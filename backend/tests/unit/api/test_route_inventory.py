@@ -16,7 +16,14 @@ from fastapi.testclient import TestClient
 from app.api.dependencies import current_user
 from tests.unit.api.route_helpers import api_routes, route_keys
 
-PUBLIC_ROUTES = {("POST", "/api/v1/auth/login"), ("GET", "/api/v1/health")}
+PUBLIC_ROUTES = {
+    ("POST", "/api/v1/auth/login"),
+    ("GET", "/api/v1/health"),
+    ("GET", "/api/v1/public/professionals"),
+    ("GET", "/api/v1/public/professionals/{professional_id}/slots"),
+    ("POST", "/api/v1/public/appointments"),
+    ("POST", "/api/v1/public/appointment-confirmations"),
+}
 
 
 def depends_on_current_user(dependant: Dependant) -> bool:
@@ -84,8 +91,12 @@ def test_the_inventory_sees_the_real_routes(
     assert ("GET", "/api/v1/auth/me") in seen
 
 
-def test_public_list_is_exactly_login_and_health() -> None:
-    assert {("POST", "/api/v1/auth/login"), ("GET", "/api/v1/health")} == PUBLIC_ROUTES
+def test_public_list_is_login_health_and_the_four_public_booking_routes() -> None:
+    assert {key for key in PUBLIC_ROUTES if "/public/" not in key[1]} == {
+        ("POST", "/api/v1/auth/login"),
+        ("GET", "/api/v1/health"),
+    }
+    assert len([key for key in PUBLIC_ROUTES if "/public/" in key[1]]) == 4
 
 
 FORBIDDEN_PATH_WORDS = ("notif", "email", "recordatorio", "reminder", "task", "tarea", "celery")

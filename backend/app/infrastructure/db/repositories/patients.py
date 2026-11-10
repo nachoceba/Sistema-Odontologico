@@ -17,6 +17,7 @@ from app.domain.patients.types import NewPatient, Patient, PatientChanges, Patie
 from app.domain.professionals.types import Unset
 from app.infrastructure.db.models import PatientModel
 from app.infrastructure.db.repositories._ids import parse_uuid
+from app.infrastructure.db.scope import SessionScope
 
 DOCUMENT_UNIQUE_CONSTRAINT = "uq_patients_document_number"
 FOREIGN_KEY_VIOLATION = "23503"
@@ -56,14 +57,21 @@ def _is_document_conflict(error: IntegrityError) -> bool:
 
 
 class SqlAlchemyPatientRepository:
-    def __init__(self, session_factory: sessionmaker[Session]) -> None:
-        self._session_factory = session_factory
+    def __init__(
+        self,
+        session_factory: sessionmaker[Session] | None = None,
+        *,
+        scope: SessionScope | None = None,
+    ) -> None:
+        # Sin alcance propio cada operacion abre su transaccion; dentro de una unidad de trabajo
+        # la sesion es compartida y la confirma la unidad (C-15).
+        self._scope = scope if scope is not None else SessionScope(session_factory)
 
     def get(self, patient_id: str) -> Patient | None:
         key = parse_uuid(patient_id)
         if key is None:
             return None
-        with self._session_factory() as session:
+        with self._scope.read() as session:
             row = session.get(PatientModel, key)
             if row is None:
                 return None
@@ -75,11 +83,17 @@ class SqlAlchemyPatientRepository:
                 active=row.active,
             )
 
+    def get_by_document(self, document_number: str) -> PatientRecord | None:
+        query = select(PatientModel).where(PatientModel.document_number == document_number)
+        with self._scope.read() as session:
+            row = session.scalars(query).first()
+            return None if row is None else _record(row)
+
     def get_record(self, patient_id: str) -> PatientRecord | None:
         key = parse_uuid(patient_id)
         if key is None:
             return None
-        with self._session_factory() as session:
+        with self._scope.read() as session:
             row = session.get(PatientModel, key)
             return None if row is None else _record(row)
 
@@ -97,7 +111,7 @@ class SqlAlchemyPatientRepository:
         query = query.order_by(
             PatientModel.last_name, PatientModel.first_name, PatientModel.id
         ).limit(limit)
-        with self._session_factory() as session:
+        with self._scope.read() as session:
             return [_record(row) for row in session.scalars(query)]
 
     def add(self, patient: NewPatient) -> PatientRecord:
@@ -111,7 +125,7 @@ class SqlAlchemyPatientRepository:
             active=True,
         )
         try:
-            with self._session_factory.begin() as session:
+            with self._scope.write() as session:
                 session.add(row)
                 session.flush()  # fuerza aca los errores de la base, dentro de la transaccion
                 return _record(row)
@@ -125,7 +139,7 @@ class SqlAlchemyPatientRepository:
         if key is None:
             raise PatientNotFoundError
         try:
-            with self._session_factory.begin() as session:
+            with self._scope.write() as session:
                 row = session.get(PatientModel, key)
                 if row is None:
                     raise PatientNotFoundError
@@ -141,7 +155,7 @@ class SqlAlchemyPatientRepository:
         key = parse_uuid(patient_id)
         if key is None:
             raise PatientNotFoundError
-        with self._session_factory.begin() as session:
+        with self._scope.write() as session:
             row = session.get(PatientModel, key)
             if row is None:
                 raise PatientNotFoundError
@@ -154,7 +168,7 @@ class SqlAlchemyPatientRepository:
         if key is None:
             return False
         try:
-            with self._session_factory.begin() as session:
+            with self._scope.write() as session:
                 row = session.get(PatientModel, key)
                 if row is None:
                     return False

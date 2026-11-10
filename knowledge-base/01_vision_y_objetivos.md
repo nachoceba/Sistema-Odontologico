@@ -13,7 +13,7 @@ Hoy los turnos se coordinan con planillas y WhatsApp, lo que produce superposici
 | Recepcionista | Agendar, cancelar y reprogramar turnos sin superposiciones | Alta y edición rápida de pacientes |
 | Odontólogo/a | Ver su agenda del día y de la semana | Marcar turnos como atendidos o ausentes |
 | Administrador/dueño | Definir los horarios de los profesionales y gestionar usuarios | Supervisar la ocupación de la agenda |
-| Paciente | Recibir confirmación y recordatorio por email | (No inicia sesión en v1) |
+| Paciente | Reservar su turno online y recibir confirmación y recordatorio | (No inicia sesión: reserva desde `/turnos` y confirma con el enlace del email) |
 
 ## Contexto de mercado (informe de Discovery)
 
@@ -35,13 +35,14 @@ Cómo se aparta este proyecto del MVP recomendado: ver DD-07, DD-08 y DD-09.
 - Agenda por profesional con alta, cancelación y reprogramación de turnos en slots fijos.
 - Validación de no superposición y de horarios de atención.
 - Email al agendar y recordatorio previo al turno.
+- Turnos online para pacientes sin login, con confirmación por email (C-15).
 
 ## Fuera de alcance
 
 - Historia clínica y odontograma.
 - Presupuestos, cobros y caja.
-- Turnos online y login para pacientes.
-- Confirmación o cancelación del turno desde el email.
+- Login y cuentas de pacientes; cancelar o reprogramar por el paciente.
+- Cancelación del turno desde el email. La confirmación desde el email existe solo para las reservas online (C-15).
 - Reportes y estadísticas.
 - Sincronización con Google Calendar.
 - Multi-consultorio / multi-tenant.

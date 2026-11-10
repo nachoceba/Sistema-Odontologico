@@ -1,7 +1,7 @@
 import type { Appointment, AttendanceStatus } from '../api/appointments'
 import type { ConflictReason } from '../api/professionals'
 import { formatLocalTime } from '../agenda/dates'
-import { CONFLICT_LABELS, STATUS_LABELS } from '../agenda/messages'
+import { CONFLICT_LABELS, ONLINE_LABEL, PENDING_LABEL, STATUS_LABELS } from '../agenda/messages'
 import type { AppointmentActions } from './actions'
 import {
   CANCEL_LABEL,
@@ -43,8 +43,22 @@ export function AppointmentDetail({
         <dt>Estado</dt>
         <dd>
           <span className="status-tag">{STATUS_LABELS[appointment.status]}</span>
+          {appointment.status === 'scheduled' && appointment.pending_until !== null ? (
+            <>
+              {' '}
+              <span className="origin-tag origin-tag--pending">{PENDING_LABEL}</span>
+            </>
+          ) : appointment.origin === 'online' ? (
+            <>
+              {' '}
+              <span className="origin-tag">{ONLINE_LABEL}</span>
+            </>
+          ) : null}
         </dd>
       </dl>
+      {appointment.status === 'scheduled' && appointment.pending_until !== null ? (
+        <p>{`${PENDING_LABEL} hasta las ${formatLocalTime(appointment.pending_until)}`}</p>
+      ) : null}
       {appointment.status === 'cancelled' && appointment.cancel_reason !== null ? (
         <p>{`Motivo: ${appointment.cancel_reason}`}</p>
       ) : null}

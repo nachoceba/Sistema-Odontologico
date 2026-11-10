@@ -15,6 +15,7 @@ from app.domain.patients.rules import (
     clean_phone,
     normalize_document,
     normalize_document_prefix,
+    same_person_name,
 )
 
 BUENOS_AIRES = "America/Argentina/Buenos_Aires"
@@ -152,3 +153,31 @@ def test_document_prefix_is_normalized_without_length_limits(typed: str, expecte
 @pytest.mark.parametrize("typed", ["", "  ", "..", "perez!", "Pérez", "x" * 21])
 def test_text_that_cannot_start_a_document_gives_none(typed: str) -> None:
     assert normalize_document_prefix(typed) is None
+
+
+# --- same_person_name (C-15, DD-129) ---
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [
+        ("María José", "MARIA JOSE"),
+        ("  juan   perez ", "Juan Perez"),
+        ("Núñez", "nunez"),
+    ],
+)
+def test_same_person_name_ignores_case_accents_and_spaces(a: str, b: str) -> None:
+    assert same_person_name(a, b) is True
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [
+        ("Pedro", "Juan"),
+        ("María José", "Maria"),
+        ("Pérez", "Peres"),
+        ("", "Juan"),
+    ],
+)
+def test_same_person_name_distinguishes_different_names(a: str, b: str) -> None:
+    assert same_person_name(a, b) is False

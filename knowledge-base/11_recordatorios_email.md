@@ -11,6 +11,8 @@ Integración central de v1 (extra al conjunto canónico). Usa Redis y Celery par
 
 Ambos son **informativos**: el paciente no confirma ni cancela desde el email (DD-06). Para cambios debe contactar al consultorio.
 
+Además, la reserva online (C-15) envía un **email de verificación** con el enlace de confirmación. No es una fila de `email_notifications`: el token en claro no se guarda, así que la tarea `enviar_verificacion_reserva` lo recibe por la cola. Va siempre al email de la ficha y su plantilla es propia (RN-NO-06, DD-131). Los recordatorios son solo de turnos confirmados: una reserva pendiente no recibe ni confirmación ni recordatorio hasta que se confirma (RN-TU-13).
+
 ## Envío asincrónico
 
 - Al agendar o reprogramar, el caso de uso guarda el turno y la fila `email_notifications` (`pending`) en la misma transacción. **Después del commit** encola la tarea `enviar_email` en Redis.
@@ -55,4 +57,5 @@ Ambos son **informativos**: el paciente no confirma ni cancela desde el email (D
 |---|---|---|
 | `enviar_email` | Encolada por los casos de uso | Envía una notificación y registra el resultado |
 | `enviar_recordatorios` | Celery Beat (cada hora) | Solo actúa a la hora configurada: crea y envía los recordatorios de los turnos del día siguiente; registra `processed`, `sent`, `failed` y `pending` en el log (`processed = sent + failed + pending`), sin datos del paciente. Acepta `forzar` solo desde la consola (DD-101) |
+| `enviar_verificacion_reserva` | Encolada por la reserva online | Envía el email de verificación con el enlace de un solo uso; antes de enviar comprueba que el turno siga pendiente y que el hash del token coincida |
 | `reencolar_pendientes` | Celery Beat (cada 10 minutos) | Reencola las notificaciones `pending` de más de 5 minutos (tope 100 por pasada); registra solo la cantidad |
